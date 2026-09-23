@@ -1,13 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:khmer_cat_app/core/components/image_network/image_user_circle_profile.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 
 /// Cover photo + gradient-ring avatar overlapping its bottom edge. Used by
-/// the signed-in user's own profile (with [actions] / [coverAction] /
-/// [avatarBadge] for edit affordances) and by the read-only user and
-/// restaurant profiles (just an optional back button).
+/// the signed-in user's own profile (with [actions] / [avatarBadge] for edit
+/// affordances) and by the read-only user and restaurant profiles (just an
+/// optional back button).
 class CoverAvatarHeader extends StatelessWidget {
   final String? coverUrl;
   final String? avatarUrl;
@@ -21,11 +20,18 @@ class CoverAvatarHeader extends StatelessWidget {
   /// Buttons stacked in the top-right corner of the cover.
   final List<Widget> actions;
 
-  /// Button in the bottom-right corner of the cover.
+  /// Button in the bottom-right corner of the cover, just above the fold
+  /// (e.g. "edit cover").
   final Widget? coverAction;
 
   /// Small badge on the avatar's bottom-right edge.
   final Widget? avatarBadge;
+
+  /// Button below the fold, right-aligned and vertically level with the
+  /// avatar's lower half (e.g. "edit profile") — clustered with
+  /// [coverAction] and [avatarBadge] as the header's edit affordances,
+  /// rather than a flow child further down the page.
+  final Widget? belowFoldAction;
   final double coverHeight;
   final double avatarSize;
 
@@ -47,6 +53,7 @@ class CoverAvatarHeader extends StatelessWidget {
     this.actions = const [],
     this.coverAction,
     this.avatarBadge,
+    this.belowFoldAction,
     this.coverHeight = 200,
     this.avatarSize = 104,
     this.coverRadius = 28,
@@ -172,6 +179,12 @@ class CoverAvatarHeader extends StatelessWidget {
             badge: avatarBadge,
           ),
         ),
+        if (belowFoldAction != null)
+          Positioned(
+            right: 20,
+            bottom: -(avatarSize + 12) / 2 + 4,
+            child: belowFoldAction!,
+          ),
       ],
     );
   }

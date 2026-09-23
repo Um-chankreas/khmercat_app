@@ -38,9 +38,9 @@ class ProfileTab extends HookConsumerWidget {
   // Tighter than [CoverAvatarHeader.contentGap]'s shared default (used
   // as-is by the read-only user/restaurant profiles) — just enough to
   // clear the overlapping avatar (which hangs (avatarSize + 12) / 2 below
-  // the fold, per [CoverAvatarHeader]'s own avatar offset) plus a flat 16px
+  // the fold, per [CoverAvatarHeader]'s own avatar offset) plus a flat 8px
   // gap before the name.
-  static const double _contentGap = (_avatarSize + 12) / 2 + 16;
+  static const double _contentGap = (_avatarSize + 12) / 2 + 8;
 
   static final double _tabBarHeight = ProfileTabBar.heightFor(withLabels: true);
 
@@ -150,6 +150,15 @@ class ProfileTab extends HookConsumerWidget {
                             color: Colors.white,
                           ),
                         ),
+                        coverAction: ProfileEditIconButton(
+                          icon: Icons.photo_camera_rounded,
+                          size: 34,
+                          onTap: () => changeProfileImage(
+                            context,
+                            ref,
+                            ProfileImageKind.cover,
+                          ),
+                        ),
                         avatarBadge: ProfileEditIconButton(
                           icon: Icons.edit_rounded,
                           size: 26,
@@ -160,28 +169,18 @@ class ProfileTab extends HookConsumerWidget {
                             ProfileImageKind.avatar,
                           ),
                         ),
+                        belowFoldAction: ProfileEditIconButton(
+                          icon: Icons.edit_rounded,
+                          onTap: () => AppRouter.router.pushNamed(
+                            AppRoute.editProfile.name,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
                 title: _PinnedHeaderTitle(user: user, opacity: opacity),
                 actions: [
-                  IgnorePointer(
-                    ignoring: opacity >= 1,
-                    child: Opacity(
-                      opacity: 1 - opacity,
-                      child: ProfileEditIconButton(
-                        icon: Icons.photo_camera_rounded,
-                        size: 34,
-                        onTap: () => changeProfileImage(
-                          context,
-                          ref,
-                          ProfileImageKind.cover,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const Gap(8),
                   ProfileCircleButton(
                     iconAsset: AssetsName.share,
                     dark: true,
@@ -340,34 +339,20 @@ class _ProfileInfo extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                // NOTE: the design has a blue verified badge after the
-                // name, but there's no `is_verified` flag on the user yet.
-                // Add an `Icon(Icons.verified)` here once the backend
-                // returns one — showing it unconditionally would
-                // misrepresent every account.
-                child: Text(
-                  user.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                    color: ProfileTheme.textPrimary(context),
-                  ),
-                ),
-              ),
-              const Gap(10),
-              ProfileEditIconButton(
-                icon: Icons.edit_rounded,
-                onTap: () =>
-                    AppRouter.router.pushNamed(AppRoute.editProfile.name),
-              ),
-            ],
+          // NOTE: the design has a blue verified badge after the name, but
+          // there's no `is_verified` flag on the user yet. Add an
+          // `Icon(Icons.verified)` here once the backend returns one —
+          // showing it unconditionally would misrepresent every account.
+          Text(
+            user.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: ProfileTheme.textPrimary(context),
+            ),
           ),
           const Gap(2),
           Text(
