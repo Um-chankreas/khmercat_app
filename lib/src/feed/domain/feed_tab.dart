@@ -1,0 +1,1 @@
+enum FeedTab { forYou, following }

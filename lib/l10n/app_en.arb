@@ -1,0 +1,58 @@
+{
+  "@@locale": "en",
+
+  "menuTitle": "Menu",
+  "settingsTitle": "Settings",
+
+  "accountAndPages": "Account & Pages",
+  "createPage": "Create Page",
+  "yourRestaurants": "Your restaurants",
+  "createRestaurant": "Create a restaurant",
+  "noRestaurantsYet": "You don't manage any pages yet.",
+
+  "preferences": "Preferences",
+  "language": "Language",
+  "languageEnglish": "English",
+  "languageKhmer": "ខ្មែរ",
+
+  "appearance": "Appearance",
+  "darkMode": "Dark mode",
+  "themeSystem": "System",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+
+  "termsOfPolicy": "Terms of Policy",
+  "termsOfService": "Terms of Service",
+  "termsOfPrivacy": "Terms of Privacy",
+
+  "logOut": "Log out",
+  "logOutConfirmTitle": "Log out?",
+  "logOutConfirmMessage": "You can always sign back in.",
+
+  "statFollowing": "Following",
+  "statFollowers": "Followers",
+  "statPosts": "Posts",
+  "statLikes": "Likes",
+
+  "profileTabPosts": "Posts",
+  "profileTabSaved": "Saved",
+  "profileTabShared": "Shared",
+  "profileTabLiked": "Liked",
+  "profileTabFavorites": "Favorites",
+  "profileTabTrash": "Trash",
+  "profileTabAbout": "About",
+
+  "emptyPosts": "You haven't posted any videos yet.",
+  "emptySaved": "Videos you save show up here.",
+  "emptyShared": "Videos you share show up here.",
+  "emptyLiked": "Videos you like show up here.",
+  "emptyFavorites": "Your favorite videos show up here.",
+  "emptyTrash": "Deleted videos stay here for 30 days.",
+
+  "aboutName": "Name",
+  "aboutUsername": "Username",
+  "aboutEmail": "Email",
+  "aboutBio": "Bio",
+
+  "comingSoon": "Coming soon"
+}

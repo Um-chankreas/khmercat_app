@@ -1,0 +1,730 @@
+// lib/features/feed/presentation/screens/home_feed_screen.dart
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:gap/gap.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:khmer_cat_app/core/components/dialogs/sign_in_prompt.dart';
+import 'package:khmer_cat_app/core/go_router/app_route.dart';
+import 'package:khmer_cat_app/core/go_router/app_router.dart'
+    show AppRouter, routeObserver;
+import 'package:khmer_cat_app/core/utils/size_responsive.dart';
+import '../../domain/feed_tab.dart';
+import '../viewmodel/feed_controller.dart';
+import '../widgets/feed_action_rail.dart';
+import '../widgets/feed_info_overlay.dart';
+import '../widgets/feed_top_tabs.dart';
+import '../widgets/feed_video_page.dart';
+import '../widgets/share_video.dart';
+import '../widgets/video_controller_manager.dart';
+import 'comments_sheet.dart';
+
+// Left-to-right order matches the tab labels ("Following" | "For you").
+const _tabOrder = [FeedTab.following, FeedTab.forYou];
+
+/// Wraps the actual feed in route/app-lifecycle awareness so playing video
+/// actually stops when this screen isn't the one on screen — covered by a
+/// pushed route (profile, upload), backgrounded by the OS, or just not the
+/// active bottom-nav tab. [IndexScreen] uses an [IndexedStack] for its tabs,
+/// which never unmounts hidden children, so [isTabActive] has to be passed
+/// in explicitly rather than relying on this widget being disposed.
+class HomeFeed extends StatefulWidget {
+  final bool isTabActive;
+  const HomeFeed({this.isTabActive = true, super.key});
+
+  @override
+  State<HomeFeed> createState() => _HomeFeedState();
+}
+
+class _HomeFeedState extends State<HomeFeed>
+    with RouteAware, WidgetsBindingObserver {
+  bool _isTopRoute = true;
+  bool _appInForeground = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null) routeObserver.subscribe(this, route);
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // A route was pushed on top of this one (profile, upload, ...).
+  @override
+  void didPushNext() => setState(() => _isTopRoute = false);
+
+  // Back on top again — the pushed route was popped.
+  @override
+  void didPopNext() => setState(() => _isTopRoute = true);
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    setState(() => _appInForeground = state == AppLifecycleState.resumed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _HomeFeedContent(
+      isActive: widget.isTabActive && _isTopRoute && _appInForeground,
+    );
+  }
+}
+
+class _HomeFeedContent extends HookConsumerWidget {
+  final bool isActive;
+  const _HomeFeedContent({required this.isActive});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentTabIndex = useState(_tabOrder.indexOf(FeedTab.forYou));
+    final tabPageController = usePageController(
+      initialPage: currentTabIndex.value,
+    );
+
+    void onOuterPageChanged(int index) {
+      if (index == currentTabIndex.value) return;
+      currentTabIndex.value = index;
+      // Deliberately NOT invalidating feedControllerProvider here — each
+      // tab keeps its already-loaded videos and scroll position, so
+      // switching back and forth doesn't refetch or reset anything.
+    }
+
+    void tapTab(FeedTab tab) {
+      tabPageController.animateToPage(
+        _tabOrder.indexOf(tab),
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    }
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        // Video fills the whole screen; the tabs float over its top edge
+        // with no background of their own (TikTok style).
+        body: Stack(
+          children: [
+            PageView.builder(
+              controller: tabPageController,
+              scrollDirection: Axis.horizontal,
+              onPageChanged: onOuterPageChanged,
+              // Keeps both tabs' pages alive instead of disposing whichever
+              // one you swipe away from — without this, Flutter tears down
+              // and rebuilds the whole _TabFeedView (resetting its scroll
+              // position and forcing videos to re-buffer) every time you
+              // swipe back, which looks exactly like a refresh even though
+              // no new request is made.
+              allowImplicitScrolling: true,
+              itemCount: _tabOrder.length,
+              itemBuilder: (context, index) {
+                final tab = _tabOrder[index];
+                return _TabFeedView(
+                  tab: tab,
+                  isVisible: isActive && currentTabIndex.value == index,
+                  onDiscover: () => tapTab(FeedTab.forYou),
+                );
+              },
+            ),
+            // Faint fade (not a box) so the white tab text stays readable
+            // over bright videos.
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: MediaQuery.paddingOf(context).top + 56,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.35),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: FeedTopTabs(
+                  selected: _tabOrder[currentTabIndex.value],
+                  onChanged: tapTab,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One tab's full vertical video feed. Lives permanently inside the outer
+/// horizontal PageView (so swiping back to it doesn't rebuild it from
+/// scratch mid-gesture) but only plays video while [isVisible] — i.e. while
+/// its tab is the one currently on screen.
+class _TabFeedView extends HookConsumerWidget {
+  final FeedTab tab;
+  final bool isVisible;
+  final VoidCallback onDiscover;
+
+  const _TabFeedView({
+    required this.tab,
+    required this.isVisible,
+    required this.onDiscover,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentPage = useState(0);
+    final pageController = usePageController();
+
+    final state = ref.watch(feedControllerProvider(tab));
+    final controller = ref.read(feedControllerProvider(tab).notifier);
+
+    // Prefetches current ± 1 so the next/previous video is already
+    // buffering by the time the user swipes to it. All hooks must run
+    // unconditionally before the early returns below, so this stays here
+    // even though it has nothing to do while state.items is empty.
+    final videoManager = useMemoized(() => VideoControllerManager(), [tab]);
+    useEffect(() => videoManager.dispose, [videoManager]);
+    useListenable(videoManager);
+    useEffect(() {
+      videoManager.syncWindow(
+        state.items,
+        currentPage.value,
+        tabIsVisible: isVisible,
+      );
+      return null;
+    }, [currentPage.value, isVisible, state.items.length]);
+
+    Future<void> handleLike(String videoId) async {
+      if (!await requireLogin(
+        context,
+        ref,
+        message: 'Sign in to like videos',
+      )) {
+        return;
+      }
+      controller.toggleLike(videoId);
+    }
+
+    Future<void> handleSave(String videoId) async {
+      if (!await requireLogin(
+        context,
+        ref,
+        message: 'Sign in to save videos',
+      )) {
+        return;
+      }
+      controller.toggleSave(videoId);
+    }
+
+    Future<void> handleFollow(String videoId) async {
+      if (!await requireLogin(
+        context,
+        ref,
+        message: 'Sign in to follow this account',
+      )) {
+        return;
+      }
+      controller.markFollowedLocally(videoId);
+    }
+
+    // Returns the sheet's future so the comment button stays highlighted for
+    // as long as the sheet is open.
+    Future<void> handleComment(String videoId) {
+      return showCommentsSheet(
+        context,
+        videoId: videoId,
+        onCountChanged: (delta) =>
+            controller.incrementCommentCount(videoId, delta),
+      );
+    }
+
+    if (state.requiresAuth) {
+      return _SignInToSeeFollowing();
+    }
+
+    if (state.isInitialLoading) {
+      return const _FeedLoading();
+    }
+
+    if (state.errorMessage != null && state.items.isEmpty) {
+      return _FeedMessage(
+        icon: Icons.wifi_off_rounded,
+        title: 'Couldn\'t load videos',
+        message: state.errorMessage!,
+        buttonText: 'Try again',
+        buttonIcon: Icons.refresh_rounded,
+        onButton: controller.refresh,
+      );
+    }
+
+    if (state.items.isEmpty) {
+      return tab == FeedTab.forYou
+          ? _FeedMessage(
+              icon: Icons.videocam_off_rounded,
+              title: 'No videos yet',
+              message: 'Nothing here right now — check back soon.',
+              buttonText: 'Refresh',
+              buttonIcon: Icons.refresh_rounded,
+              onButton: controller.refresh,
+            )
+          : _FeedMessage(
+              icon: Icons.group_add_rounded,
+              title: 'Start following creators',
+              message:
+                  'Follow restaurants and creators to see their videos here.',
+              buttonText: 'Discover videos',
+              buttonIcon: Icons.explore_rounded,
+              onButton: onDiscover,
+            );
+    }
+
+    final videoCount = state.items.length;
+
+    // Once the server says there's nothing more, one extra page closes the
+    // feed with a friendly "all caught up" instead of just stopping.
+    final showEnd = !state.hasMore;
+
+    Future<void> onRefresh() async {
+      await controller.refresh(keepItems: true);
+      if (pageController.hasClients) pageController.jumpToPage(0);
+      currentPage.value = 0;
+    }
+
+    final feed = PageView.builder(
+      controller: pageController,
+      scrollDirection: Axis.vertical,
+      itemCount: videoCount + (showEnd ? 1 : 0),
+      onPageChanged: (page) {
+        currentPage.value = page;
+        if (page >= videoCount - 2) controller.loadMore();
+      },
+      itemBuilder: (context, index) {
+        if (index >= videoCount) {
+          return _EndOfFeed(
+            onBackToTop: () => pageController.animateToPage(
+              0,
+              duration: const Duration(milliseconds: 450),
+              curve: Curves.easeOutCubic,
+            ),
+          );
+        }
+        final item = state.items[index];
+
+        // Each page gets its own compositing layer so a swipe transition
+        // doesn't force neighboring pages' video textures to repaint, and
+        // the video texture itself is isolated from the overlay (gradient,
+        // action rail, caption) so the two don't repaint each other on
+        // every frame.
+        return RepaintBoundary(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              RepaintBoundary(
+                child: FeedVideoPage(
+                  item: item,
+                  controller: videoManager.controllerFor(item.id),
+                  failed: videoManager.hasFailed(item.id),
+                  onRetry: () => videoManager.retry(item),
+                  onDoubleTapLike: () {
+                    if (!item.likedByMe) handleLike(item.id);
+                  },
+                ),
+              ),
+
+              // Bottom scrim, tinted deep purple so the overlay text and
+              // action rail stay readable and match the brand.
+              IgnorePointer(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Color(0xC01F1B3A)],
+                      stops: [0.5, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+
+              Positioned(
+                right: 12,
+                bottom: context.sc(50),
+                child: FeedActionRail(
+                  item: item,
+                  onLike: () => handleLike(item.id),
+                  onComment: () => handleComment(item.id),
+                  onSave: () => handleSave(item.id),
+                  onShare: () => shareVideo(item),
+                ),
+              ),
+
+              Positioned(
+                left: context.sc(14),
+                right: 90,
+                bottom: context.sc(14),
+                child: FeedInfoOverlay(
+                  item: item,
+                  onFollowTap: () => handleFollow(item.id),
+                  onProfileTap: () {
+                    if (item.restaurant != null) {
+                      AppRouter.router.pushNamed(
+                        AppRoute.restaurantProfile.name,
+                        pathParameters: {'id': item.restaurant!.id},
+                      );
+                    } else {
+                      AppRouter.router.pushNamed(
+                        AppRoute.userProfile.name,
+                        pathParameters: {'username': item.user.username},
+                      );
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    return Stack(
+      children: [
+        RefreshIndicator(
+          onRefresh: onRefresh,
+          color: const Color(0xff9B6BFF),
+          backgroundColor: Colors.white,
+          edgeOffset: MediaQuery.paddingOf(context).top + 64,
+          child: feed,
+        ),
+        if (state.isLoadingMore)
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 64,
+            left: 0,
+            right: 0,
+            child: const Center(child: _LoadingMorePill()),
+          ),
+      ],
+    );
+  }
+}
+
+const _pink = Color(0xffFF54AB);
+const _purple = Color(0xff9B6BFF);
+const _blue = Color(0xff74BFFF);
+
+const _brandGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [_pink, _purple, _blue],
+);
+
+/// Deep-purple → black backdrop shared by the full-screen states.
+class _StateBackdrop extends StatelessWidget {
+  final Widget child;
+  const _StateBackdrop({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xff2A1F4D), Color(0xff0E0B1F)],
+        ),
+      ),
+      child: Center(
+        child: Padding(padding: const EdgeInsets.all(28), child: child),
+      ),
+    );
+  }
+}
+
+class _GradientButton extends StatelessWidget {
+  final String text;
+  final IconData icon;
+  final VoidCallback onTap;
+  const _GradientButton({
+    required this.text,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 13),
+        decoration: BoxDecoration(
+          gradient: _brandGradient,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: _pink.withValues(alpha: 0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 19, color: Colors.white),
+            const Gap(8),
+            Text(
+              text,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Icon in a gradient-tinted circle, title, message and an optional button.
+class _FeedMessage extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+  final String? buttonText;
+  final IconData buttonIcon;
+  final VoidCallback? onButton;
+
+  const _FeedMessage({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.buttonText,
+    this.buttonIcon = Icons.arrow_forward_rounded,
+    this.onButton,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _StateBackdrop(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.6, end: 1),
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.elasticOut,
+            builder: (context, t, child) =>
+                Transform.scale(scale: t, child: child),
+            child: Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    _pink.withValues(alpha: 0.28),
+                    _blue.withValues(alpha: 0.28),
+                  ],
+                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              ),
+              child: ShaderMask(
+                shaderCallback: (r) => _brandGradient.createShader(r),
+                child: Icon(icon, size: 46, color: Colors.white),
+              ),
+            ),
+          ),
+          const Gap(22),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const Gap(8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+          if (buttonText != null && onButton != null) ...[
+            const Gap(24),
+            _GradientButton(
+              text: buttonText!,
+              icon: buttonIcon,
+              onTap: onButton!,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SignInToSeeFollowing extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return _FeedMessage(
+      icon: Icons.people_alt_rounded,
+      title: 'Sign in to see who you follow',
+      message: 'Videos from restaurants and people you follow show up here.',
+      buttonText: 'Sign in',
+      buttonIcon: Icons.login_rounded,
+      onButton: () => AppRouter.router.pushNamed(AppRoute.login.name),
+    );
+  }
+}
+
+/// Full-screen first load: pulsing brand ring instead of a bare spinner.
+class _FeedLoading extends HookWidget {
+  const _FeedLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    final ctrl = useAnimationController(
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+    final t = useAnimation(
+      CurvedAnimation(parent: ctrl, curve: Curves.easeInOut),
+    );
+
+    return _StateBackdrop(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Transform.scale(
+            scale: 0.92 + 0.12 * t,
+            child: Container(
+              width: 76,
+              height: 76,
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: _brandGradient,
+                boxShadow: [
+                  BoxShadow(
+                    color: _purple.withValues(alpha: 0.4 + 0.3 * t),
+                    blurRadius: 22 + 10 * t,
+                  ),
+                ],
+              ),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xff14102B),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const Gap(20),
+          const Text(
+            'Finding delicious videos…',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingMorePill extends StatelessWidget {
+  const _LoadingMorePill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white,
+            ),
+          ),
+          Gap(8),
+          Text(
+            'Loading more',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Last page once the feed is exhausted.
+class _EndOfFeed extends StatelessWidget {
+  final VoidCallback onBackToTop;
+  const _EndOfFeed({required this.onBackToTop});
+
+  @override
+  Widget build(BuildContext context) {
+    return _FeedMessage(
+      icon: Icons.check_circle_rounded,
+      title: 'No more videos',
+      message: 'You\'re all caught up. Check back later for new videos.',
+      buttonText: 'Back to top',
+      buttonIcon: Icons.arrow_upward_rounded,
+      onButton: onBackToTop,
+    );
+  }
+}

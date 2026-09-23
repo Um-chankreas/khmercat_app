@@ -1,0 +1,58 @@
+{
+  "@@locale": "km",
+
+  "menuTitle": "ម៉ឺនុយ",
+  "settingsTitle": "ការកំណត់",
+
+  "accountAndPages": "គណនី និងទំព័រ",
+  "createPage": "បង្កើតទំព័រ",
+  "yourRestaurants": "ភោជនីយដ្ឋានរបស់អ្នក",
+  "createRestaurant": "បង្កើតភោជនីយដ្ឋាន",
+  "noRestaurantsYet": "អ្នកមិនទាន់គ្រប់គ្រងទំព័រណាមួយទេ។",
+
+  "preferences": "ចំណូលចិត្ត",
+  "language": "ភាសា",
+  "languageEnglish": "English",
+  "languageKhmer": "ខ្មែរ",
+
+  "appearance": "រូបរាង",
+  "darkMode": "របៀបងងឹត",
+  "themeSystem": "តាមប្រព័ន្ធ",
+  "themeLight": "ភ្លឺ",
+  "themeDark": "ងងឹត",
+
+  "termsOfPolicy": "លក្ខខណ្ឌគោលការណ៍",
+  "termsOfService": "លក្ខខណ្ឌនៃការប្រើប្រាស់",
+  "termsOfPrivacy": "គោលការណ៍ឯកជនភាព",
+
+  "logOut": "ចាកចេញ",
+  "logOutConfirmTitle": "ចាកចេញ?",
+  "logOutConfirmMessage": "អ្នកអាចចូលឡើងវិញបានគ្រប់ពេល។",
+
+  "statFollowing": "កំពុងតាមដាន",
+  "statFollowers": "អ្នកតាមដាន",
+  "statPosts": "ការបង្ហោះ",
+  "statLikes": "ចូលចិត្ត",
+
+  "profileTabPosts": "បង្ហោះ",
+  "profileTabSaved": "រក្សាទុក",
+  "profileTabShared": "បានចែករំលែក",
+  "profileTabLiked": "បានចូលចិត្ត",
+  "profileTabFavorites": "សំណព្វ",
+  "profileTabTrash": "ធុងសំរាម",
+  "profileTabAbout": "អំពី",
+
+  "emptyPosts": "អ្នកមិនទាន់បានបង្ហោះវីដេអូណាមួយទេ។",
+  "emptySaved": "វីដេអូដែលអ្នករក្សាទុកនឹងបង្ហាញនៅទីនេះ។",
+  "emptyShared": "វីដេអូដែលអ្នកចែករំលែកនឹងបង្ហាញនៅទីនេះ។",
+  "emptyLiked": "វីដេអូដែលអ្នកចូលចិត្តនឹងបង្ហាញនៅទីនេះ។",
+  "emptyFavorites": "វីដេអូសំណព្វរបស់អ្នកនឹងបង្ហាញនៅទីនេះ។",
+  "emptyTrash": "វីដេអូដែលបានលុបនឹងនៅទីនេះ ៣០ ថ្ងៃ។",
+
+  "aboutName": "ឈ្មោះ",
+  "aboutUsername": "ឈ្មោះអ្នកប្រើ",
+  "aboutEmail": "អ៊ីមែល",
+  "aboutBio": "ប្រវត្តិរូប",
+
+  "comingSoon": "នឹងមកដល់ឆាប់ៗ"
+}
