@@ -58,7 +58,12 @@ class _UploadTargetSheet extends HookConsumerWidget {
         myRestaurants.valueOrNull?.restaurants ?? const <Restaurant>[];
     final hasOwnRestaurants = myList.isNotEmpty;
 
-    final mode = useState(UploadMode.review);
+    // Acting as a restaurant → open on "My restaurant".
+    final mode = useState(
+      myRestaurants.valueOrNull?.activeRestaurantId != null && hasOwnRestaurants
+          ? UploadMode.restaurantPost
+          : UploadMode.review,
+    );
 
     return DraggableScrollableSheet(
       initialChildSize: 0.95,

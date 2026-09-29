@@ -8,6 +8,7 @@ import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/my_restaurants_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/restaurant_logo.dart';
 import 'package:video_player/video_player.dart';
 import 'widgets/upload_target_sheet.dart';
@@ -88,7 +89,13 @@ class VideoUploadScreen extends HookConsumerWidget {
     final tagInputFocus = useFocusNode();
     final isAddingTag = useState(false);
 
-    final selectedTarget = useState<UploadTargetSelection?>(null);
+    // When the user is acting as a restaurant, post as it by default.
+    final activeRestaurant = ref.watch(activeRestaurantProvider);
+    final selectedTarget = useState<UploadTargetSelection?>(
+      activeRestaurant == null
+          ? null
+          : (mode: UploadMode.restaurantPost, restaurant: activeRestaurant),
+    );
     final rating = useState(0);
 
     useEffect(() {
@@ -97,6 +104,20 @@ class VideoUploadScreen extends HookConsumerWidget {
       }
       return null;
     }, [initialVideoFile]);
+
+    // The restaurants list may still be loading on first build — pre-select
+    // the active restaurant once it arrives, unless the user already picked.
+    useEffect(() {
+      if (activeRestaurant != null) {
+        Future.microtask(() {
+          selectedTarget.value ??= (
+            mode: UploadMode.restaurantPost,
+            restaurant: activeRestaurant,
+          );
+        });
+      }
+      return null;
+    }, [activeRestaurant?.id]);
 
     final isProcessing =
         state.stage == UploadStage.compressing ||
