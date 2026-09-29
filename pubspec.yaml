@@ -94,6 +94,7 @@ flutter:
   assets:
     - assets/company/
     - assets/images/
+    - assets/onboarding/
     - assets/messages/
     - assets/icons/
     - assets/google_fonts/
