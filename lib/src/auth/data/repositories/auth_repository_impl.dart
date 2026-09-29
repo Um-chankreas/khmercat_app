@@ -74,6 +74,18 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<void> deactivateAccount(String password) async {
+    await _remote.deactivateAccount(password);
+    await _storage.clearSession();
+  }
+
+  @override
+  Future<void> deleteAccount(String password) async {
+    await _remote.deleteAccount(password);
+    await _storage.clearSession();
+  }
+
+  @override
   User? getCachedUser() {
     final jsonStr = _storage.getUser();
     if (jsonStr == null) return null;

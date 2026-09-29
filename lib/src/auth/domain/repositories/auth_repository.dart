@@ -19,6 +19,10 @@ abstract class AuthRepository {
 
   Future<void> logout();
 
+  /// Both confirm with [password] and end the local session on success.
+  Future<void> deactivateAccount(String password);
+  Future<void> deleteAccount(String password);
+
   // sync, local-only reads — used at startup before any network call
   User? getCachedUser();
   bool get hasStoredToken;

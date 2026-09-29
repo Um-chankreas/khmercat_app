@@ -17,6 +17,7 @@ import 'package:khmer_cat_app/src/auth/presentation/viewmodel/auth_controller.da
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/my_restaurants_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/switch_password_sheet.dart';
+import 'package:khmer_cat_app/src/settings/presentation/widgets/account_action_sheet.dart';
 
 const _danger = Color(0xffE5484D);
 
@@ -263,6 +264,44 @@ class SettingsScreen extends HookConsumerWidget {
               ),
             ],
           ),
+
+          // ---- Account (personal profile only) ------------------------
+          // Hidden while switched into a restaurant, so these can't be
+          // mistaken for actions on the restaurant.
+          if (user != null && activeRestaurant == null) ...[
+            const Gap(28),
+            _SectionLabel(l.accountSection),
+            const Gap(10),
+            _SettingsGroup(
+              children: [
+                _SettingsRow(
+                  icon: Icons.visibility_off_rounded,
+                  color: const Color(0xffF59E0B),
+                  title: l.deactivateAccount,
+                  subtitle: l.deactivateAccountSubtitle,
+                  onTap: () async {
+                    if (!await confirmDeactivateAccount(context)) return;
+                    if (!context.mounted) return;
+                    AppService.showToast(l.accountDeactivated);
+                    Navigator.of(context).maybePop();
+                  },
+                ),
+                _SettingsRow(
+                  icon: Icons.delete_forever_rounded,
+                  color: _danger,
+                  title: l.deleteAccount,
+                  titleColor: _danger,
+                  subtitle: l.deleteAccountSubtitle,
+                  onTap: () async {
+                    if (!await confirmDeleteAccount(context)) return;
+                    if (!context.mounted) return;
+                    AppService.showToast(l.accountDeleted);
+                    Navigator.of(context).maybePop();
+                  },
+                ),
+              ],
+            ),
+          ],
 
           // ---- Log out -----------------------------------------------
           const Gap(28),

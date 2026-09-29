@@ -7,6 +7,7 @@ import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/core/network/api_exception.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/core/utils/size_responsive.dart';
+import 'package:khmer_cat_app/l10n/app_localizations.dart';
 import 'package:khmer_cat_app/src/auth/presentation/viewmodel/login_viewmodel.dart';
 import 'package:khmer_cat_app/src/auth/presentation/widgets/auth_widgets.dart';
 
@@ -36,6 +37,11 @@ class LoginScreen extends HookConsumerWidget {
         },
         data: (user) {
           if (user != null) {
+            if (user.reactivated) {
+              AppService.showToast(
+                AppLocalizations.of(context).accountReactivated,
+              );
+            }
             AppRouter.router.pushReplacementNamed(AppRoute.index.name);
           }
         },

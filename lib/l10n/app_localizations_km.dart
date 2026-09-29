@@ -204,4 +204,73 @@ class AppLocalizationsKm extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get accountSection => 'គណនី';
+
+  @override
+  String get deactivateAccount => 'បិទគណនីបណ្ដោះអាសន្ន';
+
+  @override
+  String get deactivateAccountSubtitle => 'លាក់ប្រវត្តិរូបរបស់អ្នកមួយរយៈ';
+
+  @override
+  String get deleteAccount => 'លុបគណនី';
+
+  @override
+  String get deleteAccountSubtitle => 'លុបគណនីរបស់អ្នកជាអចិន្ត្រៃយ៍';
+
+  @override
+  String get deactivateAccountTitle => 'បិទគណនីរបស់អ្នកបណ្ដោះអាសន្ន?';
+
+  @override
+  String get deactivateAccountPoint1 =>
+      'ប្រវត្តិរូប វីដេអូ និងមតិយោបល់របស់អ្នកនឹងត្រូវលាក់។';
+
+  @override
+  String get deactivateAccountPoint2 => 'អ្នកនឹងត្រូវចាកចេញពីគ្រប់ឧបករណ៍។';
+
+  @override
+  String get deactivateAccountPoint3 =>
+      'ចូលម្ដងទៀតនៅពេលណាក៏បាន ដើម្បីបើកគណនីវិញ។';
+
+  @override
+  String get deactivateAction => 'បិទគណនី';
+
+  @override
+  String get deleteAccountTitle => 'លុបគណនីរបស់អ្នក?';
+
+  @override
+  String get deleteAccountPoint1 =>
+      'ប្រវត្តិរូប វីដេអូ មតិយោបល់ និងការចូលចិត្តរបស់អ្នកនឹងត្រូវលុបជាអចិន្ត្រៃយ៍។';
+
+  @override
+  String get deleteAccountPoint2 =>
+      'ភោជនីយដ្ឋានដែលអ្នកជាម្ចាស់ក៏នឹងត្រូវលុបដែរ។';
+
+  @override
+  String get deleteAccountPoint3 => 'សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។';
+
+  @override
+  String get deleteAccountAlternative =>
+      'គ្រាន់តែចង់សម្រាកមួយរយៈ? បិទគណនីបណ្ដោះអាសន្នជំនួសវិញ។';
+
+  @override
+  String get deleteAction => 'លុប';
+
+  @override
+  String get confirmPasswordHint => 'បញ្ចូលពាក្យសម្ងាត់ដើម្បីបញ្ជាក់';
+
+  @override
+  String get accountDeactivated => 'គណនីរបស់អ្នកត្រូវបានបិទ។ ជួបគ្នាឆាប់ៗ!';
+
+  @override
+  String get accountDeleted => 'គណនីរបស់អ្នកត្រូវបានលុប។';
+
+  @override
+  String get accountReactivated =>
+      'សូមស្វាគមន៍ការត្រឡប់មកវិញ! គណនីរបស់អ្នកដំណើរការវិញហើយ។';
+
+  @override
+  String get accountActionFailed => 'មានបញ្ហាកើតឡើង។ សូមព្យាយាមម្ដងទៀត។';
 }

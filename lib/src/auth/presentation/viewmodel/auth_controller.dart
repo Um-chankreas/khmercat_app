@@ -70,6 +70,19 @@ class AuthController extends Notifier<AuthState> {
     await ref.read(authRepositoryProvider).logout();
     state = const AuthState.unauthenticated();
   }
+
+  /// Password-confirmed; throws (e.g. a wrong-password [ApiException]) and
+  /// stays signed in on failure. The server drops this device's push token.
+  Future<void> deactivateAccount(String password) async {
+    await ref.read(authRepositoryProvider).deactivateAccount(password);
+    state = const AuthState.unauthenticated();
+  }
+
+  /// Same as [deactivateAccount], but permanent.
+  Future<void> deleteAccount(String password) async {
+    await ref.read(authRepositoryProvider).deleteAccount(password);
+    state = const AuthState.unauthenticated();
+  }
 }
 
 final authControllerProvider = NotifierProvider<AuthController, AuthState>(

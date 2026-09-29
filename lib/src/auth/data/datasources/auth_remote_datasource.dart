@@ -53,4 +53,18 @@ class AuthRemoteDataSource {
   Future<void> logout() async {
     await _client.post(ApiRoute.logout);
   }
+
+  /// POST /account/deactivate — hidden until the next login; the server
+  /// also revokes the current token.
+  Future<void> deactivateAccount(String password) async {
+    await _client.post(
+      ApiRoute.deactivateAccount,
+      body: {'password': password},
+    );
+  }
+
+  /// DELETE /account — permanent; the server also revokes the current token.
+  Future<void> deleteAccount(String password) async {
+    await _client.delete(ApiRoute.account, body: {'password': password});
+  }
 }

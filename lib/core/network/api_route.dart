@@ -8,6 +8,10 @@ abstract class ApiRoute {
   static const String refreshToken = '/auth/refresh-token';
   static const String getUserAccount = '/auth/get-user-account';
 
+  // own account (password-confirmed)
+  static const String deactivateAccount = '/account/deactivate';
+  static const String account = '/account';
+
   // feed / videos
   static const String videosFeed = '/videos/feed';
   static String video(String id) => '/videos/$id';

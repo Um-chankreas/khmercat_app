@@ -27,6 +27,5 @@ class RegisterViewModel extends AsyncNotifier<Auth?> {
   }
 }
 
-final registerViewModelProvider = AsyncNotifierProvider<RegisterViewModel, Auth?>(
-  RegisterViewModel.new,
-);
+final registerViewModelProvider =
+    AsyncNotifierProvider<RegisterViewModel, Auth?>(RegisterViewModel.new);

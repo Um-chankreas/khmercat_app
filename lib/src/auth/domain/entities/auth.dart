@@ -4,5 +4,8 @@ class Auth {
   final String token;
   final User user;
 
-  Auth({required this.token, required this.user});
+  /// True when this login brought a deactivated account back.
+  final bool reactivated;
+
+  Auth({required this.token, required this.user, this.reactivated = false});
 }

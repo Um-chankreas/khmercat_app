@@ -463,6 +463,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 profile} other{{count} profiles}}'**
   String profilesCount(int count);
+
+  /// No description provided for @accountSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get accountSection;
+
+  /// No description provided for @deactivateAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Deactivate account'**
+  String get deactivateAccount;
+
+  /// No description provided for @deactivateAccountSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide your profile for a while'**
+  String get deactivateAccountSubtitle;
+
+  /// No description provided for @deleteAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get deleteAccount;
+
+  /// No description provided for @deleteAccountSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently remove your account'**
+  String get deleteAccountSubtitle;
+
+  /// No description provided for @deactivateAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Deactivate your account?'**
+  String get deactivateAccountTitle;
+
+  /// No description provided for @deactivateAccountPoint1.
+  ///
+  /// In en, this message translates to:
+  /// **'Your profile, videos and comments are hidden.'**
+  String get deactivateAccountPoint1;
+
+  /// No description provided for @deactivateAccountPoint2.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re signed out on every device.'**
+  String get deactivateAccountPoint2;
+
+  /// No description provided for @deactivateAccountPoint3.
+  ///
+  /// In en, this message translates to:
+  /// **'Log in again anytime to reactivate.'**
+  String get deactivateAccountPoint3;
+
+  /// No description provided for @deactivateAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Deactivate'**
+  String get deactivateAction;
+
+  /// No description provided for @deleteAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete your account?'**
+  String get deleteAccountTitle;
+
+  /// No description provided for @deleteAccountPoint1.
+  ///
+  /// In en, this message translates to:
+  /// **'Your profile, videos, comments and likes are removed for good.'**
+  String get deleteAccountPoint1;
+
+  /// No description provided for @deleteAccountPoint2.
+  ///
+  /// In en, this message translates to:
+  /// **'Restaurants you own are deleted too.'**
+  String get deleteAccountPoint2;
+
+  /// No description provided for @deleteAccountPoint3.
+  ///
+  /// In en, this message translates to:
+  /// **'This can\'t be undone.'**
+  String get deleteAccountPoint3;
+
+  /// No description provided for @deleteAccountAlternative.
+  ///
+  /// In en, this message translates to:
+  /// **'Just need a break? Deactivate instead.'**
+  String get deleteAccountAlternative;
+
+  /// No description provided for @deleteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get deleteAction;
+
+  /// No description provided for @confirmPasswordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your password to confirm'**
+  String get confirmPasswordHint;
+
+  /// No description provided for @accountDeactivated.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account is deactivated. See you soon!'**
+  String get accountDeactivated;
+
+  /// No description provided for @accountDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account has been deleted.'**
+  String get accountDeleted;
+
+  /// No description provided for @accountReactivated.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back! Your account is active again.'**
+  String get accountReactivated;
+
+  /// No description provided for @accountActionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again.'**
+  String get accountActionFailed;
 }
 
 class _AppLocalizationsDelegate

@@ -205,4 +205,71 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get accountSection => 'Account';
+
+  @override
+  String get deactivateAccount => 'Deactivate account';
+
+  @override
+  String get deactivateAccountSubtitle => 'Hide your profile for a while';
+
+  @override
+  String get deleteAccount => 'Delete account';
+
+  @override
+  String get deleteAccountSubtitle => 'Permanently remove your account';
+
+  @override
+  String get deactivateAccountTitle => 'Deactivate your account?';
+
+  @override
+  String get deactivateAccountPoint1 =>
+      'Your profile, videos and comments are hidden.';
+
+  @override
+  String get deactivateAccountPoint2 => 'You\'re signed out on every device.';
+
+  @override
+  String get deactivateAccountPoint3 => 'Log in again anytime to reactivate.';
+
+  @override
+  String get deactivateAction => 'Deactivate';
+
+  @override
+  String get deleteAccountTitle => 'Delete your account?';
+
+  @override
+  String get deleteAccountPoint1 =>
+      'Your profile, videos, comments and likes are removed for good.';
+
+  @override
+  String get deleteAccountPoint2 => 'Restaurants you own are deleted too.';
+
+  @override
+  String get deleteAccountPoint3 => 'This can\'t be undone.';
+
+  @override
+  String get deleteAccountAlternative =>
+      'Just need a break? Deactivate instead.';
+
+  @override
+  String get deleteAction => 'Delete';
+
+  @override
+  String get confirmPasswordHint => 'Enter your password to confirm';
+
+  @override
+  String get accountDeactivated => 'Your account is deactivated. See you soon!';
+
+  @override
+  String get accountDeleted => 'Your account has been deleted.';
+
+  @override
+  String get accountReactivated =>
+      'Welcome back! Your account is active again.';
+
+  @override
+  String get accountActionFailed => 'Something went wrong. Please try again.';
 }
