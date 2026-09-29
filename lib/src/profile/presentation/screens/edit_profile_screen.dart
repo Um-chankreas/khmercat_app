@@ -4,7 +4,6 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:khmer_cat_app/core/components/profile/cover_avatar_header.dart';
-import 'package:khmer_cat_app/core/components/profile/profile_action_buttons.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/network/api_exception.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
@@ -59,7 +58,7 @@ class EditProfileScreen extends HookConsumerWidget {
 
     // Only reachable from the signed-in user's own profile.
     if (user == null) {
-      return const Scaffold(backgroundColor: Colors.white, body: SizedBox());
+      return const Scaffold(body: SizedBox());
     }
 
     final bioCtr = useTextEditingController(text: user.bio ?? '');
@@ -178,8 +177,10 @@ class EditProfileScreen extends HookConsumerWidget {
       }
     }
 
+    final surface = Theme.of(context).colorScheme.surface;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: surface,
       body: CustomScrollView(
         controller: scrollController,
         slivers: [
@@ -189,7 +190,7 @@ class EditProfileScreen extends HookConsumerWidget {
             listenable: scrollController,
             builder: (context, _) => SliverAppBar(
               pinned: true,
-              backgroundColor: Colors.white,
+              backgroundColor: surface,
               surfaceTintColor: Colors.transparent,
               scrolledUnderElevation: 0,
               elevation: 0,
@@ -228,122 +229,82 @@ class EditProfileScreen extends HookConsumerWidget {
                   t: _collapseFraction(scrollController),
                   avatarUrl: user.profilePicture,
                   name: user.name,
-                  onChangePhoto: () => changeProfileImage(
-                    context,
-                    ref,
-                    ProfileImageKind.avatar,
-                  ),
+                  onChangePhoto: () =>
+                      changeProfileImage(context, ref, ProfileImageKind.avatar),
                 ),
               ),
             ),
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const _FieldLabel('Bio', icon: Icons.notes_rounded),
-                  const Gap(8),
-                  _InputField(
-                    controller: bioCtr,
-                    hint: 'Tell people a little about yourself',
-                    icon: Icons.notes_rounded,
-                    maxLines: 4,
-                    minLines: 3,
-                    maxLength: 150,
+                  _Field(
+                    label: 'Bio',
+                    trailing: _Counter(count: bioCtr.text.length, max: 150),
+                    child: _InputField(
+                      controller: bioCtr,
+                      hint: 'Tell people a little about yourself',
+                      icon: Icons.notes_rounded,
+                      maxLines: 4,
+                      minLines: 3,
+                      maxLength: 150,
+                    ),
                   ),
-                  _CounterRow(count: bioCtr.text.length, max: 150),
-                  const Gap(18),
-
-                  const _FieldLabel('Email', icon: Icons.mail_rounded),
-                  const Gap(8),
-                  _InputField(
-                    controller: emailCtr,
-                    hint: 'you@example.com',
-                    icon: Icons.mail_rounded,
-                    keyboardType: TextInputType.emailAddress,
-                    errorText: emailError,
+                  const Gap(20),
+                  _Field(
+                    label: 'Email',
+                    child: _InputField(
+                      controller: emailCtr,
+                      hint: 'you@example.com',
+                      icon: Icons.mail_outline_rounded,
+                      keyboardType: TextInputType.emailAddress,
+                      errorText: emailError,
+                    ),
                   ),
-                  const Gap(18),
-
-                  const _FieldLabel(
-                    'Phone',
+                  const Gap(20),
+                  _Field(
+                    label: 'Phone',
                     optional: true,
-                    icon: Icons.call_rounded,
+                    child: _InputField(
+                      controller: phoneCtr,
+                      hint: 'e.g. 012 345 678',
+                      icon: Icons.call_outlined,
+                      keyboardType: TextInputType.phone,
+                      errorText: phoneError.value,
+                    ),
                   ),
-                  const Gap(8),
-                  _InputField(
-                    controller: phoneCtr,
-                    hint: 'e.g. 012 345 678',
-                    icon: Icons.call_rounded,
-                    keyboardType: TextInputType.phone,
-                    errorText: phoneError.value,
-                  ),
-                  const Gap(26),
-
-                  Row(
-                    children: [
-                      Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          gradient: ProfileTheme.purpleBlue,
-                          borderRadius: BorderRadius.circular(10),
+                  const Gap(20),
+                  _Field(
+                    label: 'Social links',
+                    optional: true,
+                    child: Column(
+                      children: [
+                        _InputField(
+                          controller: facebookCtr,
+                          hint: 'Facebook profile URL',
+                          asset: AssetsName.facebook,
+                          keyboardType: TextInputType.url,
+                          errorText: facebookError.value,
                         ),
-                        child: const Icon(
-                          Icons.link_rounded,
-                          size: 17,
-                          color: Colors.white,
+                        const Gap(10),
+                        _InputField(
+                          controller: tiktokCtr,
+                          hint: 'TikTok username',
+                          asset: AssetsName.tiktok,
+                          errorText: tiktokError.value,
                         ),
-                      ),
-                      const Gap(10),
-                      const Text(
-                        'Social links',
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w800,
+                        const Gap(10),
+                        _InputField(
+                          controller: telegramCtr,
+                          hint: 'Telegram username',
+                          asset: AssetsName.telegram,
+                          errorText: telegramError.value,
                         ),
-                      ),
-                      const Gap(6),
-                      const Text(
-                        'Optional',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: ProfileTheme.muted,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Gap(12),
-                  _SocialField(
-                    asset: AssetsName.facebook,
-                    hint: 'Facebook profile URL',
-                    controller: facebookCtr,
-                    errorText: facebookError.value,
-                  ),
-                  const Gap(10),
-                  _SocialField(
-                    asset: AssetsName.tiktok,
-                    hint: 'TikTok username',
-                    controller: tiktokCtr,
-                    errorText: tiktokError.value,
-                  ),
-                  const Gap(10),
-                  _SocialField(
-                    asset: AssetsName.telegram,
-                    hint: 'Telegram username',
-                    controller: telegramCtr,
-                    errorText: telegramError.value,
-                  ),
-                  const Gap(30),
-
-                  ProfileGradientButton(
-                    text: 'Save',
-                    icon: Icons.check_rounded,
-                    height: 52,
-                    onTap: saving.value ? null : handleSave,
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -433,12 +394,25 @@ class _AvatarHeader extends StatelessWidget {
                       const Gap(10),
                       GestureDetector(
                         onTap: onChangePhoto,
-                        child: const Text(
-                          'Change photo',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: ProfileTheme.deepPurple,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.22),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: const Text(
+                            'Change photo',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
@@ -466,17 +440,17 @@ class _AvatarHeader extends StatelessWidget {
             child: Opacity(
               opacity: pinnedOpacity,
               child: Container(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 padding: const EdgeInsets.symmetric(horizontal: 60),
                 alignment: Alignment.center,
                 child: Text(
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16.5,
                     fontWeight: FontWeight.w800,
-                    color: ProfileTheme.ink,
+                    color: ProfileTheme.textPrimary(context),
                   ),
                 ),
               ),
@@ -516,11 +490,7 @@ class _SaveIconButton extends StatelessWidget {
                     color: Colors.white,
                   ),
                 )
-              : const Icon(
-                  Icons.check_rounded,
-                  size: 21,
-                  color: Colors.white,
-                ),
+              : const Icon(Icons.check_rounded, size: 21, color: Colors.white),
         ),
       ),
     );
@@ -531,65 +501,86 @@ class _SaveIconButton extends StatelessWidget {
 // Form fields
 // =============================================================================
 
-class _FieldLabel extends StatelessWidget {
-  final String text;
-  final IconData icon;
+/// A labelled form row: label (+ "Optional", + a trailing widget such as a
+/// counter) above its input.
+class _Field extends StatelessWidget {
+  final String label;
   final bool optional;
-  const _FieldLabel(this.text, {required this.icon, this.optional = false});
+  final Widget? trailing;
+  final Widget child;
+  const _Field({
+    required this.label,
+    required this.child,
+    this.optional = false,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(icon, size: 15, color: ProfileTheme.purple),
-        const Gap(6),
-        Text(
-          text,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-        ),
-        if (optional)
-          const Text(
-            '  Optional',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: ProfileTheme.muted,
-            ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: ProfileTheme.textPrimary(context),
+                ),
+              ),
+              if (optional) ...[
+                const Gap(6),
+                Text(
+                  'Optional',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: ProfileTheme.textSecondary(context),
+                  ),
+                ),
+              ],
+              const Spacer(),
+              ?trailing,
+            ],
           ),
+        ),
+        const Gap(8),
+        child,
       ],
     );
   }
 }
 
-class _CounterRow extends StatelessWidget {
+class _Counter extends StatelessWidget {
   final int count;
   final int max;
-  const _CounterRow({required this.count, required this.max});
+  const _Counter({required this.count, required this.max});
 
   @override
   Widget build(BuildContext context) {
     final nearLimit = count >= max * 0.9;
-    return Padding(
-      padding: const EdgeInsets.only(top: 5),
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Text(
-          '$count/$max',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: nearLimit ? _red : ProfileTheme.muted,
-          ),
-        ),
+    return Text(
+      '$count/$max',
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: nearLimit ? _red : ProfileTheme.textSecondary(context),
       ),
     );
   }
 }
 
+/// The one input style on this screen. Leads with either a Material [icon]
+/// or a brand logo [asset].
 class _InputField extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
-  final IconData icon;
+  final IconData? icon;
+  final String? asset;
   final int maxLines;
   final int minLines;
   final int? maxLength;
@@ -599,35 +590,42 @@ class _InputField extends StatelessWidget {
   const _InputField({
     required this.controller,
     required this.hint,
-    required this.icon,
+    this.icon,
+    this.asset,
     this.maxLines = 1,
     this.minLines = 1,
     this.maxLength,
     this.keyboardType,
     this.errorText,
-  });
+  }) : assert((icon == null) != (asset == null));
 
   OutlineInputBorder _border(Color color, [double width = 1]) =>
       OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: color, width: width),
       );
 
   @override
   Widget build(BuildContext context) {
+    final multiline = maxLines > 1;
+    final line = ProfileTheme.hairlineColor(context);
     return TextField(
       controller: controller,
       maxLines: maxLines,
       minLines: minLines,
       maxLength: maxLength,
       keyboardType: keyboardType,
-      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+      style: TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+        color: ProfileTheme.textPrimary(context),
+      ),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(
-          fontSize: 14,
+          fontSize: 14.5,
           fontWeight: FontWeight.w400,
-          color: ProfileTheme.muted.withValues(alpha: 0.65),
+          color: ProfileTheme.textSecondary(context).withValues(alpha: 0.7),
         ),
         counterText: '',
         errorText: errorText,
@@ -636,95 +634,27 @@ class _InputField extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: _red,
         ),
+        // Multi-line fields keep the icon on the first line, not centered.
         prefixIcon: Padding(
-          padding: EdgeInsets.only(
-            left: 12,
-            right: 8,
-            top: maxLines > 1 ? 14 : 0,
-          ),
+          padding: EdgeInsets.fromLTRB(14, multiline ? 14 : 0, 10, 0),
           child: Align(
-            alignment: maxLines > 1 ? Alignment.topCenter : Alignment.center,
+            alignment: multiline ? Alignment.topCenter : Alignment.center,
             widthFactor: 1,
-            heightFactor: maxLines > 1 ? 1 : null,
-            child: Icon(icon, size: 20, color: ProfileTheme.purple),
+            heightFactor: multiline ? 1 : null,
+            child: asset != null
+                ? Image.asset(asset!, width: 20, height: 20)
+                : Icon(icon, size: 20, color: ProfileTheme.purple),
           ),
         ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 44),
         filled: true,
-        fillColor: ProfileTheme.purple.withValues(alpha: 0.04),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 14,
-        ),
-        border: _border(ProfileTheme.purple.withValues(alpha: 0.18)),
-        enabledBorder: _border(ProfileTheme.purple.withValues(alpha: 0.18)),
-        focusedBorder: _border(ProfileTheme.purple, 1.6),
-        errorBorder: _border(_red.withValues(alpha: 0.7), 1.3),
-        focusedErrorBorder: _border(_red, 1.6),
-      ),
-    );
-  }
-}
-
-class _SocialField extends StatelessWidget {
-  final String asset;
-  final String hint;
-  final TextEditingController controller;
-  final String? errorText;
-  const _SocialField({
-    required this.asset,
-    required this.hint,
-    required this.controller,
-    this.errorText,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(
-          fontSize: 14,
-          color: ProfileTheme.muted.withValues(alpha: 0.65),
-        ),
-        errorText: errorText,
-        errorStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: _red,
-        ),
-        prefixIcon: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Image.asset(asset, width: 20, height: 20),
-        ),
-        filled: true,
-        fillColor: ProfileTheme.purple.withValues(alpha: 0.04),
-        contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: ProfileTheme.purple.withValues(alpha: 0.18),
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: ProfileTheme.purple.withValues(alpha: 0.18),
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: ProfileTheme.purple, width: 1.6),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: _red.withValues(alpha: 0.7), width: 1.3),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: _red, width: 1.6),
-        ),
+        fillColor: ProfileTheme.purple.withValues(alpha: 0.05),
+        contentPadding: const EdgeInsets.fromLTRB(0, 15, 14, 15),
+        border: _border(line),
+        enabledBorder: _border(line),
+        focusedBorder: _border(ProfileTheme.purple, 1.5),
+        errorBorder: _border(_red.withValues(alpha: 0.7), 1.2),
+        focusedErrorBorder: _border(_red, 1.5),
       ),
     );
   }
