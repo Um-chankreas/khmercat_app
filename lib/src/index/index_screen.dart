@@ -42,7 +42,7 @@ class IndexScreen extends HookConsumerWidget {
         messenger.showSnackBar(
           const SnackBar(
             content: Text(
-              'Video uploaded — it\'ll appear in the feed once it\'s ready.',
+              'Video uploaded — it\'ll go live once processing finishes.',
             ),
           ),
         );
