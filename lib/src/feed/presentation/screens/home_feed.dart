@@ -230,6 +230,12 @@ class _TabFeedView extends HookConsumerWidget {
     final videoManager = useMemoized(() => VideoControllerManager(), [tab]);
     useEffect(() => videoManager.dispose, [videoManager]);
     useListenable(videoManager);
+    // Ids around the current page, so swapping a pending upload for the
+    // server's video (same list length) still reloads its player.
+    final windowKey = [
+      for (var i = currentPage.value - 1; i <= currentPage.value + 1; i++)
+        if (i >= 0 && i < state.items.length) state.items[i].id,
+    ].join(',');
     useEffect(() {
       videoManager.syncWindow(
         state.items,
@@ -237,10 +243,25 @@ class _TabFeedView extends HookConsumerWidget {
         tabIsVisible: isVisible,
       );
       return null;
-    }, [currentPage.value, isVisible, state.items.length]);
+    }, [currentPage.value, isVisible, state.items.length, windowKey]);
+
+    // The user just posted a video — jump to it at the top of the feed.
+    final firstPendingId = state.items.isNotEmpty && state.items.first.isPending
+        ? state.items.first.id
+        : null;
+    useEffect(() {
+      if (firstPendingId != null && currentPage.value != 0) {
+        currentPage.value = 0;
+        if (pageController.hasClients) pageController.jumpToPage(0);
+      }
+      return null;
+    }, [firstPendingId]);
 
     // One view per video the user actually lands on while this tab is shown.
-    final visibleVideoId = isVisible && currentPage.value < state.items.length
+    final visibleVideoId =
+        isVisible &&
+            currentPage.value < state.items.length &&
+            !state.items[currentPage.value].isPending
         ? state.items[currentPage.value].id
         : null;
     useEffect(() {
@@ -418,19 +439,36 @@ class _TabFeedView extends HookConsumerWidget {
                   ),
                 ),
 
+                // Still uploading — likes, comments etc. need the real video.
+                if (item.isPending)
+                  Positioned(
+                    top: MediaQuery.paddingOf(context).top + 64,
+                    left: 0,
+                    right: 0,
+                    child: const Center(
+                      child: _LoadingMorePill(label: 'Posting…'),
+                    ),
+                  ),
+
                 Positioned(
                   right: 12,
                   bottom: context.sc(50),
-                  child: FeedActionRail(
-                    item: item,
-                    onLike: () => handleLike(item.id),
-                    onComment: () => handleComment(item.id),
-                    onSave: () => handleSave(item.id),
-                    onShare: () => shareVideo(item),
-                    onFollowTap: () => handleFollow(item.id),
-                    onAvatarTap: () => AppRouter.router.pushNamed(
-                      AppRoute.userProfile.name,
-                      pathParameters: {'username': item.user.username},
+                  child: IgnorePointer(
+                    ignoring: item.isPending,
+                    child: Opacity(
+                      opacity: item.isPending ? 0.4 : 1,
+                      child: FeedActionRail(
+                        item: item,
+                        onLike: () => handleLike(item.id),
+                        onComment: () => handleComment(item.id),
+                        onSave: () => handleSave(item.id),
+                        onShare: () => shareVideo(item),
+                        onFollowTap: () => handleFollow(item.id),
+                        onAvatarTap: () => AppRouter.router.pushNamed(
+                          AppRoute.userProfile.name,
+                          pathParameters: {'username': item.user.username},
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -722,7 +760,8 @@ class _FeedLoading extends HookWidget {
 }
 
 class _LoadingMorePill extends StatelessWidget {
-  const _LoadingMorePill();
+  final String label;
+  const _LoadingMorePill({this.label = 'Loading more'});
 
   @override
   Widget build(BuildContext context) {
@@ -733,10 +772,10 @@ class _LoadingMorePill extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
+          const SizedBox(
             width: 14,
             height: 14,
             child: CircularProgressIndicator(
@@ -744,10 +783,10 @@ class _LoadingMorePill extends StatelessWidget {
               color: Colors.white,
             ),
           ),
-          Gap(8),
+          const Gap(8),
           Text(
-            'Loading more',
-            style: TextStyle(
+            label,
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w700,

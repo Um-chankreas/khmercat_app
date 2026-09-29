@@ -160,6 +160,7 @@ class VideoUploadScreen extends HookConsumerWidget {
         caption: buildCaption(),
         postAsRestaurant: target?.mode == UploadMode.restaurantPost,
         restaurantId: target?.restaurant.id,
+        restaurant: target?.restaurant,
         rating: target?.mode == UploadMode.restaurantPost ? null : rating.value,
       );
       // This screen was pushed imperatively (Navigator.push) on top of the

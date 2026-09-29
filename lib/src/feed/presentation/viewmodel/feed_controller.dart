@@ -90,8 +90,10 @@ class FeedController extends FamilyNotifier<FeedState, FeedTab> {
             lat: position?.latitude,
             lng: position?.longitude,
           );
+      // Keep the user's own in-flight uploads on top across refreshes.
+      final pending = state.items.where((v) => v.isPending);
       state = FeedState(
-        items: page.items,
+        items: [...pending, ...page.items],
         cursor: page.nextCursor,
         hasMore: page.hasMore,
         isInitialLoading: false,
@@ -142,7 +144,7 @@ class FeedController extends FamilyNotifier<FeedState, FeedTab> {
 
   Future<void> toggleLike(String videoId) async {
     final index = state.items.indexWhere((v) => v.id == videoId);
-    if (index == -1) return;
+    if (index == -1 || state.items[index].isPending) return;
 
     final original = state.items[index];
     final optimistic = original.copyWith(
@@ -166,7 +168,7 @@ class FeedController extends FamilyNotifier<FeedState, FeedTab> {
 
   Future<void> toggleSave(String videoId) async {
     final index = state.items.indexWhere((v) => v.id == videoId);
-    if (index == -1) return;
+    if (index == -1 || state.items[index].isPending) return;
 
     final original = state.items[index];
     final optimistic = original.copyWith(savedByMe: !original.savedByMe);
@@ -217,6 +219,32 @@ class FeedController extends FamilyNotifier<FeedState, FeedTab> {
     } catch (_) {
       state = state.copyWith(items: original); // roll back
     }
+  }
+
+  /// Shows the user's just-posted video at the top right away (playing from
+  /// the local file) while it uploads and the server processes it.
+  void insertPending(VideoFeedItem item) {
+    state = state.copyWith(
+      items: [item, ...state.items.where((v) => v.id != item.id)],
+    );
+  }
+
+  /// Swaps the temporary item for the real one once the server has it.
+  void replacePending(String pendingId, VideoFeedItem uploaded) {
+    final index = state.items.indexWhere((v) => v.id == pendingId);
+    // A refresh may already have fetched the real video — drop duplicates.
+    final rest = state.items
+        .where((v) => v.id != pendingId && v.id != uploaded.id)
+        .toList();
+    rest.insert(index == -1 ? 0 : index.clamp(0, rest.length), uploaded);
+    state = state.copyWith(items: rest);
+  }
+
+  void removePending(String pendingId) {
+    if (!state.items.any((v) => v.id == pendingId)) return;
+    state = state.copyWith(
+      items: state.items.where((v) => v.id != pendingId).toList(),
+    );
   }
 
   void _replaceAt(int index, VideoFeedItem item) {

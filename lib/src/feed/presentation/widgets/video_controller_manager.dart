@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -108,10 +110,14 @@ class VideoControllerManager extends ChangeNotifier {
   void _load(VideoFeedItem item) {
     if (_players.containsKey(item.id) || _failed.contains(item.id)) return;
 
-    final player = CachedVideoPlayerPlus.networkUrl(
-      Uri.parse(item.videoUrl),
-      cacheManager: _feedVideoCacheManager,
-    );
+    // A pending upload plays straight from the file on this device.
+    final localPath = item.localFilePath;
+    final player = localPath != null
+        ? CachedVideoPlayerPlus.file(File(localPath))
+        : CachedVideoPlayerPlus.networkUrl(
+            Uri.parse(item.videoUrl),
+            cacheManager: _feedVideoCacheManager,
+          );
     _players[item.id] = player;
 
     player

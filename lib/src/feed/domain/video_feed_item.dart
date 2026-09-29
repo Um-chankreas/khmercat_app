@@ -69,6 +69,12 @@ class VideoFeedItem {
   final int viewsCount;
   final int? durationSeconds;
 
+  /// Set only on the temporary item shown at the top of the feed while the
+  /// user's own upload is still uploading/processing — plays from this local
+  /// file and is swapped for the server's item once it's ready.
+  final String? localFilePath;
+  bool get isPending => localFilePath != null;
+
   VideoFeedItem({
     required this.id,
     required this.caption,
@@ -86,6 +92,7 @@ class VideoFeedItem {
     this.isFollowingRestaurant = false,
     this.viewsCount = 0,
     this.durationSeconds,
+    this.localFilePath,
   });
 
   /// "0:45", "1:20", "1:02:03", or null when the length is unknown.
@@ -145,6 +152,7 @@ class VideoFeedItem {
           isFollowingRestaurant ?? this.isFollowingRestaurant,
       viewsCount: viewsCount,
       durationSeconds: durationSeconds,
+      localFilePath: localFilePath,
     );
   }
 }
