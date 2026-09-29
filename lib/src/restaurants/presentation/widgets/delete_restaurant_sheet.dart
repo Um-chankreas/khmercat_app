@@ -81,188 +81,191 @@ class _DeleteSheet extends HookConsumerWidget {
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(24),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 4,
+        // Scrolls when the keyboard leaves too little room for the whole sheet.
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: muted.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const Gap(18),
+              Center(
+                child: Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: _red.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.delete_forever_rounded,
+                    size: 32,
+                    color: _red,
+                  ),
+                ),
+              ),
+              const Gap(12),
+              Text(
+                'Delete ${restaurant.name}?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: ProfileTheme.textPrimary(context),
+                ),
+              ),
+              const Gap(10),
+              Container(
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: muted.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(2),
+                  color: _red.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ),
-            ),
-            const Gap(18),
-            Center(
-              child: Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: _red.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.delete_forever_rounded,
-                  size: 32,
-                  color: _red,
-                ),
-              ),
-            ),
-            const Gap(12),
-            Text(
-              'Delete ${restaurant.name}?',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: ProfileTheme.textPrimary(context),
-              ),
-            ),
-            const Gap(10),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _red.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final line in const [
-                    'Its page, menu and QR code stop working.',
-                    'Its videos disappear from the feed and search.',
-                    'Everyone on your team loses access.',
-                  ])
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Padding(
-                            padding: EdgeInsets.only(top: 3),
-                            child: Icon(
-                              Icons.remove_circle_outline_rounded,
-                              size: 14,
-                              color: _red,
-                            ),
-                          ),
-                          const Gap(8),
-                          Expanded(
-                            child: Text(
-                              line,
-                              style: TextStyle(
-                                fontSize: 13,
-                                height: 1.35,
-                                color: ProfileTheme.textPrimary(context),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final line in const [
+                      'Its page, menu and QR code stop working.',
+                      'Its videos disappear from the feed and search.',
+                      'Everyone on your team loses access.',
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 3),
+                              child: Icon(
+                                Icons.remove_circle_outline_rounded,
+                                size: 14,
+                                color: _red,
                               ),
                             ),
-                          ),
-                        ],
+                            const Gap(8),
+                            Expanded(
+                              child: Text(
+                                line,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.35,
+                                  color: ProfileTheme.textPrimary(context),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const Gap(8),
+              Text(
+                'Just want to hide it for a while? Unpublish it instead.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12.5, color: muted),
+              ),
+              const Gap(14),
+              TextField(
+                controller: ctr,
+                autofocus: true,
+                obscureText: obscure.value,
+                enabled: !loading.value,
+                autofillHints: const [AutofillHints.password],
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => submit(),
+                onChanged: (_) {
+                  if (error.value != null) error.value = null;
+                },
+                decoration: InputDecoration(
+                  hintText: 'Enter your password to confirm',
+                  errorText: error.value,
+                  filled: true,
+                  fillColor: _red.withValues(alpha: 0.04),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  prefixIcon: const Icon(
+                    Icons.lock_outline_rounded,
+                    size: 20,
+                    color: _red,
+                  ),
+                  suffixIcon: IconButton(
+                    onPressed: () => obscure.value = !obscure.value,
+                    icon: Icon(
+                      obscure.value
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      size: 20,
+                      color: muted,
+                    ),
+                  ),
+                  border: border(ProfileTheme.hairlineColor(context)),
+                  enabledBorder: border(ProfileTheme.hairlineColor(context)),
+                  focusedBorder: border(_red, 1.4),
+                  errorBorder: border(_red),
+                  focusedErrorBorder: border(_red, 1.4),
+                ),
+              ),
+              const Gap(16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: loading.value
+                          ? null
+                          : () => Navigator.of(context).pop(false),
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size.fromHeight(46),
+                        foregroundColor: muted,
+                      ),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
+                  ),
+                  const Gap(12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: canSubmit && !loading.value ? submit : null,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _red,
+                        disabledBackgroundColor: _red.withValues(alpha: 0.35),
+                        minimumSize: const Size.fromHeight(46),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: loading.value
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Delete',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                    ),
+                  ),
                 ],
               ),
-            ),
-            const Gap(8),
-            Text(
-              'Just want to hide it for a while? Unpublish it instead.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12.5, color: muted),
-            ),
-            const Gap(14),
-            TextField(
-              controller: ctr,
-              autofocus: true,
-              obscureText: obscure.value,
-              enabled: !loading.value,
-              autofillHints: const [AutofillHints.password],
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => submit(),
-              onChanged: (_) {
-                if (error.value != null) error.value = null;
-              },
-              decoration: InputDecoration(
-                hintText: 'Enter your password to confirm',
-                errorText: error.value,
-                filled: true,
-                fillColor: _red.withValues(alpha: 0.04),
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                prefixIcon: const Icon(
-                  Icons.lock_outline_rounded,
-                  size: 20,
-                  color: _red,
-                ),
-                suffixIcon: IconButton(
-                  onPressed: () => obscure.value = !obscure.value,
-                  icon: Icon(
-                    obscure.value
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                    size: 20,
-                    color: muted,
-                  ),
-                ),
-                border: border(ProfileTheme.hairlineColor(context)),
-                enabledBorder: border(ProfileTheme.hairlineColor(context)),
-                focusedBorder: border(_red, 1.4),
-                errorBorder: border(_red),
-                focusedErrorBorder: border(_red, 1.4),
-              ),
-            ),
-            const Gap(16),
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: loading.value
-                        ? null
-                        : () => Navigator.of(context).pop(false),
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size.fromHeight(46),
-                      foregroundColor: muted,
-                    ),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-                const Gap(12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: canSubmit && !loading.value ? submit : null,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _red,
-                      disabledBackgroundColor: _red.withValues(alpha: 0.35),
-                      minimumSize: const Size.fromHeight(46),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: loading.value
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Delete',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

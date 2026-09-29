@@ -78,152 +78,155 @@ class _SwitchPasswordSheet extends HookConsumerWidget {
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(24),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 44,
-              height: 4,
-              decoration: BoxDecoration(
-                color: muted.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const Gap(18),
-            Container(
-              padding: const EdgeInsets.all(2.5),
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: ProfileTheme.gradient,
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(2),
+        // Scrolls when the keyboard leaves too little room for the whole sheet.
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 44,
+                height: 4,
                 decoration: BoxDecoration(
+                  color: muted.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Gap(18),
+              Container(
+                padding: const EdgeInsets.all(2.5),
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Theme.of(context).colorScheme.surface,
+                  gradient: ProfileTheme.gradient,
                 ),
-                child: ImageUserCircleProfile(
-                  imageUrl: user?.profilePicture,
-                  name: name,
-                  size: 64,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(context).colorScheme.surface,
+                  ),
+                  child: ImageUserCircleProfile(
+                    imageUrl: user?.profilePicture,
+                    name: name,
+                    size: 64,
+                  ),
                 ),
               ),
-            ),
-            const Gap(12),
-            Text(
-              l.confirmSwitchTitle(name),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: ProfileTheme.textPrimary(context),
-              ),
-            ),
-            const Gap(4),
-            Text(
-              l.confirmSwitchMessage,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13.5, height: 1.4, color: muted),
-            ),
-            const Gap(18),
-            TextField(
-              controller: ctr,
-              autofocus: true,
-              obscureText: obscure.value,
-              enabled: !loading.value,
-              autofillHints: const [AutofillHints.password],
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => submit(),
-              onChanged: (_) {
-                if (error.value != null) error.value = null;
-              },
-              decoration: InputDecoration(
-                hintText: l.passwordHint,
-                errorText: error.value,
-                filled: true,
-                fillColor: ProfileTheme.purple.withValues(alpha: 0.05),
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                prefixIcon: const Icon(
-                  Icons.lock_outline_rounded,
-                  size: 20,
-                  color: ProfileTheme.pink,
+              const Gap(12),
+              Text(
+                l.confirmSwitchTitle(name),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: ProfileTheme.textPrimary(context),
                 ),
-                suffixIcon: IconButton(
-                  onPressed: () => obscure.value = !obscure.value,
-                  icon: Icon(
-                    obscure.value
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
+              ),
+              const Gap(4),
+              Text(
+                l.confirmSwitchMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13.5, height: 1.4, color: muted),
+              ),
+              const Gap(18),
+              TextField(
+                controller: ctr,
+                autofocus: true,
+                obscureText: obscure.value,
+                enabled: !loading.value,
+                autofillHints: const [AutofillHints.password],
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => submit(),
+                onChanged: (_) {
+                  if (error.value != null) error.value = null;
+                },
+                decoration: InputDecoration(
+                  hintText: l.passwordHint,
+                  errorText: error.value,
+                  filled: true,
+                  fillColor: ProfileTheme.purple.withValues(alpha: 0.05),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  prefixIcon: const Icon(
+                    Icons.lock_outline_rounded,
                     size: 20,
-                    color: muted,
+                    color: ProfileTheme.pink,
                   ),
+                  suffixIcon: IconButton(
+                    onPressed: () => obscure.value = !obscure.value,
+                    icon: Icon(
+                      obscure.value
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      size: 20,
+                      color: muted,
+                    ),
+                  ),
+                  border: border(ProfileTheme.hairlineColor(context)),
+                  enabledBorder: border(ProfileTheme.hairlineColor(context)),
+                  focusedBorder: border(ProfileTheme.pink, 1.4),
+                  errorBorder: border(const Color(0xffEF4444)),
+                  focusedErrorBorder: border(const Color(0xffEF4444), 1.4),
                 ),
-                border: border(ProfileTheme.hairlineColor(context)),
-                enabledBorder: border(ProfileTheme.hairlineColor(context)),
-                focusedBorder: border(ProfileTheme.pink, 1.4),
-                errorBorder: border(const Color(0xffEF4444)),
-                focusedErrorBorder: border(const Color(0xffEF4444), 1.4),
               ),
-            ),
-            const Gap(18),
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: loading.value
-                        ? null
-                        : () => Navigator.of(context).pop(false),
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size.fromHeight(46),
-                      foregroundColor: muted,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Text(
-                      l.cancelAction,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-                const Gap(12),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: canSubmit && !loading.value ? submit : null,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 150),
-                      opacity: canSubmit ? 1 : 0.5,
-                      child: Container(
-                        height: 46,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          gradient: ProfileTheme.pinkPurple,
+              const Gap(18),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: loading.value
+                          ? null
+                          : () => Navigator.of(context).pop(false),
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size.fromHeight(46),
+                        foregroundColor: muted,
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: loading.value
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(
-                                l.continueAction,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 15,
-                                ),
-                              ),
+                      ),
+                      child: Text(
+                        l.cancelAction,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  const Gap(12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: canSubmit && !loading.value ? submit : null,
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 150),
+                        opacity: canSubmit ? 1 : 0.5,
+                        child: Container(
+                          height: 46,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            gradient: ProfileTheme.pinkPurple,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: loading.value
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  l.continueAction,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
