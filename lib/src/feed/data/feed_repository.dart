@@ -18,6 +18,7 @@ class FeedRepository {
     double? lat,
     double? lng,
     String? restaurantId,
+    String? userId,
     String? type,
     int? limit,
   }) async {
@@ -27,6 +28,7 @@ class FeedRepository {
       lat: lat,
       lng: lng,
       restaurantId: restaurantId,
+      userId: userId,
       type: type,
       limit: limit ?? 5,
     );
@@ -43,6 +45,11 @@ class FeedRepository {
     );
   }
 
+  Future<VideoFeedItem> getVideo(String videoId) async {
+    final data = await _remote.getVideo(videoId);
+    return VideoFeedItem.fromJson(data);
+  }
+
   Future<int> like(String videoId) async {
     final data = await _remote.like(videoId);
     return (data['likes_count'] as num).toInt();
@@ -56,4 +63,12 @@ class FeedRepository {
   Future<void> save(String videoId) => _remote.save(videoId);
 
   Future<void> unsave(String videoId) => _remote.unsave(videoId);
+
+  /// Counts a view (shown as "18.4K views" in search). Best effort: a failed
+  /// or throttled request is ignored, it must never disturb playback.
+  Future<void> recordView(String videoId) async {
+    try {
+      await _remote.recordView(videoId);
+    } catch (_) {}
+  }
 }

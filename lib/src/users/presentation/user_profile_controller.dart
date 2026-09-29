@@ -42,9 +42,12 @@ class UserProfileController extends FamilyNotifier<UserProfileState, String> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final data = await ref.read(userRemoteDataSourceProvider).show(arg);
+      final profile = PublicProfile.fromJson(data);
       state = UserProfileState(
-        profile: PublicProfile.fromJson(data),
+        profile: profile,
         isLoading: false,
+        // Real follow state from the API (was session-only before).
+        isFollowingLocally: profile.isFollowing,
       );
     } catch (_) {
       state = state.copyWith(isLoading: false, errorMessage: 'User not found.');

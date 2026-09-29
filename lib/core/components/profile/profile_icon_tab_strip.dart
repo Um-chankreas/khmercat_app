@@ -43,7 +43,7 @@ class ProfileIconTabStrip extends HookWidget {
             }
           },
         ),
-        const Gap(8),
+        const Gap(16),
         ProfileTabBody(
           index: selected.value,
           child: bodyBuilder(context, selected.value),
@@ -68,6 +68,11 @@ class ProfileTabBody extends StatelessWidget {
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 250),
         switchInCurve: Curves.easeOut,
+        // Unkeyed so rapid A -> B -> A tab taps don't put two same-index
+        // bodies in the Stack at once ("Duplicate keys found") — see the
+        // matching comment in search_screen.dart.
+        transitionBuilder: (child, animation) =>
+            FadeTransition(opacity: animation, child: child),
         layoutBuilder: (current, previous) => Stack(
           alignment: Alignment.topCenter,
           children: [...previous, ?current],

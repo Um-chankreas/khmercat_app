@@ -1,28 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:khmer_cat_app/core/components/dialogs/sign_in_prompt.dart';
 import 'package:khmer_cat_app/core/components/profile/cover_avatar_header.dart';
-import 'package:khmer_cat_app/core/components/profile/profile_action_buttons.dart';
+import 'package:khmer_cat_app/core/components/profile/profile_action_tiles.dart';
+import 'package:khmer_cat_app/core/components/profile/profile_collapsing_header.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_empty_tab_body.dart';
-import 'package:khmer_cat_app/core/components/profile/profile_icon_tab_strip.dart';
-import 'package:khmer_cat_app/core/components/profile/profile_stats_row.dart';
+import 'package:khmer_cat_app/core/components/profile/profile_social_widgets.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
-import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
+import 'package:khmer_cat_app/core/utils/social_links.dart';
+import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/my_restaurants_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/restaurant_profile_controller.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/widgets/restaurant_info_panel.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/restaurant_switcher_sheet.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/restaurant_videos_grid.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/widgets/unpublished_banner.dart';
+import 'package:share_plus/share_plus.dart';
 
-class RestaurantProfileScreen extends ConsumerWidget {
+const _orange = Color(0xffFF8A3D);
+const _gold = Color(0xffFFC83D);
+
+class RestaurantProfileScreen extends HookConsumerWidget {
   final String restaurantId;
   const RestaurantProfileScreen({required this.restaurantId, super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final scrollController = useScrollController();
+    final tab = useState(0);
+    final visitedTabs = useState<Set<int>>({0});
     final state = ref.watch(restaurantProfileControllerProvider(restaurantId));
     final myRestaurants = ref.watch(myRestaurantsControllerProvider);
     final isOwner =
@@ -33,7 +44,6 @@ class RestaurantProfileScreen extends ConsumerWidget {
 
     if (state.isLoading) {
       return const Scaffold(
-        backgroundColor: Colors.white,
         body: Center(
           child: CircularProgressIndicator(color: ProfileTheme.purple),
         ),
@@ -41,11 +51,7 @@ class RestaurantProfileScreen extends ConsumerWidget {
     }
     if (state.restaurant == null) {
       return Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-        ),
+        appBar: AppBar(surfaceTintColor: Colors.transparent),
         body: ProfileEmptyTabBody(
           icon: Icons.storefront_outlined,
           title: 'Restaurant unavailable',
@@ -55,8 +61,41 @@ class RestaurantProfileScreen extends ConsumerWidget {
     }
 
     final restaurant = state.restaurant!;
-    final address = restaurant.address?.trim();
-    final description = restaurant.description?.trim();
+    final r = restaurant;
+    final description = r.description?.trim();
+    // Derived from real follower data rather than a backend flag.
+    final isPopular = (r.followersCount ?? 0) >= 1000;
+    final opens = RestaurantInfoPanel.hm(r.openingTime);
+    final closes = RestaurantInfoPanel.hm(r.closingTime);
+
+    // Round brand buttons for the links the restaurant has set (each
+    // preceded by a 10px gap, so they can follow any leading button).
+    // Social links the restaurant has set (brand logo + link).
+    final socialLinks = [
+      (SocialLinks.facebook(r.facebookUrl), AssetsName.facebook, 'Facebook'),
+      (SocialLinks.tiktok(r.tiktokUrl), AssetsName.tiktok, 'TikTok'),
+      (
+        SocialLinks.telegram(r.telegramUsername),
+        AssetsName.telegram,
+        'Telegram',
+      ),
+    ].where((l) => l.$1 != null).map((l) => (l.$1!, l.$2, l.$3)).toList();
+
+    // Visitor shortcuts: exact pin when we have one, else the address.
+    final phone = r.phone?.trim();
+    final address = r.address?.trim();
+    final mapQuery = r.latitude != null && r.longitude != null
+        ? '${r.latitude},${r.longitude}'
+        : (address != null && address.isNotEmpty ? address : null);
+    final Uri? directions = mapQuery == null
+        ? null
+        : Uri.https('www.google.com', '/maps/search/', {
+            'api': '1',
+            'query': mapQuery,
+          });
+    final Uri? call = phone == null || phone.isEmpty
+        ? null
+        : Uri(scheme: 'tel', path: phone.replaceAll(' ', ''));
 
     Future<void> onFollow() async {
       if (!await requireLogin(
@@ -71,228 +110,277 @@ class RestaurantProfileScreen extends ConsumerWidget {
           .toggleFollow();
     }
 
+    void openMenu() => AppRouter.router.pushNamed(
+      AppRoute.restaurantMenu.name,
+      pathParameters: {'id': restaurantId},
+    );
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            CoverAvatarHeader(
-              coverUrl: restaurant.coverPicture,
-              avatarUrl: restaurant.profilePicture,
-              name: restaurant.name,
-              onBack: () {
-                if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-              },
-            ),
-            Gap(CoverAvatarHeader.contentGap()),
-            Padding(
+      body: CustomScrollView(
+        controller: scrollController,
+        slivers: [
+          ProfileCollapsingHeader(
+            scrollController: scrollController,
+            coverUrl: restaurant.coverPicture,
+            avatarUrl: restaurant.profilePicture,
+            name: restaurant.name,
+            subtitle: restaurant.category?.name,
+            // 16:9, the same as your own profile's cover.
+            coverHeight: MediaQuery.sizeOf(context).width * 9 / 16,
+            avatarSize: 86,
+            coverRadius: 0,
+            // Storefront badge on the logo: marks this as a restaurant at a
+            // glance (people's avatars never have it).
+            avatarBadge: const _StorefrontBadge(),
+            onBack: () {
+              if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+            },
+            actions: [
+              ProfileCircleButton(
+                icon: Icons.ios_share_rounded,
+                dark: true,
+                onTap: () => SharePlus.instance.share(
+                  ShareParams(
+                    text: [
+                      '${r.name} on Khmer Cat',
+                      if (r.category != null) r.category!.name,
+                      if (r.menuUrl != null) 'Menu: ${r.menuUrl}',
+                    ].join('\n'),
+                    subject: r.name,
+                  ),
+                ),
+              ),
+              const Gap(14),
+            ],
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    restaurant.name,
-                    style: const TextStyle(
-                      fontSize: 25,
+                    r.name,
+                    style: TextStyle(
+                      fontSize: 23,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                      color: ProfileTheme.ink,
+                      letterSpacing: -0.4,
+                      color: ProfileTheme.textPrimary(context),
                     ),
                   ),
                   const Gap(8),
+                  // Category, open status, and badges.
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      if (restaurant.category != null)
-                        _Pill(
-                          icon: Icons.restaurant_menu_rounded,
-                          label: restaurant.category!.name,
-                          color: ProfileTheme.purple,
+                      // Storefront chip = restaurant (people get a
+                      // person "Personal" chip instead).
+                      ProfileTypeChip(
+                        isRestaurant: true,
+                        label: r.category?.name,
+                      ),
+                      if (r.isOpen != null)
+                        OpenStatusPill(
+                          open: r.isOpen!,
+                          detail: r.isOpen!
+                              ? (closes == null ? null : 'until $closes')
+                              : (opens == null ? null : 'opens $opens'),
+                        ),
+                      if (isPopular)
+                        const _Pill(
+                          icon: Icons.local_fire_department_rounded,
+                          label: 'Popular',
+                          color: _orange,
                         ),
                       if (isOwner)
                         const _Pill(
                           icon: Icons.verified_user_rounded,
                           label: 'Your restaurant',
-                          color: ProfileTheme.pink,
+                          color: ProfileTheme.deepPurple,
                         ),
                     ],
                   ),
+                  const Gap(10),
+                  _StatsLine(restaurant: r),
                   if (description != null && description.isNotEmpty) ...[
-                    const Gap(12),
+                    const Gap(10),
                     Text(
                       description,
-                      style: const TextStyle(
-                        fontSize: 14.5,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
                         height: 1.45,
-                        color: ProfileTheme.ink,
+                        color: ProfileTheme.textSecondary(context),
                       ),
                     ),
                   ],
-                  const Gap(18),
-                  // Only `followersCount` is real today — Following (a
-                  // restaurant doesn't follow anything) and Likes (no
-                  // aggregate endpoint) show 0 until there's real data.
-                  ProfileStatsRow(
-                    stats: [
-                      const ProfileStat(
-                        value: 0,
-                        label: 'Following',
-                        icon: Icons.person_add_alt_1_rounded,
-                      ),
-                      ProfileStat(
-                        value: restaurant.followersCount ?? 0,
-                        label: 'Followers',
-                        icon: Icons.people_alt_rounded,
-                      ),
-                      const ProfileStat(
-                        value: 0,
-                        label: 'Likes',
-                        icon: Icons.favorite_rounded,
-                      ),
+                  const Gap(16),
+
+                  if (isOwner && !r.isPublished) ...[
+                    const Gap(14),
+                    UnpublishedBanner(restaurant: r),
+                  ],
+                  // ---- Action tiles: equal width, icon over label.
+                  const Gap(16),
+                  Row(
+                    children: [
+                      for (final (i, tile)
+                          in (isOwner
+                                  ? [
+                                      ProfileActionTile(
+                                        icon: Icons.videocam_rounded,
+                                        label: 'Post video',
+                                        primary: true,
+                                        onTap: () => AppRouter.router.pushNamed(
+                                          AppRoute.cameraRecord.name,
+                                        ),
+                                      ),
+                                      ProfileActionTile(
+                                        icon: Icons.edit_rounded,
+                                        label: 'Edit',
+                                        onTap: () => AppRouter.router.pushNamed(
+                                          AppRoute.editRestaurant.name,
+                                          pathParameters: {'id': restaurantId},
+                                        ),
+                                      ),
+                                      ProfileActionTile(
+                                        icon: Icons.menu_book_rounded,
+                                        label: 'Menu',
+                                        onTap: openMenu,
+                                      ),
+                                      ProfileActionTile(
+                                        icon: Icons.swap_horiz_rounded,
+                                        label: 'Switch',
+                                        onTap: () =>
+                                            showRestaurantSwitcherSheet(
+                                              context,
+                                            ),
+                                      ),
+                                    ]
+                                  : [
+                                      ProfileActionTile(
+                                        icon: state.isFollowingLocally
+                                            ? Icons.check_rounded
+                                            : Icons.person_add_alt_1_rounded,
+                                        label: state.isFollowingLocally
+                                            ? 'Following'
+                                            : 'Follow',
+                                        primary: !state.isFollowingLocally,
+                                        onTap: onFollow,
+                                      ),
+                                      ProfileActionTile(
+                                        icon: Icons.menu_book_rounded,
+                                        label: 'Menu',
+                                        onTap: openMenu,
+                                      ),
+                                      if (directions != null)
+                                        ProfileActionTile(
+                                          icon: Icons.directions_rounded,
+                                          label: 'Directions',
+                                          onTap: () =>
+                                              SocialLinks.open(directions),
+                                        ),
+                                      if (call != null)
+                                        ProfileActionTile(
+                                          icon: Icons.call_rounded,
+                                          label: 'Call',
+                                          onTap: () => SocialLinks.open(call),
+                                        ),
+                                    ])
+                              .indexed) ...[
+                        if (i > 0) const Gap(8),
+                        Expanded(child: tile),
+                      ],
                     ],
                   ),
-                  const Gap(14),
-                  if (isOwner)
-                    ProfileCard(
-                      padding: const EdgeInsets.all(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(
-                                Icons.dashboard_customize_rounded,
-                                size: 18,
-                                color: ProfileTheme.purple,
-                              ),
-                              Gap(8),
-                              Text(
-                                'Manage restaurant',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                  color: ProfileTheme.ink,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Gap(12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ProfileGradientButton(
-                                  text: 'Post video',
-                                  icon: Icons.videocam_rounded,
-                                  onTap: () => AppRouter.router.pushNamed(
-                                    AppRoute.cameraRecord.name,
-                                  ),
-                                ),
-                              ),
-                              const Gap(10),
-                              Expanded(
-                                child: ProfileOutlineButton(
-                                  text: 'Menu',
-                                  icon: Icons.menu_book_rounded,
-                                  onTap: () =>
-                                      AppService.showToast('Coming soon'),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Gap(10),
-                          ProfileOutlineButton(
-                            text: 'Switch restaurant',
-                            icon: Icons.swap_horiz_rounded,
-                            onTap: () => showRestaurantSwitcherSheet(context),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ProfileFollowButton(
-                            isFollowing: state.isFollowingLocally,
-                            onTap: onFollow,
-                          ),
-                        ),
-                        const Gap(10),
-                        Expanded(
-                          child: ProfileOutlineButton(
-                            text: 'Menu',
-                            icon: Icons.menu_book_rounded,
-                            onTap: () => AppService.showToast('Coming soon'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  if (address != null && address.isNotEmpty) ...[
-                    const Gap(14),
-                    ProfileCard(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
-                      ),
-                      child: ProfileInfoTile(
-                        icon: Icons.location_on_rounded,
-                        label: 'Address',
-                        value: address,
-                        color: ProfileTheme.pink,
-                      ),
-                    ),
+
+                  // ---- Social strip
+                  if (socialLinks.isNotEmpty) ...[
+                    const Gap(12),
+                    ProfileSocialStrip(links: socialLinks),
                   ],
                 ],
               ),
             ),
-            const Gap(22),
-            // Videos and Reviews both show real videos (posts vs. review
-            // uploads for this restaurant); Shared/Liked have no backend
-            // support yet so they're honest placeholders. There's no rating
-            // system in the backend at all yet, so Reviews is video-only —
-            // no star widget, since there'd be nowhere to save it.
-            ProfileIconTabStrip(
-              icons: [
-                AssetsName.feeds,
-                AssetsName.comment,
-                AssetsName.share,
-                AssetsName.heart,
+          ),
+          const SliverToBoxAdapter(child: Gap(16)),
+          SliverToBoxAdapter(
+            child: ProfileSegmentTabs(
+              // The app's own icons, same as the owner's Profile tab.
+              tabs: [
+                ProfileSegmentTab(asset: AssetsName.feeds, label: 'Videos'),
+                ProfileSegmentTab(asset: AssetsName.review, label: 'Reviews'),
+                ProfileSegmentTab(asset: AssetsName.profileinfo, label: 'Info'),
               ],
-              labels: const ['Videos', 'Reviews', 'Shared', 'Liked'],
-              bodyBuilder: (context, index) => switch (index) {
-                0 => RestaurantVideosGrid(
-                  restaurantId: restaurantId,
-                  emptyTitle: 'No videos yet',
-                  emptyMessage:
-                      'Videos posted by this restaurant show up here.',
-                ),
-                1 => RestaurantVideosGrid(
-                  restaurantId: restaurantId,
-                  type: 'review',
-                  emptyTitle: 'No reviews yet',
-                  emptyMessage: 'Be the first to review this restaurant.',
-                ),
-                2 => ProfileEmptyTabBody(
-                  asset: AssetsName.share,
-                  title: 'Nothing shared',
-                  message: 'Shared videos aren\'t available here yet.',
-                ),
-                _ => ProfileEmptyTabBody(
-                  asset: AssetsName.heart,
-                  title: 'Nothing liked',
-                  message: 'Liked videos aren\'t available here yet.',
-                ),
+              selected: tab.value,
+              onChanged: (i) {
+                tab.value = i;
+                if (!visitedTabs.value.contains(i)) {
+                  visitedTabs.value = {...visitedTabs.value, i};
+                }
               },
+              compact: true,
             ),
-            const Gap(16),
-          ],
-        ),
+          ),
+          const SliverToBoxAdapter(child: Gap(16)),
+          SliverToBoxAdapter(
+            // Both grids stay alive once opened and are only shown/hidden,
+            // so switching tabs doesn't refetch, flash a skeleton, or
+            // cross-fade one grid over the other. A hidden grid takes no
+            // space. Reviews loads the first time its tab is opened.
+            child: Column(
+              children: [
+                _TabPane(
+                  visible: tab.value == 0,
+                  child: RestaurantVideosGrid(
+                    restaurantId: restaurantId,
+                    emptyTitle: 'No videos yet',
+                    emptyMessage:
+                        'Videos posted by this restaurant show up here.',
+                  ),
+                ),
+                if (visitedTabs.value.contains(1))
+                  _TabPane(
+                    visible: tab.value == 1,
+                    child: RestaurantVideosGrid(
+                      restaurantId: restaurantId,
+                      type: 'review',
+                      emptyTitle: 'No reviews yet',
+                      emptyMessage: 'Be the first to review this restaurant.',
+                    ),
+                  ),
+                // Info: hours, service, contact, about. Owners also get
+                // "Add …" links for anything missing.
+                if (tab.value == 2)
+                  RestaurantInfoPanel(
+                    restaurant: r,
+                    showSocial: false,
+                    topPadding: 0,
+                    onOpenMenu: openMenu,
+                    onEdit: isOwner
+                        ? () => AppRouter.router.pushNamed(
+                            AppRoute.editRestaurant.name,
+                            pathParameters: {'id': restaurantId},
+                          )
+                        : null,
+                  ),
+              ],
+            ),
+          ),
+          const SliverToBoxAdapter(child: Gap(16)),
+        ],
       ),
     );
   }
+}
+
+String _compact(int n) {
+  if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+  if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+  return '$n';
 }
 
 class _Pill extends StatelessWidget {
@@ -307,7 +395,7 @@ class _Pill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -323,6 +411,109 @@ class _Pill extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// ★ 3.5 (4 reviews) · 1 follower · 2 posts — one quiet line.
+class _StatsLine extends StatelessWidget {
+  final Restaurant restaurant;
+  const _StatsLine({required this.restaurant});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = restaurant;
+    final primary = ProfileTheme.textPrimary(context);
+    final muted = ProfileTheme.textSecondary(context);
+    final strong = TextStyle(
+      fontSize: 13.5,
+      fontWeight: FontWeight.w800,
+      color: primary,
+    );
+    final soft = TextStyle(fontSize: 13.5, color: muted);
+    final followers = r.followersCount ?? 0;
+    String plural(int n, String word) =>
+        '${_compact(n)} $word${n == 1 ? '' : 's'}';
+
+    return Text.rich(
+      TextSpan(
+        children: [
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            // Filled gold once rated; an empty grey star until then.
+            child: r.avgRating != null
+                ? const Icon(Icons.star_rounded, size: 17, color: _gold)
+                : Icon(Icons.star_border_rounded, size: 17, color: muted),
+          ),
+          const TextSpan(text: ' '),
+          if (r.avgRating != null) ...[
+            TextSpan(text: r.avgRating!.toStringAsFixed(1), style: strong),
+            TextSpan(
+              text: ' (${plural(r.reviewsCount, 'review')})',
+              style: soft,
+            ),
+          ] else
+            TextSpan(text: 'No reviews yet', style: soft),
+          TextSpan(text: '  ·  ', style: soft),
+          TextSpan(text: _compact(followers), style: strong),
+          TextSpan(
+            text: followers == 1 ? ' follower' : ' followers',
+            style: soft,
+          ),
+          TextSpan(text: '  ·  ', style: soft),
+          TextSpan(text: _compact(r.videosCount), style: strong),
+          TextSpan(text: r.videosCount == 1 ? ' post' : ' posts', style: soft),
+        ],
+      ),
+    );
+  }
+}
+
+/// Keeps [child]'s state (and loaded data) while hidden; a hidden pane takes
+/// no space. Shown panes fade in quickly.
+class _TabPane extends StatelessWidget {
+  final bool visible;
+  final Widget child;
+  const _TabPane({required this.visible, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Visibility(
+      visible: visible,
+      maintainState: true,
+      // Same widget tree whether shown or hidden (no key change), so the
+      // grid is never rebuilt from scratch; opacity eases 0 -> 1 on show.
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: const Duration(milliseconds: 180),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// Pink storefront badge on a restaurant's logo.
+class _StorefrontBadge extends StatelessWidget {
+  const _StorefrontBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        gradient: ProfileTheme.pinkPurple,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          width: 2.5,
+        ),
+      ),
+      child: const Icon(
+        Icons.storefront_rounded,
+        size: 14,
+        color: Colors.white,
       ),
     );
   }

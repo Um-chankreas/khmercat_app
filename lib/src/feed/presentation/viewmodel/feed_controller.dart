@@ -5,6 +5,7 @@ import 'package:khmer_cat_app/src/auth/presentation/viewmodel/auth_controller.da
 import 'package:khmer_cat_app/src/feed/domain/feed_tab.dart';
 import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
 import 'package:khmer_cat_app/src/feed/providers/feed_providers.dart';
+import 'package:khmer_cat_app/src/social/providers/social_providers.dart';
 
 class FeedState {
   final List<VideoFeedItem> items;
@@ -183,10 +184,39 @@ class FeedController extends FamilyNotifier<FeedState, FeedTab> {
     }
   }
 
-  void markFollowedLocally(String videoId) {
+  /// Toggles follow state for the restaurant behind [videoId] — every video
+  /// always has a restaurant (both upload paths require one). Optimistic,
+  /// same pattern as [toggleSave]; every other video for the same
+  /// restaurant in the current list is updated too, so the feed stays
+  /// consistent if that restaurant appears more than once.
+  Future<void> toggleFollowRestaurant(String videoId) async {
     final index = state.items.indexWhere((v) => v.id == videoId);
     if (index == -1) return;
-    _replaceAt(index, state.items[index].copyWith(followingLocally: true));
+    final restaurantId = state.items[index].restaurant?.id;
+    if (restaurantId == null) return;
+
+    final wasFollowing = state.items[index].isFollowingRestaurant;
+    final original = state.items;
+    state = state.copyWith(
+      items: [
+        for (final v in original)
+          if (v.restaurant?.id == restaurantId)
+            v.copyWith(isFollowingRestaurant: !wasFollowing)
+          else
+            v,
+      ],
+    );
+
+    try {
+      final social = ref.read(socialRemoteDataSourceProvider);
+      if (wasFollowing) {
+        await social.unfollowRestaurant(restaurantId);
+      } else {
+        await social.followRestaurant(restaurantId);
+      }
+    } catch (_) {
+      state = state.copyWith(items: original); // roll back
+    }
   }
 
   void _replaceAt(int index, VideoFeedItem item) {

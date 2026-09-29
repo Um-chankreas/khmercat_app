@@ -194,6 +194,23 @@ class ApiClient {
     final statusCode = e.response?.statusCode;
     final rawData = e.response?.data;
 
+    // Rate limited (Laravel's throttle): say how long to wait instead of the
+    // bare "Too Many Attempts." — the server sends the seconds left.
+    if (statusCode == 429) {
+      final seconds = int.tryParse(
+        e.response?.headers.value('retry-after') ?? '',
+      );
+      final wait = seconds == null
+          ? 'a minute'
+          : seconds >= 90
+          ? '${(seconds / 60).ceil()} minutes'
+          : '$seconds seconds';
+      return ApiException(
+        message: 'Too many attempts. Please wait $wait and try again.',
+        statusCode: statusCode,
+      );
+    }
+
     Map<String, dynamic>? json;
     if (rawData is Map<String, dynamic>) {
       json = rawData;

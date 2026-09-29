@@ -6,31 +6,56 @@ import 'search_remote_datasource.dart';
 
 typedef SearchResults = ({
   List<Restaurant> restaurants,
+  List<Restaurant> recommended,
   List<VideoFeedItem> videos,
   List<PublicProfile> users,
+
+  /// Total matches per section; can be larger than the lists above.
+  ({int restaurants, int videos, int users}) counts,
 });
 
 class SearchRepository {
   final SearchRemoteDataSource _remote;
   SearchRepository(this._remote);
 
-  Future<SearchResults> search(String query) async {
-    final data = await _remote.search(query);
+  Future<SearchResults> search({
+    String? query,
+    String? categoryId,
+    double? lat,
+    double? lng,
+    bool nearest = false,
+  }) async {
+    final data = await _remote.search(
+      query: query,
+      categoryId: categoryId,
+      lat: lat,
+      lng: lng,
+      nearest: nearest,
+    );
+
+    List<T> list<T>(String key, T Function(Map<String, dynamic>) parse) =>
+        (data[key] as List? ?? [])
+            .cast<Map<String, dynamic>>()
+            .map(parse)
+            .toList();
+
+    final restaurants = list('restaurants', Restaurant.fromJson);
+    final videos = list('videos', VideoFeedItem.fromJson);
+    final users = list('users', PublicProfile.fromJson);
+    final counts = data['counts'] as Map<String, dynamic>? ?? const {};
+    int count(String key, int fallback) =>
+        (counts[key] as num?)?.toInt() ?? fallback;
+
     return (
-      restaurants: (data['restaurants'] as List? ?? [])
-          .cast<Map<String, dynamic>>()
-          .map(Restaurant.fromJson)
-          .toList(),
-      videos: (data['videos'] as List? ?? [])
-          .cast<Map<String, dynamic>>()
-          .map(VideoFeedItem.fromJson)
-          .toList(),
-      // Not every backend build returns matching users from /search; when
-      // the key is missing this is just empty and the Users tab says so.
-      users: (data['users'] as List? ?? [])
-          .cast<Map<String, dynamic>>()
-          .map(PublicProfile.fromJson)
-          .toList(),
+      restaurants: restaurants,
+      recommended: list('recommended', Restaurant.fromJson),
+      videos: videos,
+      users: users,
+      counts: (
+        restaurants: count('restaurants', restaurants.length),
+        videos: count('videos', videos.length),
+        users: count('users', users.length),
+      ),
     );
   }
 }

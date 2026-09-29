@@ -21,7 +21,7 @@ if (localPropertiesFile.exists()) {
     localProperties.load(FileInputStream(localPropertiesFile))
 }
 android {
-    namespace = "com.example.khmer_cat_app"
+    namespace = "com.app.khmercat"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

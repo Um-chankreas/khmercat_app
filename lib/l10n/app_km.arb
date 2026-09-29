@@ -48,11 +48,29 @@
   "emptyLiked": "វីដេអូដែលអ្នកចូលចិត្តនឹងបង្ហាញនៅទីនេះ។",
   "emptyFavorites": "វីដេអូសំណព្វរបស់អ្នកនឹងបង្ហាញនៅទីនេះ។",
   "emptyTrash": "វីដេអូដែលបានលុបនឹងនៅទីនេះ ៣០ ថ្ងៃ។",
+  "aboutSectionTitle": "ព័ត៌មានគណនី",
 
   "aboutName": "ឈ្មោះ",
   "aboutUsername": "ឈ្មោះអ្នកប្រើ",
   "aboutEmail": "អ៊ីមែល",
   "aboutBio": "ប្រវត្តិរូប",
 
-  "comingSoon": "នឹងមកដល់ឆាប់ៗ"
+  "comingSoon": "នឹងមកដល់ឆាប់ៗ",
+
+  "currentlyViewing": "កំពុងប្រើជា",
+  "youAreViewingAs": "អ្នកកំពុងប្រើកម្មវិធីជា {name}",
+  "switchTo": "ប្ដូរទៅ",
+  "profileTypePersonal": "ផ្ទាល់ខ្លួន",
+  "profileTypeRestaurant": "ភោជនីយដ្ឋាន",
+  "profileStatusActive": "សកម្ម",
+  "profileStatusInactive": "អសកម្ម",
+  "switchedTo": "បានប្ដូរទៅ {name}",
+  "switchFailed": "មិនអាចប្ដូរប្រវត្តិរូបបានទេ។ សូមព្យាយាមម្ដងទៀត។",
+  "confirmSwitchTitle": "ប្ដូរទៅ {name}",
+  "confirmSwitchMessage": "បញ្ចូលពាក្យសម្ងាត់របស់អ្នក ដើម្បីប្ដូរត្រឡប់ទៅគណនីផ្ទាល់ខ្លួនវិញ។",
+  "passwordHint": "ពាក្យសម្ងាត់",
+  "continueAction": "បន្ត",
+  "cancelAction": "បោះបង់",
+  "switchAccount": "ប្ដូរគណនី",
+  "profilesCount": "{count, plural, other{{count} ប្រវត្តិរូប}}"
 }

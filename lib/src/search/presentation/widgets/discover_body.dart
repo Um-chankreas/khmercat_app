@@ -27,7 +27,7 @@ class DiscoverBody extends ConsumerWidget {
       color: ProfileTheme.purple,
       onRefresh: () => ref.refresh(discoverProvider.future),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
         children: [
           // ---- Recent searches
           if (recents.isNotEmpty) ...[
@@ -38,7 +38,7 @@ class DiscoverBody extends ConsumerWidget {
               actionText: 'Clear',
               onAction: vm.clearRecents,
             ),
-            const Gap(12),
+            const Gap(10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -51,7 +51,7 @@ class DiscoverBody extends ConsumerWidget {
                   ),
               ],
             ),
-            const Gap(28),
+            const Gap(20),
           ],
 
           // ---- Nearby
@@ -61,7 +61,7 @@ class DiscoverBody extends ConsumerWidget {
             title: 'Nearby restaurants',
             subtitle: 'Closest to you first',
           ),
-          const Gap(14),
+          const Gap(12),
           if (position == null)
             EnableLocationCard(
               onEnable: () => ref.read(locationProvider.notifier).enable(),
@@ -85,7 +85,7 @@ class DiscoverBody extends ConsumerWidget {
                       ),
                     ),
             ),
-          const Gap(28),
+          const Gap(20),
 
           // ---- Recommendations
           ...discover.when(
@@ -137,11 +137,8 @@ class DiscoverBody extends ConsumerWidget {
               if (d.popular.isEmpty &&
                   d.nearby.isEmpty &&
                   d.trendingVideos.isEmpty)
-                const SearchMessage(
-                  icon: Icons.search_rounded,
-                  title: 'Find your next favorite spot',
-                  message:
-                      'Search for a restaurant, a dish or a person — or pick a cuisine above.',
+                const _InlineNote(
+                  'Find your next favorite spot — search above or pick a cuisine.',
                 ),
             ],
           ),

@@ -3,13 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
-import 'package:khmer_cat_app/core/components/image_network/image_user_circle_profile.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
-import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
-import 'package:khmer_cat_app/src/users/domain/public_profile.dart';
 
 // =============================================================================
 // Search bar + filter chips + tabs (the sticky header)
@@ -82,6 +79,9 @@ class SearchInputBar extends StatelessWidget {
               focusNode: focusNode,
               onChanged: onChanged,
               onSubmitted: onSubmitted,
+              // Any touch outside the field (results, chips, tabs, a scroll)
+              // hides the keyboard.
+              onTapOutside: (_) => focusNode.unfocus(),
               textInputAction: TextInputAction.search,
               style: const TextStyle(
                 fontSize: 16.5,
@@ -251,13 +251,18 @@ class _PillState extends State<_Pill> {
   }
 }
 
-/// All | Restaurants | Videos | Users with a sliding gradient underline.
+/// One tab in [SearchTabs]: a label plus an optional result count.
+typedef SearchTab = ({String label, int? count});
+
+/// All | Restaurants 12 | Videos 8 | Users 4 — left aligned, horizontally
+/// scrollable, with a gradient underline and a pink dot on the active tab
+/// when it has no count badge.
 class SearchTabs extends StatelessWidget {
-  final List<String> labels;
+  final List<SearchTab> tabs;
   final int selected;
   final ValueChanged<int> onChanged;
   const SearchTabs({
-    required this.labels,
+    required this.tabs,
     required this.selected,
     required this.onChanged,
     super.key,
@@ -265,60 +270,114 @@ class SearchTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final n = labels.length;
-    return SizedBox(
-      height: 42,
-      child: Stack(
+    final muted = ProfileTheme.textSecondary(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: ProfileTheme.hairlineColor(context)),
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            for (var i = 0; i < tabs.length; i++)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onChanged(i);
+                },
+                child: _TabItem(
+                  tab: tabs[i],
+                  active: i == selected,
+                  muted: muted,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TabItem extends StatelessWidget {
+  final SearchTab tab;
+  final bool active;
+  final Color muted;
+  const _TabItem({
+    required this.tab,
+    required this.active,
+    required this.muted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final count = tab.count;
+    return Padding(
+      padding: const EdgeInsets.only(right: 22),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: List.generate(n, (i) {
-              final active = i == selected;
-              return Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => onChanged(i),
-                  child: Center(
-                    child: AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 180),
+          SizedBox(
+            height: 38,
+            child: Row(
+              children: [
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 180),
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                    color: active ? ProfileTheme.textPrimary(context) : muted,
+                  ),
+                  child: Text(tab.label),
+                ),
+                if (count != null) ...[
+                  const Gap(6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: ProfileTheme.purple.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$count',
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                        color: active
-                            ? ProfileTheme.deepPurple
-                            : ProfileTheme.muted,
-                      ),
-                      child: Text(
-                        labels[i],
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: muted,
                       ),
                     ),
                   ),
-                ),
-              );
-            }),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(height: 1, color: ProfileTheme.hairline),
-          ),
-          AnimatedAlign(
-            duration: const Duration(milliseconds: 260),
-            curve: Curves.easeOutCubic,
-            alignment: Alignment(-1 + 2 * selected / (n - 1), 1),
-            child: FractionallySizedBox(
-              widthFactor: 1 / n,
-              child: Center(
-                child: Container(
-                  width: 34,
-                  height: 3.5,
-                  decoration: BoxDecoration(
-                    gradient: ProfileTheme.gradient,
-                    borderRadius: BorderRadius.circular(2),
+                ] else if (active) ...[
+                  const Gap(5),
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: ProfileTheme.pink,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
+                ],
+              ],
+            ),
+          ),
+          // Underline, as wide as the tab's label row.
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 180),
+            opacity: active ? 1 : 0,
+            child: Container(
+              height: 3,
+              width: 28,
+              decoration: BoxDecoration(
+                gradient: ProfileTheme.pinkPurple,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
@@ -649,45 +708,6 @@ class GradientTextButton extends StatelessWidget {
   }
 }
 
-/// "Show more" button for the client-side paging of long result lists.
-/// Infinite-scroll trigger: placed as the last child of a lazily-built list,
-/// it only gets built once the user scrolls near the end, and then asks for
-/// the next page. Re-key it (e.g. by item count) so it fires again per page.
-class LoadMoreSentinel extends StatefulWidget {
-  final VoidCallback onVisible;
-  const LoadMoreSentinel({required this.onVisible, super.key});
-
-  @override
-  State<LoadMoreSentinel> createState() => _LoadMoreSentinelState();
-}
-
-class _LoadMoreSentinelState extends State<LoadMoreSentinel> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) widget.onVisible();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 20),
-      child: Center(
-        child: SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.4,
-            color: ProfileTheme.purple,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// List / grid layout switch.
 class ViewToggle extends StatelessWidget {
   final bool grid;
@@ -852,412 +872,6 @@ void openRestaurant(String id) => AppRouter.router.pushNamed(
   AppRoute.restaurantProfile.name,
   pathParameters: {'id': id},
 );
-
-class RestaurantResultCard extends StatelessWidget {
-  final Restaurant restaurant;
-  final String? distanceText;
-  final VoidCallback? onOpened;
-  const RestaurantResultCard({
-    required this.restaurant,
-    this.distanceText,
-    this.onOpened,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final r = restaurant;
-    final category = r.category?.name;
-    final address = r.address?.trim();
-    final followers = r.followersCount;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: Theme.of(context).colorScheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-          side: BorderSide(color: ProfileTheme.hairline),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Ink(
-          decoration: BoxDecoration(boxShadow: ProfileTheme.cardShadow()),
-          child: InkWell(
-            onTap: () {
-              onOpened?.call();
-              openRestaurant(r.id);
-            },
-            splashColor: ProfileTheme.purple.withValues(alpha: 0.08),
-            highlightColor: ProfileTheme.purple.withValues(alpha: 0.04),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: SizedBox(
-                      width: 76,
-                      height: 76,
-                      child: NetImage(url: r.profilePicture),
-                    ),
-                  ),
-                  const Gap(14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          r.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                        if (category != null && category.isNotEmpty) ...[
-                          const Gap(3),
-                          Text(
-                            category,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: ProfileTheme.deepPurple,
-                            ),
-                          ),
-                        ],
-                        const Gap(7),
-                        // Quiet meta row: icon + text, no chip backgrounds.
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 4,
-                          children: [
-                            if (distanceText != null)
-                              _Meta(
-                                icon: Icons.near_me_rounded,
-                                text: distanceText!,
-                                color: ProfileTheme.pink,
-                              ),
-                            if (followers != null)
-                              _Meta(
-                                icon: Icons.people_alt_rounded,
-                                text: '$followers',
-                                color: ProfileTheme.blue,
-                              ),
-                            if (address != null && address.isNotEmpty)
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 170,
-                                ),
-                                child: _Meta(
-                                  icon: Icons.location_on_rounded,
-                                  text: address,
-                                  color: ProfileTheme.muted,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Gap(6),
-                  Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      color: ProfileTheme.purple.withValues(alpha: 0.08),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.chevron_right_rounded,
-                      size: 20,
-                      color: ProfileTheme.deepPurple,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Icon + short text, used for the quiet metadata rows.
-class _Meta extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  final Color color;
-  const _Meta({required this.icon, required this.text, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: color),
-        const SizedBox(width: 4),
-        Flexible(
-          child: Text(
-            text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-              color: ProfileTheme.muted,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Two-column variant of the restaurant card for the grid layout.
-class RestaurantGridCard extends StatelessWidget {
-  final Restaurant restaurant;
-  final String? distanceText;
-  final VoidCallback? onOpened;
-  const RestaurantGridCard({
-    required this.restaurant,
-    this.distanceText,
-    this.onOpened,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final r = restaurant;
-    return Material(
-      color: Theme.of(context).colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
-        side: BorderSide(color: ProfileTheme.hairline),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Ink(
-        decoration: BoxDecoration(boxShadow: ProfileTheme.cardShadow()),
-        child: InkWell(
-          onTap: () {
-            onOpened?.call();
-            openRestaurant(r.id);
-          },
-          splashColor: ProfileTheme.purple.withValues(alpha: 0.08),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: SizedBox(
-                  width: double.infinity,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      NetImage(url: r.coverPicture ?? r.profilePicture),
-                      if (distanceText != null)
-                        Positioned(
-                          left: 8,
-                          bottom: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: ProfileTheme.pinkPurple,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.near_me_rounded,
-                                  size: 11,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 3),
-                                Text(
-                                  distanceText!,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      r.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (r.category != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        r.category!.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: ProfileTheme.deepPurple,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Small chip-style badge, used on user tiles.
-class _MiniChip extends StatelessWidget {
-  final IconData? icon;
-  final String text;
-  final Color color;
-  const _MiniChip({this.icon, required this.text, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 12, color: color),
-            const SizedBox(width: 3),
-          ],
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              color: color == ProfileTheme.purple
-                  ? ProfileTheme.deepPurple
-                  : color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class UserResultTile extends StatelessWidget {
-  final PublicProfile user;
-  final VoidCallback? onOpened;
-  const UserResultTile({required this.user, this.onOpened, super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: Theme.of(context).colorScheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-          side: BorderSide(color: ProfileTheme.hairline),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () {
-            onOpened?.call();
-            AppRouter.router.pushNamed(
-              AppRoute.userProfile.name,
-              pathParameters: {'username': user.username},
-            );
-          },
-          splashColor: ProfileTheme.purple.withValues(alpha: 0.08),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: const BoxDecoration(
-                    gradient: ProfileTheme.gradient,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: ImageUserCircleProfile(
-                      imageUrl: user.profilePicture,
-                      name: user.name,
-                      size: 48,
-                    ),
-                  ),
-                ),
-                const Gap(14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        user.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      Text(
-                        '@${user.username}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: ProfileTheme.deepPurple,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (user.followersCount != null)
-                  _MiniChip(
-                    icon: Icons.people_alt_rounded,
-                    text: '${user.followersCount}',
-                    color: ProfileTheme.blue,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class VideoResultTile extends StatelessWidget {
   final VideoFeedItem video;

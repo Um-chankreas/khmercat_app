@@ -89,12 +89,13 @@ class RestaurantVideosGrid extends HookConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: GridView.builder(
             shrinkWrap: true,
+            padding: EdgeInsets.zero,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
-              childAspectRatio: 9 / 16,
+              childAspectRatio: 0.78,
             ),
             itemCount: items.value.length,
             itemBuilder: (context, index) => _FadeIn(
@@ -274,18 +275,16 @@ class _VideoThumb extends StatelessWidget {
                   ],
                 ),
               ),
-              Positioned(
-                right: 6,
-                top: 6,
+              Center(
                 child: Container(
-                  padding: const EdgeInsets.all(3),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.35),
+                    color: Colors.black.withValues(alpha: 0.45),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.play_arrow_rounded,
-                    size: 15,
+                    size: 20,
                     color: Colors.white,
                   ),
                 ),
@@ -336,12 +335,13 @@ class _GridSkeleton extends HookWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: GridView.builder(
         shrinkWrap: true,
+        padding: EdgeInsets.zero,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
-          childAspectRatio: 9 / 16,
+          childAspectRatio: 0.78,
         ),
         itemCount: 6,
         itemBuilder: (_, _) => Container(

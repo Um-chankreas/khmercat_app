@@ -126,6 +126,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emptyTrash => 'Deleted videos stay here for 30 days.';
 
   @override
+  String get aboutSectionTitle => 'Account Info';
+
+  @override
   String get aboutName => 'Name';
 
   @override
@@ -139,4 +142,67 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get comingSoon => 'Coming soon';
+
+  @override
+  String get currentlyViewing => 'Currently viewing';
+
+  @override
+  String youAreViewingAs(String name) {
+    return 'You are using the app as $name';
+  }
+
+  @override
+  String get switchTo => 'Switch to';
+
+  @override
+  String get profileTypePersonal => 'Personal';
+
+  @override
+  String get profileTypeRestaurant => 'Restaurant';
+
+  @override
+  String get profileStatusActive => 'Active';
+
+  @override
+  String get profileStatusInactive => 'Inactive';
+
+  @override
+  String switchedTo(String name) {
+    return 'Switched to $name';
+  }
+
+  @override
+  String get switchFailed => 'Could not switch profile. Please try again.';
+
+  @override
+  String confirmSwitchTitle(String name) {
+    return 'Switch to $name';
+  }
+
+  @override
+  String get confirmSwitchMessage =>
+      'Enter your password to switch back to your personal account.';
+
+  @override
+  String get passwordHint => 'Password';
+
+  @override
+  String get continueAction => 'Continue';
+
+  @override
+  String get cancelAction => 'Cancel';
+
+  @override
+  String get switchAccount => 'Switch account';
+
+  @override
+  String profilesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count profiles',
+      one: '1 profile',
+    );
+    return '$_temp0';
+  }
 }

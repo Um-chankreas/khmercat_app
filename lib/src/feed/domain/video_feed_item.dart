@@ -7,12 +7,14 @@ class FeedAuthor {
   final String name;
   final String username;
   final String? profilePicture;
+  final bool isVerified;
 
   FeedAuthor({
     required this.id,
     required this.name,
     required this.username,
     this.profilePicture,
+    this.isVerified = false,
   });
 
   factory FeedAuthor.fromJson(Map<String, dynamic> json) => FeedAuthor(
@@ -22,6 +24,7 @@ class FeedAuthor {
     profilePicture: (json['profile_picture'] as String?) != null
         ? AppConfig.fixMediaUrl(json['profile_picture'] as String)
         : null,
+    isVerified: json['is_verified'] == true,
   );
 }
 
@@ -59,9 +62,12 @@ class VideoFeedItem {
   final DateTime? createdAt;
   final double? rating;
 
-  /// Best-effort, client-only — the feed API doesn't return a follow-state
-  /// flag per video, so this can't reflect real server state across reloads.
-  final bool followingLocally;
+  /// Real server state (`is_following_restaurant` — every video always has
+  /// a restaurant, both upload paths require one), not a client-side guess.
+  final bool isFollowingRestaurant;
+
+  final int viewsCount;
+  final int? durationSeconds;
 
   VideoFeedItem({
     required this.id,
@@ -77,8 +83,19 @@ class VideoFeedItem {
     this.restaurant,
     this.createdAt,
     this.rating,
-    this.followingLocally = false,
+    this.isFollowingRestaurant = false,
+    this.viewsCount = 0,
+    this.durationSeconds,
   });
+
+  /// "0:45", "1:20", "1:02:03", or null when the length is unknown.
+  String? get durationText {
+    final s = durationSeconds;
+    if (s == null || s <= 0) return null;
+    final h = s ~/ 3600, m = (s % 3600) ~/ 60, sec = (s % 60);
+    final ss = sec.toString().padLeft(2, '0');
+    return h > 0 ? '$h:${m.toString().padLeft(2, '0')}:$ss' : '$m:$ss';
+  }
 
   factory VideoFeedItem.fromJson(Map<String, dynamic> json) => VideoFeedItem(
     id: json['id'].toString(),
@@ -98,18 +115,17 @@ class VideoFeedItem {
         : null,
     createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
     rating: (json['rating'] as num?)?.toDouble(),
+    isFollowingRestaurant: json['is_following_restaurant'] == true,
+    viewsCount: (json['views_count'] as num?)?.toInt() ?? 0,
+    durationSeconds: (json['duration_seconds'] as num?)?.toInt(),
   );
-
-  /// The account shown in the info overlay's follow chip — the restaurant
-  /// when this is a restaurant's own post, otherwise the uploading user.
-  String get followTargetName => restaurant?.name ?? user.name;
 
   VideoFeedItem copyWith({
     int? commentsCount,
     int? likesCount,
     bool? likedByMe,
     bool? savedByMe,
-    bool? followingLocally,
+    bool? isFollowingRestaurant,
   }) {
     return VideoFeedItem(
       id: id,
@@ -125,7 +141,10 @@ class VideoFeedItem {
       restaurant: restaurant,
       createdAt: createdAt,
       rating: rating,
-      followingLocally: followingLocally ?? this.followingLocally,
+      isFollowingRestaurant:
+          isFollowingRestaurant ?? this.isFollowingRestaurant,
+      viewsCount: viewsCount,
+      durationSeconds: durationSeconds,
     );
   }
 }

@@ -31,9 +31,20 @@ class ImageUserCircleProfile extends StatelessWidget {
       return _FallbackAvatar(size: size, initials: _initials);
     }
 
+    // Decode (and cache) at the size this avatar actually renders at,
+    // scaled for the device's pixel density — without this, a phone-camera
+    // sized profile photo gets decoded and kept in the image cache at full
+    // resolution even though it's shown at 26-38px, which adds real jank
+    // when several avatars decode at once while the feed scrolls.
+    final pixelSize = (size * MediaQuery.devicePixelRatioOf(context)).round();
+
     return ClipOval(
       child: Image(
-        image: CachedNetworkImageProvider(imageUrl!),
+        image: CachedNetworkImageProvider(
+          imageUrl!,
+          maxWidth: pixelSize,
+          maxHeight: pixelSize,
+        ),
         width: size,
         height: size,
         fit: BoxFit.cover,

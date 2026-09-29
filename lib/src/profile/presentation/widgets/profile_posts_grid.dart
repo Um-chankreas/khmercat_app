@@ -8,6 +8,7 @@ import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
+import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
 import 'package:khmer_cat_app/src/profile/domain/profile_post.dart';
 import 'package:khmer_cat_app/src/profile/presentation/viewmodel/my_profile_summary_controller.dart';
 import 'package:khmer_cat_app/src/profile/providers/profile_providers.dart';
@@ -137,10 +138,12 @@ class ProfilePostsGrid extends HookConsumerWidget {
 
     return Column(
       children: [
+        const Gap(16),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: GridView.builder(
             shrinkWrap: true,
+            padding: EdgeInsets.zero,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
@@ -198,11 +201,11 @@ class _ProfilePostThumb extends StatelessWidget {
             ),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: ProfileTheme.cardShadow(),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(18),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -227,7 +230,7 @@ class _ProfilePostThumb extends StatelessWidget {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                height: 44,
+                height: 56,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -242,21 +245,21 @@ class _ProfilePostThumb extends StatelessWidget {
                 ),
               ),
               Positioned(
-                left: 8,
-                bottom: 6,
+                left: 10,
+                bottom: 10,
                 child: Row(
                   children: [
                     const Icon(
-                      Icons.favorite_rounded,
-                      size: 13,
+                      Icons.play_arrow_rounded,
+                      size: 18,
                       color: Colors.white,
                     ),
                     const Gap(4),
                     Text(
-                      '${post.likesCount}',
+                      formatCount(post.likesCount),
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 12,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -449,9 +452,10 @@ class _GridSkeleton extends HookWidget {
     final color = ProfileTheme.purple.withValues(alpha: 0.07 + 0.08 * t);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: GridView.builder(
         shrinkWrap: true,
+        padding: EdgeInsets.zero,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
@@ -463,7 +467,7 @@ class _GridSkeleton extends HookWidget {
         itemBuilder: (_, _) => Container(
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(18),
           ),
         ),
       ),

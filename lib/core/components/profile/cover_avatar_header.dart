@@ -70,9 +70,22 @@ class CoverAvatarHeader extends StatelessWidget {
     final statusBar = MediaQuery.paddingOf(context).top;
     final hasCover = coverUrl != null && coverUrl!.isNotEmpty;
 
+    // How far the avatar hangs below the fold — also how much taller this
+    // Stack's own hit-testable box needs to be than the cover photo itself.
+    // `Clip.none` only lets Positioned children *paint* outside the Stack's
+    // bounds — hit-testing always gates on the Stack's own `size` first
+    // (RenderBox.hitTest checks `size.contains(position)` before ever
+    // reaching hitTestChildren), so without growing the box by this amount,
+    // `avatarBadge`/`belowFoldAction` are visible but can never receive
+    // taps. Every `bottom:`-positioned child below is offset by this same
+    // amount to land at the same on-screen spot it would if the Stack were
+    // still exactly `coverHeight` tall.
+    final avatarOverlap = (avatarSize + 12) / 2;
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
+        SizedBox(width: double.infinity, height: coverHeight + avatarOverlap),
         ClipRRect(
           borderRadius: BorderRadius.vertical(
             bottom: Radius.circular(coverRadius),
@@ -168,10 +181,14 @@ class CoverAvatarHeader extends StatelessWidget {
             ),
           ),
         if (coverAction != null)
-          Positioned(bottom: 14, right: 14, child: coverAction!),
+          Positioned(
+            bottom: 14 + avatarOverlap,
+            right: 14,
+            child: coverAction!,
+          ),
         Positioned(
           left: 20,
-          bottom: -(avatarSize + 12) / 2,
+          bottom: 0,
           child: ProfileRingAvatar(
             avatarUrl: avatarUrl,
             name: name,
@@ -180,11 +197,7 @@ class CoverAvatarHeader extends StatelessWidget {
           ),
         ),
         if (belowFoldAction != null)
-          Positioned(
-            right: 20,
-            bottom: -(avatarSize + 12) / 2 + 4,
-            child: belowFoldAction!,
-          ),
+          Positioned(right: 20, bottom: 4, child: belowFoldAction!),
       ],
     );
   }
@@ -289,7 +302,12 @@ class ProfileCircleButton extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.all(padding),
           child: iconAsset != null
-              ? Image.asset(iconAsset!, width: iconSize, height: iconSize, color: tint)
+              ? Image.asset(
+                  iconAsset!,
+                  width: iconSize,
+                  height: iconSize,
+                  color: tint,
+                )
               : Icon(icon, size: iconSize, color: tint),
         ),
       ),
@@ -345,4 +363,3 @@ class ProfileEditIconButton extends StatelessWidget {
     );
   }
 }
-

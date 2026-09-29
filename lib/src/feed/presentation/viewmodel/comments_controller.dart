@@ -8,43 +8,60 @@ import 'package:khmer_cat_app/src/feed/domain/comment.dart';
 import 'package:khmer_cat_app/src/feed/providers/comments_providers.dart';
 
 class CommentsState {
+  /// Top-level comments, newest first, each with its loaded replies.
   final List<VideoComment> items;
+
+  /// Every comment including replies (the header badge).
+  final int totalCount;
   final int currentPage;
   final bool hasMore;
   final bool isLoading;
   final bool isLoadingMore;
   final bool isPosting;
+  final bool isRefreshing;
+
+  /// Ids of top-level comments whose extra replies are being fetched.
+  final Set<String> loadingReplies;
   final String? errorMessage;
   final SocketConnectionState connectionState;
 
   const CommentsState({
     this.items = const [],
+    this.totalCount = 0,
     this.currentPage = 0,
     this.hasMore = true,
     this.isLoading = true,
     this.isLoadingMore = false,
     this.isPosting = false,
+    this.isRefreshing = false,
+    this.loadingReplies = const {},
     this.errorMessage,
     this.connectionState = SocketConnectionState.connecting,
   });
 
   CommentsState copyWith({
     List<VideoComment>? items,
+    int? totalCount,
     int? currentPage,
     bool? hasMore,
     bool? isLoading,
     bool? isLoadingMore,
     bool? isPosting,
+    bool? isRefreshing,
+    Set<String>? loadingReplies,
     String? errorMessage,
     SocketConnectionState? connectionState,
   }) {
     return CommentsState(
       items: items ?? this.items,
+      totalCount: totalCount ?? this.totalCount,
       currentPage: currentPage ?? this.currentPage,
       hasMore: hasMore ?? this.hasMore,
       isLoading: isLoading ?? this.isLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       isPosting: isPosting ?? this.isPosting,
+      isRefreshing: isRefreshing ?? this.isRefreshing,
+      loadingReplies: loadingReplies ?? this.loadingReplies,
       errorMessage: errorMessage,
       connectionState: connectionState ?? this.connectionState,
     );
@@ -113,17 +130,14 @@ class CommentsController extends FamilyNotifier<CommentsState, String> {
   /// can't clobber an in-flight optimistic update.
   Future<void> _pollForNewComments() async {
     try {
-      final json = await ref
-          .read(commentsRemoteDataSourceProvider)
-          .getComments(_videoId, page: 1);
-      final fetched = (json['contents'] as List? ?? [])
-          .cast<Map<String, dynamic>>()
-          .map(VideoComment.fromJson)
-          .toList();
+      final page = await _fetchPage(1);
       final knownIds = state.items.map((c) => c.id).toSet();
-      final newOnes = fetched.where((c) => !knownIds.contains(c.id));
+      final newOnes = page.items.where((c) => !knownIds.contains(c.id));
       if (newOnes.isEmpty) return;
-      state = state.copyWith(items: [...newOnes, ...state.items]);
+      state = state.copyWith(
+        items: [...newOnes, ...state.items],
+        totalCount: page.totalAll,
+      );
     } catch (_) {
       // silent — next tick tries again
     }
@@ -139,42 +153,134 @@ class CommentsController extends FamilyNotifier<CommentsState, String> {
         final incoming = VideoComment.fromJson(json);
         // Our own just-posted comment already landed via post()'s REST
         // response — don't add it twice.
-        if (state.items.any((c) => c.id == incoming.id)) return;
-        state = state.copyWith(items: [incoming, ...state.items]);
+        if (_find(incoming.id) != null) return;
+        _insert(incoming);
       case 'comment.deleted':
         final id = json['comment_id']?.toString();
         if (id == null) return;
-        state = state.copyWith(
-          items: state.items.where((c) => c.id != id).toList(),
+        _remove(
+          id,
+          parentId: json['parent_id']?.toString(),
+          removed: (json['removed_count'] as num?)?.toInt(),
         );
       case 'comment.liked':
         final id = json['comment_id']?.toString();
         final likesCount = (json['likes_count'] as num?)?.toInt();
         if (id == null || likesCount == null) return;
-        state = state.copyWith(
-          items: [
-            for (final c in state.items)
-              if (c.id == id) c.copyWith(likesCount: likesCount) else c,
-          ],
-        );
+        _update(id, (c) => c.copyWith(likesCount: likesCount));
     }
+  }
+
+  // ---- tree helpers -------------------------------------------------------
+
+  VideoComment? _find(String id) {
+    for (final c in state.items) {
+      if (c.id == id) return c;
+      for (final r in c.replies) {
+        if (r.id == id) return r;
+      }
+    }
+    return null;
+  }
+
+  /// Applies [change] to the comment or reply with [id].
+  void _update(String id, VideoComment Function(VideoComment) change) {
+    state = state.copyWith(
+      items: [
+        for (final c in state.items)
+          if (c.id == id)
+            change(c)
+          else if (c.replies.any((r) => r.id == id))
+            c.copyWith(
+              replies: [for (final r in c.replies) r.id == id ? change(r) : r],
+            )
+          else
+            c,
+      ],
+    );
+  }
+
+  /// Adds a new top-level comment at the top, or a reply at the end of its
+  /// thread.
+  void _insert(VideoComment comment) {
+    final parentId = comment.parentId;
+    if (parentId == null) {
+      state = state.copyWith(
+        items: [comment, ...state.items],
+        totalCount: state.totalCount + 1,
+      );
+      return;
+    }
+    state = state.copyWith(
+      items: [
+        for (final c in state.items)
+          if (c.id == parentId)
+            c.copyWith(
+              replies: [...c.replies, comment],
+              repliesCount: c.repliesCount + 1,
+            )
+          else
+            c,
+      ],
+      totalCount: state.totalCount + 1,
+    );
+  }
+
+  /// Removes a comment (with its replies) or a single reply. [removed] is
+  /// the server's count of deleted rows when known.
+  void _remove(String id, {String? parentId, int? removed}) {
+    final target = _find(id);
+    if (target == null) return;
+    final pid = parentId ?? target.parentId;
+    final gone = removed ?? (1 + (pid == null ? target.repliesCount : 0));
+    state = state.copyWith(
+      items: [
+        for (final c in state.items)
+          if (c.id == id)
+            ...[]
+          else if (c.id == pid)
+            c.copyWith(
+              replies: c.replies.where((r) => r.id != id).toList(),
+              repliesCount: (c.repliesCount - 1).clamp(0, 1 << 30),
+            )
+          else
+            c,
+      ],
+      totalCount: (state.totalCount - gone).clamp(0, 1 << 30),
+    );
+  }
+
+  // ---- loading ------------------------------------------------------------
+
+  Future<({List<VideoComment> items, bool hasMore, int page, int totalAll})>
+  _fetchPage(int page) async {
+    final json = await ref
+        .read(commentsRemoteDataSourceProvider)
+        .getComments(_videoId, page: page);
+    final items = (json['contents'] as List? ?? [])
+        .cast<Map<String, dynamic>>()
+        .map(VideoComment.fromJson)
+        .toList();
+    final meta = (json['meta'] as Map?)?.cast<String, dynamic>() ?? {};
+    return (
+      items: items,
+      hasMore: meta['has_more'] == true,
+      page: (meta['current_page'] as num?)?.toInt() ?? page,
+      totalAll:
+          ((meta['total_all'] ?? meta['total']) as num?)?.toInt() ??
+          items.length,
+    );
   }
 
   Future<void> loadInitial() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final json = await ref
-          .read(commentsRemoteDataSourceProvider)
-          .getComments(_videoId, page: 1);
-      final contents = (json['contents'] as List? ?? [])
-          .cast<Map<String, dynamic>>()
-          .map(VideoComment.fromJson)
-          .toList();
-      final meta = (json['meta'] as Map?)?.cast<String, dynamic>() ?? {};
-      state = CommentsState(
-        items: contents,
-        currentPage: (meta['current_page'] as num?)?.toInt() ?? 1,
-        hasMore: meta['has_more'] == true,
+      final page = await _fetchPage(1);
+      state = state.copyWith(
+        items: page.items,
+        totalCount: page.totalAll,
+        currentPage: page.page,
+        hasMore: page.hasMore,
         isLoading: false,
       );
     } catch (_) {
@@ -185,23 +291,39 @@ class CommentsController extends FamilyNotifier<CommentsState, String> {
     }
   }
 
+  /// Reloads page 1 in place — the list stays on screen meanwhile.
+  Future<void> refresh() async {
+    if (state.isRefreshing) return;
+    state = state.copyWith(isRefreshing: true);
+    try {
+      final page = await _fetchPage(1);
+      state = state.copyWith(
+        items: page.items,
+        totalCount: page.totalAll,
+        currentPage: page.page,
+        hasMore: page.hasMore,
+        isRefreshing: false,
+        isLoading: false,
+      );
+    } catch (_) {
+      state = state.copyWith(isRefreshing: false);
+    }
+  }
+
   Future<void> loadMore() async {
-    if (state.isLoadingMore || !state.hasMore) return;
+    if (state.isLoading || state.isLoadingMore || !state.hasMore) return;
     state = state.copyWith(isLoadingMore: true);
     try {
-      final nextPage = state.currentPage + 1;
-      final json = await ref
-          .read(commentsRemoteDataSourceProvider)
-          .getComments(_videoId, page: nextPage);
-      final contents = (json['contents'] as List? ?? [])
-          .cast<Map<String, dynamic>>()
-          .map(VideoComment.fromJson)
-          .toList();
-      final meta = (json['meta'] as Map?)?.cast<String, dynamic>() ?? {};
+      final page = await _fetchPage(state.currentPage + 1);
+      // Live comments shift pages, so skip anything already on screen.
+      final known = state.items.map((c) => c.id).toSet();
       state = state.copyWith(
-        items: [...state.items, ...contents],
-        currentPage: nextPage,
-        hasMore: meta['has_more'] == true,
+        items: [
+          ...state.items,
+          ...page.items.where((c) => !known.contains(c.id)),
+        ],
+        currentPage: page.page,
+        hasMore: page.hasMore,
         isLoadingMore: false,
       );
     } catch (_) {
@@ -209,19 +331,64 @@ class CommentsController extends FamilyNotifier<CommentsState, String> {
     }
   }
 
-  Future<bool> post(String body) async {
+  static const _repliesPerPage = 10;
+
+  /// Loads the next batch of replies for a top-level comment.
+  Future<void> loadMoreReplies(String commentId) async {
+    final parent = _find(commentId);
+    if (parent == null || state.loadingReplies.contains(commentId)) return;
+    state = state.copyWith(
+      loadingReplies: {...state.loadingReplies, commentId},
+    );
+    try {
+      final json = await ref
+          .read(commentsRemoteDataSourceProvider)
+          .getReplies(
+            commentId,
+            page: parent.replies.length ~/ _repliesPerPage + 1,
+            perPage: _repliesPerPage,
+          );
+      final fetched = (json['contents'] as List? ?? [])
+          .cast<Map<String, dynamic>>()
+          .map(VideoComment.fromJson)
+          .toList();
+      final total = ((json['meta'] as Map?)?['total'] as num?)?.toInt();
+      _update(commentId, (c) {
+        final known = c.replies.map((r) => r.id).toSet();
+        final merged =
+            [...c.replies, ...fetched.where((r) => !known.contains(r.id))]
+              ..sort(
+                (a, b) => (a.createdAt ?? DateTime(0)).compareTo(
+                  b.createdAt ?? DateTime(0),
+                ),
+              );
+        return c.copyWith(replies: merged, repliesCount: total);
+      });
+    } catch (_) {
+      // Leave the "View more replies" link so the user can try again.
+    } finally {
+      state = state.copyWith(
+        loadingReplies: {...state.loadingReplies}..remove(commentId),
+      );
+    }
+  }
+
+  // ---- actions ------------------------------------------------------------
+
+  /// Posts a comment, or a reply when [replyTo] is given (a reply to a
+  /// reply joins the same thread).
+  Future<bool> post(String body, {VideoComment? replyTo}) async {
     if (!ref.read(isAuthenticatedProvider) || body.trim().isEmpty) return false;
 
     state = state.copyWith(isPosting: true);
     try {
       final data = await ref
           .read(commentsRemoteDataSourceProvider)
-          .postComment(_videoId, body.trim());
+          .postComment(_videoId, body.trim(), parentId: replyTo?.id);
       final comment = VideoComment.fromJson(data);
-      state = state.copyWith(
-        items: [comment, ...state.items],
-        isPosting: false,
-      );
+      state = state.copyWith(isPosting: false);
+      // The socket echo may have beaten the REST response here.
+      if (_find(comment.id) == null) _insert(comment);
       return true;
     } catch (_) {
       state = state.copyWith(isPosting: false);
@@ -230,15 +397,16 @@ class CommentsController extends FamilyNotifier<CommentsState, String> {
   }
 
   Future<bool> delete(String commentId) async {
-    final original = state.items;
-    state = state.copyWith(
-      items: original.where((c) => c.id != commentId).toList(),
-    );
+    final snapshot = state;
+    _remove(commentId);
     try {
       await ref.read(commentsRemoteDataSourceProvider).deleteComment(commentId);
       return true;
     } catch (_) {
-      state = state.copyWith(items: original); // roll back
+      state = state.copyWith(
+        items: snapshot.items,
+        totalCount: snapshot.totalCount,
+      ); // roll back
       return false;
     }
   }
@@ -246,41 +414,35 @@ class CommentsController extends FamilyNotifier<CommentsState, String> {
   Future<void> toggleLike(String commentId) async {
     if (!ref.read(isAuthenticatedProvider)) return;
 
-    final index = state.items.indexWhere((c) => c.id == commentId);
-    if (index == -1) return;
+    final original = _find(commentId);
+    if (original == null) return;
 
-    final original = state.items[index];
     final optimistic = original.copyWith(
       isLikedByMe: !original.isLikedByMe,
       likesCount: original.isLikedByMe
           ? original.likesCount - 1
           : original.likesCount + 1,
     );
-    state = state.copyWith(
-      items: [
-        for (final c in state.items) if (c.id == commentId) optimistic else c,
-      ],
-    );
+    _update(commentId, (_) => optimistic);
 
     try {
       final data = await ref
           .read(commentsRemoteDataSourceProvider)
           .toggleLike(commentId);
-      final confirmed = optimistic.copyWith(
-        likesCount: (data['likes_count'] as num?)?.toInt(),
-        isLikedByMe: data['is_liked'] as bool?,
-      );
-      state = state.copyWith(
-        items: [
-          for (final c in state.items)
-            if (c.id == commentId) confirmed else c,
-        ],
+      _update(
+        commentId,
+        (c) => c.copyWith(
+          likesCount: (data['likes_count'] as num?)?.toInt(),
+          isLikedByMe: data['is_liked'] as bool?,
+        ),
       );
     } catch (_) {
-      state = state.copyWith(
-        items: [
-          for (final c in state.items) if (c.id == commentId) original else c,
-        ],
+      _update(
+        commentId,
+        (c) => c.copyWith(
+          likesCount: original.likesCount,
+          isLikedByMe: original.isLikedByMe,
+        ),
       );
     }
   }

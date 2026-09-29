@@ -1,4 +1,6 @@
+import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../domain/video_feed_item.dart';
@@ -8,14 +10,34 @@ import '../../domain/video_feed_item.dart';
 /// feedback.
 const _initTimeout = Duration(seconds: 20);
 
+/// A separate, size-capped disk cache for feed videos (as opposed to
+/// flutter_cache_manager's default 200-object cache, which for multi-MB
+/// video files could balloon into gigabytes). 40 videos is generous for
+/// "the ones you might scroll back to this session" without becoming a
+/// storage problem, and a video not rewatched within a week ages out.
+final _feedVideoCacheManager = CacheManager(
+  Config(
+    'feedVideoCache',
+    stalePeriod: const Duration(days: 7),
+    maxNrOfCacheObjects: 40,
+  ),
+);
+
 /// Keeps a small window (current ± 1) of live [VideoPlayerController]
 /// instances alive and buffering, so the next/previous video is already
 /// ready by the time the user swipes to it — instead of only ever starting
 /// playback on-demand right as a page becomes visible, which is what made
 /// scrolling feel like it snaps onto a blank/loading video every time.
 /// Controllers outside the window get disposed to avoid memory blowup.
+///
+/// Videos are streamed from the network on first play exactly as before —
+/// [CachedVideoPlayerPlus] wraps the same [VideoPlayerController] and starts
+/// playback from the network URL immediately, then downloads a copy to disk
+/// in the background. Only *replays* (looping, scrolling back to a video
+/// you already opened, or coming back to this tab) benefit, by loading from
+/// that local file instead of re-fetching over the network.
 class VideoControllerManager extends ChangeNotifier {
-  final Map<String, VideoPlayerController> _controllers = {};
+  final Map<String, CachedVideoPlayerPlus> _players = {};
   final Set<String> _failed = {};
   bool _disposed = false;
 
@@ -28,7 +50,12 @@ class VideoControllerManager extends ChangeNotifier {
   int _lastActiveIndex = -1;
   bool _lastTabVisible = false;
 
-  VideoPlayerController? controllerFor(String videoId) => _controllers[videoId];
+  VideoPlayerController? controllerFor(String videoId) {
+    final player = _players[videoId];
+    if (player == null || !player.isInitialized) return null;
+    return player.controller;
+  }
+
   bool hasFailed(String videoId) => _failed.contains(videoId);
 
   void syncWindow(
@@ -49,10 +76,10 @@ class VideoControllerManager extends ChangeNotifier {
     // a black frame across whatever screen is actually on top; nothing
     // needs to keep buffering while the user can't see any of it anyway.
     if (!tabIsVisible) {
-      for (final controller in _controllers.values) {
-        controller.dispose();
+      for (final player in _players.values) {
+        player.dispose();
       }
-      _controllers.clear();
+      _players.clear();
       _failed.clear();
       return;
     }
@@ -64,9 +91,9 @@ class VideoControllerManager extends ChangeNotifier {
     }.where((i) => i >= 0 && i < items.length).toSet();
     final windowIds = windowIndices.map((i) => items[i].id).toSet();
 
-    _controllers.removeWhere((id, controller) {
+    _players.removeWhere((id, player) {
       if (windowIds.contains(id)) return false;
-      controller.dispose();
+      player.dispose();
       return true;
     });
     _failed.removeWhere((id) => !windowIds.contains(id));
@@ -79,17 +106,20 @@ class VideoControllerManager extends ChangeNotifier {
   }
 
   void _load(VideoFeedItem item) {
-    if (_controllers.containsKey(item.id) || _failed.contains(item.id)) return;
+    if (_players.containsKey(item.id) || _failed.contains(item.id)) return;
 
-    final controller = VideoPlayerController.networkUrl(
+    final player = CachedVideoPlayerPlus.networkUrl(
       Uri.parse(item.videoUrl),
-    )..setLooping(true);
-    _controllers[item.id] = controller;
+      cacheManager: _feedVideoCacheManager,
+    );
+    _players[item.id] = player;
 
-    controller
+    player
         .initialize()
         .timeout(_initTimeout)
-        .then((_) {
+        .then((_) async {
+          if (_disposed) return;
+          await player.controller.setLooping(true);
           if (_disposed) return;
           // Re-apply using the last known window/active state — syncWindow
           // may already have run and skipped this controller while it was
@@ -99,7 +129,7 @@ class VideoControllerManager extends ChangeNotifier {
         })
         .catchError((_) {
           if (_disposed) return;
-          _controllers.remove(item.id)?.dispose();
+          _players.remove(item.id)?.dispose();
           _failed.add(item.id);
           notifyListeners();
         });
@@ -114,8 +144,10 @@ class VideoControllerManager extends ChangeNotifier {
         ? items[activeIndex].id
         : null;
 
-    for (final entry in _controllers.entries) {
-      final controller = entry.value;
+    for (final entry in _players.entries) {
+      final player = entry.value;
+      if (!player.isInitialized) continue;
+      final controller = player.controller;
       if (!controller.value.isInitialized) continue;
 
       final shouldPlay = tabIsVisible && entry.key == activeId;
@@ -136,10 +168,10 @@ class VideoControllerManager extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    for (final controller in _controllers.values) {
-      controller.dispose();
+    for (final player in _players.values) {
+      player.dispose();
     }
-    _controllers.clear();
+    _players.clear();
     super.dispose();
   }
 }

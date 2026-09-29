@@ -126,6 +126,9 @@ class AppLocalizationsKm extends AppLocalizations {
   String get emptyTrash => 'វីដេអូដែលបានលុបនឹងនៅទីនេះ ៣០ ថ្ងៃ។';
 
   @override
+  String get aboutSectionTitle => 'ព័ត៌មានគណនី';
+
+  @override
   String get aboutName => 'ឈ្មោះ';
 
   @override
@@ -139,4 +142,66 @@ class AppLocalizationsKm extends AppLocalizations {
 
   @override
   String get comingSoon => 'នឹងមកដល់ឆាប់ៗ';
+
+  @override
+  String get currentlyViewing => 'កំពុងប្រើជា';
+
+  @override
+  String youAreViewingAs(String name) {
+    return 'អ្នកកំពុងប្រើកម្មវិធីជា $name';
+  }
+
+  @override
+  String get switchTo => 'ប្ដូរទៅ';
+
+  @override
+  String get profileTypePersonal => 'ផ្ទាល់ខ្លួន';
+
+  @override
+  String get profileTypeRestaurant => 'ភោជនីយដ្ឋាន';
+
+  @override
+  String get profileStatusActive => 'សកម្ម';
+
+  @override
+  String get profileStatusInactive => 'អសកម្ម';
+
+  @override
+  String switchedTo(String name) {
+    return 'បានប្ដូរទៅ $name';
+  }
+
+  @override
+  String get switchFailed => 'មិនអាចប្ដូរប្រវត្តិរូបបានទេ។ សូមព្យាយាមម្ដងទៀត។';
+
+  @override
+  String confirmSwitchTitle(String name) {
+    return 'ប្ដូរទៅ $name';
+  }
+
+  @override
+  String get confirmSwitchMessage =>
+      'បញ្ចូលពាក្យសម្ងាត់របស់អ្នក ដើម្បីប្ដូរត្រឡប់ទៅគណនីផ្ទាល់ខ្លួនវិញ។';
+
+  @override
+  String get passwordHint => 'ពាក្យសម្ងាត់';
+
+  @override
+  String get continueAction => 'បន្ត';
+
+  @override
+  String get cancelAction => 'បោះបង់';
+
+  @override
+  String get switchAccount => 'ប្ដូរគណនី';
+
+  @override
+  String profilesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ប្រវត្តិរូប',
+    );
+    return '$_temp0';
+  }
 }

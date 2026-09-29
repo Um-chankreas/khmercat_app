@@ -3,7 +3,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gap/gap.dart';
+import 'package:khmer_cat_app/core/components/image_network/image_user_circle_profile.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
+import 'package:khmer_cat_app/core/utils/size_responsive.dart';
 import '../../domain/video_feed_item.dart';
 
 // Highlight colour per button, and the light neutral used when idle.
@@ -12,17 +15,22 @@ const _commentColor = Color(0xff3498DB);
 const _saveColor = Color(0xffDA70D6);
 const _shareColor = Color(0xff9370DB);
 const _idleColor = Color(0xffE6E6E6);
+const _purple = Color(0xff9B6BFF);
+const _pink = Color(0xffFF54AB);
 
-/// Like / comment / save / share rail. Each button sits on a frosted circle
-/// and bounces when tapped. The icon takes its highlight colour the instant
-/// it's pressed; like and save then stay coloured while on (liked / saved),
-/// and comment and share stay coloured while their sheet is open.
+/// Reviewer avatar (with a follow badge) + like / comment / save / share
+/// rail. Each button sits on a frosted circle and bounces when tapped. The
+/// icon takes its highlight colour the instant it's pressed; like and save
+/// then stay coloured while on (liked / saved), and comment and share stay
+/// coloured while their sheet is open.
 class FeedActionRail extends StatelessWidget {
   final VideoFeedItem item;
   final VoidCallback onLike;
   final FutureOr<void> Function() onComment;
   final VoidCallback onSave;
   final FutureOr<void> Function() onShare;
+  final VoidCallback onFollowTap;
+  final VoidCallback onAvatarTap;
 
   const FeedActionRail({
     required this.item,
@@ -30,6 +38,8 @@ class FeedActionRail extends StatelessWidget {
     required this.onComment,
     required this.onSave,
     required this.onShare,
+    required this.onFollowTap,
+    required this.onAvatarTap,
     super.key,
   });
 
@@ -38,6 +48,14 @@ class FeedActionRail extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
+        _AvatarWithFollowBadge(
+          imageUrl: item.user.profilePicture,
+          name: item.user.username,
+          following: item.isFollowingRestaurant,
+          onAvatarTap: onAvatarTap,
+          onFollowTap: onFollowTap,
+        ),
+        Gap(context.sc(14)),
         _ActionButton(
           iconAsset: AssetsName.heart,
           active: item.likedByMe,
@@ -45,7 +63,7 @@ class FeedActionRail extends StatelessWidget {
           label: formatCount(item.likesCount),
           onTap: onLike,
         ),
-        const SizedBox(height: 16),
+        Gap(context.sc(8)),
         _ActionButton(
           iconAsset: AssetsName.comment,
           activeColor: _commentColor,
@@ -53,23 +71,101 @@ class FeedActionRail extends StatelessWidget {
           label: formatCount(item.commentsCount),
           onTap: onComment,
         ),
-        const SizedBox(height: 16),
+        Gap(context.sc(8)),
         _ActionButton(
           iconAsset: item.savedByMe
               ? AssetsName.bookmark
               : AssetsName.bookmarkout,
           active: item.savedByMe,
           activeColor: _saveColor,
+
+          label: '24',
           onTap: onSave,
         ),
-        const SizedBox(height: 16),
+        Gap(context.sc(8)),
         _ActionButton(
           iconAsset: AssetsName.share,
           activeColor: _shareColor,
           holdWhileBusy: true,
+          label: 'Share',
           onTap: onShare,
         ),
       ],
+    );
+  }
+}
+
+/// The reviewer's avatar, with a small "+" follow badge overlapping its
+/// bottom-right edge — hidden once already following, same as Instagram
+/// Reels. Tapping the avatar itself is a separate action (opens the
+/// profile) from tapping the badge (follows).
+class _AvatarWithFollowBadge extends StatelessWidget {
+  final String? imageUrl;
+  final String name;
+  final bool following;
+  final VoidCallback onAvatarTap;
+  final VoidCallback onFollowTap;
+
+  const _AvatarWithFollowBadge({
+    required this.imageUrl,
+    required this.name,
+    required this.following,
+    required this.onAvatarTap,
+    required this.onFollowTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final size = context.sc(44);
+    return SizedBox(
+      width: size,
+      height: size + 8,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          GestureDetector(
+            onTap: onAvatarTap,
+            child: Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withValues(alpha: 0.7)),
+              ),
+              padding: const EdgeInsets.all(1.5),
+              child: ImageUserCircleProfile(
+                imageUrl: imageUrl,
+                name: name,
+                size: size - 3,
+              ),
+            ),
+          ),
+          if (!following)
+            Positioned(
+              bottom: -6,
+              left: size / 2 - 10,
+              child: GestureDetector(
+                onTap: onFollowTap,
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(colors: [_pink, _purple]),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black38, blurRadius: 4),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.add_rounded,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -165,12 +261,11 @@ class _ActionButtonState extends State<_ActionButton>
             scale: _scale.animate(_bounce),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: 44,
-              height: 44,
+              width: context.sc(35),
+              height: context.sc(35),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                // Same neutral circle whether or not it's liked — the liked
-                // state shows only in the icon's colour.
+
                 color: Colors.black.withValues(alpha: 0.30),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
               ),
@@ -180,8 +275,8 @@ class _ActionButtonState extends State<_ActionButton>
                   duration: const Duration(milliseconds: 160),
                   builder: (context, c, _) => Image.asset(
                     widget.iconAsset,
-                    width: 20,
-                    height: 20,
+                    width: context.sc(18),
+                    height: context.sc(18),
                     color: c,
                   ),
                 ),
@@ -189,14 +284,13 @@ class _ActionButtonState extends State<_ActionButton>
             ),
           ),
           if (widget.label != null) ...[
-            const SizedBox(height: 5),
+            Gap(context.sc(3)),
             Text(
               widget.label!,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
               ),
             ),
           ],

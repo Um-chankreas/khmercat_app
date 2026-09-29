@@ -3,6 +3,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:khmer_cat_app/core/components/dialogs/sign_in_prompt.dart';
 import 'package:khmer_cat_app/core/utils/size_responsive.dart';
+import 'package:khmer_cat_app/src/social/providers/social_providers.dart';
 import '../../domain/video_feed_item.dart';
 import '../../providers/feed_providers.dart';
 import '../widgets/feed_action_rail.dart';
@@ -29,6 +30,10 @@ class VideoViewerScreen extends HookConsumerWidget {
       videoManager.syncWindow([item.value], 0, tabIsVisible: true);
       return null;
     }, [item.value]);
+    useEffect(() {
+      ref.read(feedRepositoryProvider).recordView(video.id);
+      return null;
+    }, [video.id]);
 
     Future<void> handleLike() async {
       if (!await requireLogin(
@@ -88,7 +93,22 @@ class VideoViewerScreen extends HookConsumerWidget {
       )) {
         return;
       }
-      item.value = item.value.copyWith(followingLocally: true);
+      final restaurantId = item.value.restaurant?.id;
+      if (restaurantId == null) return;
+
+      final original = item.value;
+      final wasFollowing = original.isFollowingRestaurant;
+      item.value = original.copyWith(isFollowingRestaurant: !wasFollowing);
+      try {
+        final social = ref.read(socialRemoteDataSourceProvider);
+        if (wasFollowing) {
+          await social.unfollowRestaurant(restaurantId);
+        } else {
+          await social.followRestaurant(restaurantId);
+        }
+      } catch (_) {
+        if (context.mounted) item.value = original;
+      }
     }
 
     return Scaffold(
@@ -144,6 +164,8 @@ class VideoViewerScreen extends HookConsumerWidget {
               ),
               onSave: handleSave,
               onShare: () => shareVideo(item.value),
+              onFollowTap: handleFollow,
+              onAvatarTap: () {},
             ),
           ),
           Positioned(
@@ -153,7 +175,7 @@ class VideoViewerScreen extends HookConsumerWidget {
             child: FeedInfoOverlay(
               item: item.value,
               onFollowTap: handleFollow,
-              onProfileTap: () {},
+              onUserTap: () {},
             ),
           ),
         ],

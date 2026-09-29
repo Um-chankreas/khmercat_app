@@ -28,6 +28,50 @@ class Restaurant {
   final int? followersCount;
   final RestaurantCategory? category;
 
+  // Search-result extras. All optional: only the search API sends them, and
+  // each is null until the restaurant has that data.
+  final double? avgRating;
+  final int reviewsCount;
+
+  /// Distance from the position sent with the request, in km.
+  final double? distanceKm;
+
+  /// Open right now per its opening hours; null when hours aren't set.
+  final bool? isOpen;
+
+  /// 1–4, shown as "$" … "$$$$".
+  final int? priceLevel;
+
+  /// dine_in | delivery | dine_in_delivery | takeaway
+  final String? serviceType;
+  final int? deliveryTimeMin;
+  final int? deliveryTimeMax;
+  final bool isSponsored;
+
+  /// false = hidden from the public by its owner (the team still sees it).
+  final bool isPublished;
+
+  /// Your role here ("owner", "manager", …) — only in your own restaurants
+  /// list (GET /restaurants/mine); null elsewhere.
+  final String? myRole;
+
+  // Profile / edit-form extras (GET /restaurants/{id}).
+  final String? phone;
+  final String? facebookUrl;
+  final String? tiktokUrl;
+  final String? telegramUsername;
+
+  /// The restaurant's own published posts.
+  final int videosCount;
+
+  /// Menu pages uploaded, and the public web page its QR code opens.
+  final int menuPagesCount;
+  final String? menuUrl;
+
+  /// "HH:mm:ss" local opening hours, or null when not set.
+  final String? openingTime;
+  final String? closingTime;
+
   Restaurant({
     required this.id,
     required this.name,
@@ -40,7 +84,46 @@ class Restaurant {
     required this.status,
     this.followersCount,
     this.category,
+    this.avgRating,
+    this.reviewsCount = 0,
+    this.distanceKm,
+    this.isOpen,
+    this.priceLevel,
+    this.serviceType,
+    this.deliveryTimeMin,
+    this.deliveryTimeMax,
+    this.isSponsored = false,
+    this.isPublished = true,
+    this.myRole,
+    this.phone,
+    this.facebookUrl,
+    this.tiktokUrl,
+    this.telegramUsername,
+    this.videosCount = 0,
+    this.menuPagesCount = 0,
+    this.menuUrl,
+    this.openingTime,
+    this.closingTime,
   });
+
+  String? get priceText =>
+      priceLevel == null || priceLevel! < 1 ? null : r'$' * priceLevel!;
+
+  /// "15-25 min", "20 min", or null.
+  String? get deliveryTimeText {
+    final lo = deliveryTimeMin, hi = deliveryTimeMax;
+    if (lo == null && hi == null) return null;
+    if (lo == null || hi == null || lo == hi) return '${lo ?? hi} min';
+    return '$lo-$hi min';
+  }
+
+  String? get serviceTypeLabel => switch (serviceType) {
+    'dine_in' => 'Dine-in Only',
+    'delivery' => 'Delivery Only',
+    'dine_in_delivery' => 'Dine-in & Delivery',
+    'takeaway' => 'Takeaway',
+    _ => null,
+  };
 
   factory Restaurant.fromJson(Map<String, dynamic> json) => Restaurant(
     id: json['id'].toString(),
@@ -60,6 +143,28 @@ class Restaurant {
     category: json['category'] != null
         ? RestaurantCategory.fromJson(json['category'] as Map<String, dynamic>)
         : null,
+    avgRating: (json['avg_rating'] as num?)?.toDouble(),
+    reviewsCount: (json['reviews_count'] as num?)?.toInt() ?? 0,
+    distanceKm: (json['distance_km'] as num?)?.toDouble(),
+    isOpen: json['is_open'] as bool?,
+    priceLevel: (json['price_level'] as num?)?.toInt(),
+    serviceType: json['service_type'] as String?,
+    deliveryTimeMin: (json['delivery_time_min'] as num?)?.toInt(),
+    deliveryTimeMax: (json['delivery_time_max'] as num?)?.toInt(),
+    isSponsored: json['is_sponsored'] == true,
+    isPublished: json['is_published'] != false,
+    myRole: (json['pivot'] as Map?)?['role'] as String?,
+    phone: json['phone'] as String?,
+    facebookUrl: json['facebook_url'] as String?,
+    tiktokUrl: json['tiktok_url'] as String?,
+    telegramUsername: json['telegram_username'] as String?,
+    videosCount: (json['videos_count'] as num?)?.toInt() ?? 0,
+    menuPagesCount: (json['menu_images_count'] as num?)?.toInt() ?? 0,
+    menuUrl: (json['menu_url'] as String?) == null
+        ? null
+        : AppConfig.fixMediaUrl(json['menu_url'] as String),
+    openingTime: json['opening_time'] as String?,
+    closingTime: json['closing_time'] as String?,
   );
 
   Restaurant copyWith({int? followersCount}) => Restaurant(
@@ -74,5 +179,25 @@ class Restaurant {
     status: status,
     followersCount: followersCount ?? this.followersCount,
     category: category,
+    avgRating: avgRating,
+    reviewsCount: reviewsCount,
+    distanceKm: distanceKm,
+    isOpen: isOpen,
+    priceLevel: priceLevel,
+    serviceType: serviceType,
+    deliveryTimeMin: deliveryTimeMin,
+    deliveryTimeMax: deliveryTimeMax,
+    isSponsored: isSponsored,
+    isPublished: isPublished,
+    myRole: myRole,
+    phone: phone,
+    facebookUrl: facebookUrl,
+    tiktokUrl: tiktokUrl,
+    telegramUsername: telegramUsername,
+    videosCount: videosCount,
+    menuPagesCount: menuPagesCount,
+    menuUrl: menuUrl,
+    openingTime: openingTime,
+    closingTime: closingTime,
   );
 }

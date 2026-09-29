@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:khmer_cat_app/core/components/image_network/image_user_circle_profile.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
+import 'package:khmer_cat_app/core/utils/size_responsive.dart';
 import '../../domain/video_feed_item.dart';
 
 const _pink = Color(0xffFF54AB);
@@ -10,129 +11,294 @@ const _purple = Color(0xff9B6BFF);
 const _blue = Color(0xff74BFFF);
 const _shadow = [Shadow(color: Colors.black54, blurRadius: 6)];
 
-/// Bottom-left overlay: restaurant/creator (gradient-ringed avatar, name,
-/// follow chip), optional rating + posted-time chips, and an expandable
-/// caption whose #hashtags are tappable.
+/// Bottom-left overlay, split into two visually distinct identities so it's
+/// never ambiguous who posted vs. which restaurant it's about:
+///   1. Reviewer byline — small, muted, transparent background (avatar,
+///      @username, posted-time with a clock icon).
+///   2. Restaurant card — a divider below the byline, then a translucent
+///      card with a bigger avatar, bold name, star rating, and the follow
+///      chip, only shown when the video has a restaurant.
+/// Below both: the expandable caption (its own #hashtags stay tappable).
 class FeedInfoOverlay extends StatelessWidget {
   final VideoFeedItem item;
   final VoidCallback onFollowTap;
-  final VoidCallback onProfileTap;
+  final VoidCallback onUserTap;
+  final VoidCallback? onRestaurantTap;
   final ValueChanged<String>? onHashtagTap;
 
   const FeedInfoOverlay({
     required this.item,
     required this.onFollowTap,
-    required this.onProfileTap,
+    required this.onUserTap,
+    this.onRestaurantTap,
     this.onHashtagTap,
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
-    final avatarUrl =
-        item.restaurant?.profilePicture ?? item.user.profilePicture;
-    final displayName = item.restaurant != null
-        ? item.restaurant!.name
-        : '@${item.user.username}';
+    final restaurant = item.restaurant;
     final rating = item.rating;
     final createdAt = item.createdAt;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          children: [
-            GestureDetector(
-              onTap: onProfileTap,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [_pink, _purple, _blue],
-                  ),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.all(1.5),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: ImageUserCircleProfile(
-                    imageUrl: avatarUrl,
-                    name: displayName,
-                    size: 38,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Flexible(
-              child: GestureDetector(
-                onTap: onProfileTap,
-                child: Text(
-                  displayName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                    letterSpacing: -0.2,
-                    shadows: _shadow,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            _FollowChip(following: item.followingLocally, onTap: onFollowTap),
-          ],
+    // Fades + rises in on every new video (re-triggers because the key
+    // changes), so the overlay feels alive as you swipe instead of just
+    // appearing — small touch, but it's what makes the feed feel premium
+    // rather than static.
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(item.id),
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, (1 - t) * 14),
+          child: child,
         ),
-        if (rating != null || createdAt != null) ...[
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              if (rating != null) _RatingChip(rating: rating),
-              if (createdAt != null)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.schedule_rounded,
-                      size: 13,
-                      color: Colors.white70,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 1. Reviewer byline — just "@username · time", no avatar (the
+          // avatar moved onto the action rail on the right).
+          GestureDetector(
+            onTap: onUserTap,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    '@${item.user.username}',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      letterSpacing: -0.1,
+                      shadows: _shadow,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      timeAgo(createdAt),
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        shadows: _shadow,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (createdAt != null) ...[
+                  const Text(
+                    '  ·  ',
+                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                  ),
+                  Text(
+                    timeAgo(createdAt),
+                    style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      shadows: _shadow,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // 2. Rating pill — only shown on review videos that actually
+          // carry a rating; the "recommended" label is derived from that
+          // real value, not a fixed string.
+          if (rating != null) ...[
+            const SizedBox(height: 8),
+            _RatingPill(rating: rating),
+          ],
+
+          if (item.caption.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _ExpandableCaption(
+              key: ValueKey(item.id),
+              text: item.caption,
+              onHashtagTap:
+                  onHashtagTap ??
+                  (tag) => AppService.showToast('#$tag search is coming soon'),
+            ),
+          ],
+
+          // 3. Restaurant card — which restaurant this review is about.
+          // A flat dark-glass card, last in the column so it sits right
+          // above the tab bar / safe area, matching the reference design.
+          if (restaurant != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: context.all(8),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.42),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: onRestaurantTap,
+                      child: Row(
+                        children: [
+                          _RingedAvatar(
+                            imageUrl: restaurant.profilePicture,
+                            name: restaurant.name,
+                            size: context.sc(40),
+                          ),
+                          const SizedBox(width: 10),
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  restaurant.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                    letterSpacing: -0.2,
+                                    shadows: _shadow,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                // TODO(backend): the feed API's `restaurant`
+                                // object only sends id/name/profile_picture
+                                // today — address isn't in the response, so
+                                // this is a static placeholder until it is.
+                                const Text(
+                                  'Street 271, Boeng Tumpun ...',
+                                  style: TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 1),
+                                // TODO(backend): same as above — category and
+                                // the restaurant's aggregate rating/review
+                                // count aren't in the feed response yet.
+                                const Text(
+                                  'Khmer Fusion  ·  ★ 4.0 (128)',
+                                  style: TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-            ],
+                  ),
+                  const SizedBox(width: 8),
+                  _FollowChip(
+                    following: item.isFollowingRestaurant,
+                    onTap: onFollowTap,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// "★ 4.8 / 5 · Highly Recommended" — the label is derived from the real
+/// rating value (not a fixed string), so it stays honest even though the
+/// surrounding restaurant card below has placeholder fields.
+class _RatingPill extends StatelessWidget {
+  final double rating;
+  const _RatingPill({required this.rating});
+
+  String get _label {
+    if (rating >= 4.5) return 'Highly Recommended';
+    if (rating >= 3.5) return 'Recommended';
+    return 'Reviewed';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star_rounded, size: 14, color: Color(0xffFFC83D)),
+          const SizedBox(width: 4),
+          Text(
+            '${rating.toStringAsFixed(1)} / 5',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const Text(
+            '  ·  ',
+            style: TextStyle(color: Colors.white60, fontSize: 12),
+          ),
+          Text(
+            _label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
-        if (item.caption.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          _ExpandableCaption(
-            key: ValueKey(item.id),
-            text: item.caption,
-            onHashtagTap:
-                onHashtagTap ??
-                (tag) => AppService.showToast('#$tag search is coming soon'),
-          ),
-        ],
-      ],
+      ),
+    );
+  }
+}
+
+/// Small gradient-ringed circular avatar shared by the reviewer and
+/// restaurant rows (restaurant's ring renders thinner/smaller since it's
+/// the secondary identity of the two).
+class _RingedAvatar extends StatelessWidget {
+  final String? imageUrl;
+  final String name;
+  final double size;
+  const _RingedAvatar({
+    required this.imageUrl,
+    required this.name,
+    required this.size,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_pink, _purple, _blue],
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(1.5),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+        ),
+        child: ImageUserCircleProfile(
+          imageUrl: imageUrl,
+          name: name,
+          size: size,
+        ),
+      ),
     );
   }
 }
@@ -158,15 +324,6 @@ class _FollowChip extends StatelessWidget {
           border: following
               ? Border.all(color: Colors.white.withValues(alpha: 0.7))
               : null,
-          boxShadow: following
-              ? null
-              : [
-                  BoxShadow(
-                    color: _pink.withValues(alpha: 0.4),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -187,49 +344,6 @@ class _FollowChip extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Five stars (filled to the rating, halves supported) + the number.
-class _RatingChip extends StatelessWidget {
-  final double rating;
-  const _RatingChip({required this.rating});
-
-  @override
-  Widget build(BuildContext context) {
-    final r = rating.clamp(0, 5).toDouble();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.30),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 1; i <= 5; i++)
-            Icon(
-              r >= i
-                  ? Icons.star_rounded
-                  : r >= i - 0.5
-                  ? Icons.star_half_rounded
-                  : Icons.star_outline_rounded,
-              size: 15,
-              color: const Color(0xffFFC83D),
-            ),
-          const SizedBox(width: 5),
-          Text(
-            r.toStringAsFixed(1),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
       ),
     );
   }

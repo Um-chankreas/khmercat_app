@@ -16,6 +16,10 @@ class AppBottomNavBar extends StatelessWidget {
   final VoidCallback onCreateTap;
   final String? avatarUrl;
 
+  /// The user is acting as a restaurant: the avatar gets a small storefront
+  /// badge so the current profile is always visible.
+  final bool avatarIsRestaurant;
+
   /// A background video upload is compressing/uploading.
   final bool uploadBusy;
 
@@ -35,6 +39,7 @@ class AppBottomNavBar extends StatelessWidget {
     required this.onTap,
     required this.onCreateTap,
     this.avatarUrl,
+    this.avatarIsRestaurant = false,
     this.uploadBusy = false,
     this.uploadProgress,
     this.uploadError = false,
@@ -48,7 +53,7 @@ class AppBottomNavBar extends StatelessWidget {
       padding: context.sym(h: 16),
       height: context.sc(50),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         border: Border(
           top: BorderSide(color: AppColors.lightGrey.withValues(alpha: 0.1)),
         ),
@@ -87,7 +92,42 @@ class AppBottomNavBar extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                ImageUserCircleProfile(imageUrl: avatarUrl, size: 22),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: Stack(
+                    key: ValueKey('$avatarUrl|$avatarIsRestaurant'),
+                    clipBehavior: Clip.none,
+                    children: [
+                      ImageUserCircleProfile(imageUrl: avatarUrl, size: 22),
+                      if (avatarIsRestaurant)
+                        Positioned(
+                          right: -4,
+                          bottom: -3,
+                          child: Container(
+                            padding: const EdgeInsets.all(1.5),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Theme.of(context).colorScheme.surface,
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.all(1.5),
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: AppColors.brandGradientText,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.storefront_rounded,
+                                size: 8,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
                 Gap(context.sc(2)),
                 currentIndex == 3
                     ? GradientText(

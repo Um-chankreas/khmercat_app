@@ -16,11 +16,21 @@ class PusherMessage {
   PusherMessage({required this.channel, required this.event, this.data});
 }
 
+/// Resolves a private channel's `auth` signature for the `pusher:subscribe`
+/// payload — implemented by callers via a POST to `/broadcasting/auth`
+/// (see [ApiClient]), since this class deliberately knows nothing about
+/// HTTP/auth tokens. Returning null aborts that subscribe attempt silently
+/// (e.g. the auth request failed) — [_handleDisconnect]'s reconnect loop
+/// will just retry it again next time the socket comes back up.
+typedef PrivateChannelAuthProvider =
+    Future<String?> Function(String channelName, String socketId);
+
 /// One shared connection to Laravel Reverb, speaking the Pusher wire
 /// protocol directly (no native SDK) so it can target this app's own dev
 /// host/port instead of a Pusher.com "cluster" (see [AppConfig.reverbHost]).
-/// Public channels only — no `pusher:subscribe` auth is needed for those,
-/// which is all this app currently uses (comments on public video content).
+/// Supports both public channels (plain [subscribe] — comments on public
+/// video content) and private channels ([subscribePrivate] — per-user
+/// channels like notifications, which need a signed `auth` value).
 ///
 /// Connection lifecycle is independent of channel subscriptions: call
 /// [connect] once when the app starts (see `main.dart`) and it stays up —
@@ -44,6 +54,16 @@ class ReverbSocket {
 
   /// channel name -> stream controller for messages on that channel.
   final Map<String, StreamController<PusherMessage>> _channelControllers = {};
+
+  /// Private channels only — channel name -> the auth resolver passed to
+  /// [subscribePrivate]. Re-consulted on every (re)subscribe, including
+  /// after a reconnect, since a stale `auth` signature would be rejected.
+  final Map<String, PrivateChannelAuthProvider> _privateAuthProviders = {};
+
+  /// The current connection's socket_id — required to compute a private
+  /// channel's `auth` signature. Null until `pusher:connection_established`
+  /// arrives; changes on every reconnect.
+  String? _socketId;
 
   Uri get _uri => Uri(
     scheme: AppConfig.reverbUseTls ? 'wss' : 'ws',
@@ -97,9 +117,28 @@ class ReverbSocket {
     return controller.stream;
   }
 
+  /// Subscribes to a private Reverb channel (e.g. `private-App.Models.User.5`
+  /// — include the `private-` prefix in [channelName]). [getAuth] is called
+  /// to sign every (re)subscribe attempt, including automatically after a
+  /// reconnect, since Pusher's auth signature is single-use per socket_id.
+  Stream<PusherMessage> subscribePrivate(
+    String channelName, {
+    required PrivateChannelAuthProvider getAuth,
+  }) {
+    final controller = _channelControllers.putIfAbsent(
+      channelName,
+      () => StreamController<PusherMessage>.broadcast(),
+    );
+    _privateAuthProviders[channelName] = getAuth;
+    connect();
+    _sendSubscribe(channelName);
+    return controller.stream;
+  }
+
   void unsubscribe(String channelName) {
     final controller = _channelControllers.remove(channelName);
     controller?.close();
+    _privateAuthProviders.remove(channelName);
     _send({
       'event': 'pusher:unsubscribe',
       'data': {'channel': channelName},
@@ -135,9 +174,22 @@ class ReverbSocket {
 
     if (event == 'pusher:connection_established') {
       _reconnectAttempt = 0;
+      // Pusher protocol: `data` here is a JSON-encoded string containing
+      // the socket_id private channels need signed against.
+      final rawData = msg['data'];
+      if (rawData is String) {
+        try {
+          _socketId =
+              (jsonDecode(rawData) as Map<String, dynamic>)['socket_id']
+                  as String?;
+        } catch (_) {
+          _socketId = null;
+        }
+      }
       _setState(SocketConnectionState.connected);
       // Re-subscribe to every channel a caller is still holding a stream
-      // for — matters after a reconnect, not on the first connect.
+      // for — matters after a reconnect, not on the first connect. Private
+      // channels get re-signed too (last reconnect's socket_id is dead).
       for (final channelName in _channelControllers.keys) {
         _sendSubscribe(channelName);
       }
@@ -174,7 +226,9 @@ class ReverbSocket {
       }
     }
 
-    controller.add(PusherMessage(channel: channelName, event: event, data: data));
+    controller.add(
+      PusherMessage(channel: channelName, event: event, data: data),
+    );
   }
 
   void _handleDisconnect() {
@@ -191,8 +245,7 @@ class ReverbSocket {
     // connection is app-lifetime, not tied to whatever screen is open.
     _setState(SocketConnectionState.reconnecting);
     _reconnectAttempt++;
-    final delaySeconds = [2, 4, 8, 15, 30][
-        (_reconnectAttempt - 1).clamp(0, 4)];
+    final delaySeconds = [2, 4, 8, 15, 30][(_reconnectAttempt - 1).clamp(0, 4)];
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
       if (!_manuallyClosed) _connect();
@@ -201,9 +254,28 @@ class ReverbSocket {
 
   void _sendSubscribe(String channelName) {
     if (_state != SocketConnectionState.connected) return;
-    _send({
-      'event': 'pusher:subscribe',
-      'data': {'channel': channelName},
+
+    final authProvider = _privateAuthProviders[channelName];
+    if (authProvider == null) {
+      _send({
+        'event': 'pusher:subscribe',
+        'data': {'channel': channelName},
+      });
+      return;
+    }
+
+    final socketId = _socketId;
+    if (socketId == null) return; // shouldn't happen once connected
+
+    authProvider(channelName, socketId).then((auth) {
+      // If we've disconnected/reconnected (new socket_id) by the time this
+      // resolves, this auth is for a dead socket — the reconnect handler
+      // already re-triggered _sendSubscribe for the new one.
+      if (auth == null || _socketId != socketId) return;
+      _send({
+        'event': 'pusher:subscribe',
+        'data': {'channel': channelName, 'auth': auth},
+      });
     });
   }
 

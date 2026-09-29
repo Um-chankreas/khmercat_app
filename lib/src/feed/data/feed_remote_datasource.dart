@@ -14,6 +14,7 @@ class FeedRemoteDataSource {
     double? lng,
     double? radiusKm,
     String? restaurantId,
+    String? userId,
     String? type,
   }) async {
     final json = await _client.get(
@@ -26,9 +27,15 @@ class FeedRemoteDataSource {
         if (lat != null && lng != null) 'lng': lng,
         'radius_km': ?radiusKm,
         'restaurant_id': ?restaurantId,
+        'user_id': ?userId,
         'type': ?type,
       },
     );
+    return json.dataMap;
+  }
+
+  Future<Map<String, dynamic>> getVideo(String videoId) async {
+    final json = await _client.get(ApiRoute.video(videoId));
     return json.dataMap;
   }
 
@@ -48,5 +55,9 @@ class FeedRemoteDataSource {
 
   Future<void> unsave(String videoId) {
     return _client.delete(ApiRoute.videoSave(videoId));
+  }
+
+  Future<void> recordView(String videoId) {
+    return _client.post(ApiRoute.videoView(videoId));
   }
 }

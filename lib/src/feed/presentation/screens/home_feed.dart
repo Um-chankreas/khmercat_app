@@ -10,6 +10,7 @@ import 'package:khmer_cat_app/core/go_router/app_router.dart'
     show AppRouter, routeObserver;
 import 'package:khmer_cat_app/core/utils/size_responsive.dart';
 import '../../domain/feed_tab.dart';
+import '../../providers/feed_providers.dart';
 import '../viewmodel/feed_controller.dart';
 import '../widgets/feed_action_rail.dart';
 import '../widgets/feed_info_overlay.dart';
@@ -19,15 +20,25 @@ import '../widgets/share_video.dart';
 import '../widgets/video_controller_manager.dart';
 import 'comments_sheet.dart';
 
-// Left-to-right order matches the tab labels ("Following" | "For you").
-const _tabOrder = [FeedTab.following, FeedTab.forYou];
+/// PageView's default snap-back spring (stiffness: 100) settles slowly
+/// enough after you release a swipe that short-form feeds feel "soft"
+/// compared to TikTok/Reels — the drag itself already tracks the finger
+/// 1:1, so the difference people notice is specifically how fast the page
+/// snaps into place once you let go. A stiffer, still-critically-damped
+/// spring makes that snap read as an instant catch instead of a settle.
+class _SnappyPageScrollPhysics extends PageScrollPhysics {
+  const _SnappyPageScrollPhysics({super.parent});
 
-/// Wraps the actual feed in route/app-lifecycle awareness so playing video
-/// actually stops when this screen isn't the one on screen — covered by a
-/// pushed route (profile, upload), backgrounded by the OS, or just not the
-/// active bottom-nav tab. [IndexScreen] uses an [IndexedStack] for its tabs,
-/// which never unmounts hidden children, so [isTabActive] has to be passed
-/// in explicitly rather than relying on this widget being disposed.
+  @override
+  _SnappyPageScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return _SnappyPageScrollPhysics(parent: buildParent(ancestor));
+  }
+
+  @override
+  SpringDescription get spring =>
+      SpringDescription.withDampingRatio(mass: 0.5, stiffness: 400, ratio: 1.1);
+}
+
 class HomeFeed extends StatefulWidget {
   final bool isTabActive;
   const HomeFeed({this.isTabActive = true, super.key});
@@ -88,52 +99,68 @@ class _HomeFeedContent extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentTabIndex = useState(_tabOrder.indexOf(FeedTab.forYou));
-    final tabPageController = usePageController(
-      initialPage: currentTabIndex.value,
+    final initialIndex = tabOrder.indexOf(FeedTab.forYou);
+    final tabPageController = usePageController(initialPage: initialIndex);
+    final tabController = useTabController(
+      initialLength: tabOrder.length,
+      initialIndex: initialIndex,
     );
+    // Rebuild whenever the controller's index/animation changes so
+    // `tabController.index` below stays live, the same role the old
+    // `currentTabIndex` useState played.
+    useListenable(tabController);
+
+    // Two-way sync between the TabBar's controller and the feed's own
+    // PageView (kept separate from TabBarView so vertical swiping through
+    // videos stays a plain PageView — see _TabFeedView).
+    //  - Tap a tab -> TabBar calls tabController.animateTo() internally,
+    //    which sets indexIsChanging true for the animation's duration; the
+    //    listener below catches that and drives the PageView to match.
+    //  - Swipe the PageView -> onOuterPageChanged sets tabController.index
+    //    directly (no `duration`), which updates the index and repaints the
+    //    indicator without animating and without setting indexIsChanging —
+    //    so it does NOT re-trigger the listener below. No feedback loop.
+    useEffect(() {
+      void listener() {
+        if (tabController.indexIsChanging) {
+          tabPageController.animateToPage(
+            tabController.index,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+          );
+        }
+      }
+
+      tabController.addListener(listener);
+      return () => tabController.removeListener(listener);
+    }, [tabController, tabPageController]);
 
     void onOuterPageChanged(int index) {
-      if (index == currentTabIndex.value) return;
-      currentTabIndex.value = index;
-      // Deliberately NOT invalidating feedControllerProvider here — each
-      // tab keeps its already-loaded videos and scroll position, so
-      // switching back and forth doesn't refetch or reset anything.
+      if (tabController.index == index) return;
+      tabController.index = index;
     }
 
     void tapTab(FeedTab tab) {
-      tabPageController.animateToPage(
-        _tabOrder.indexOf(tab),
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-      );
+      tabController.animateTo(tabOrder.indexOf(tab));
     }
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: Colors.black,
-        // Video fills the whole screen; the tabs float over its top edge
-        // with no background of their own (TikTok style).
         body: Stack(
           children: [
             PageView.builder(
               controller: tabPageController,
               scrollDirection: Axis.horizontal,
               onPageChanged: onOuterPageChanged,
-              // Keeps both tabs' pages alive instead of disposing whichever
-              // one you swipe away from — without this, Flutter tears down
-              // and rebuilds the whole _TabFeedView (resetting its scroll
-              // position and forcing videos to re-buffer) every time you
-              // swipe back, which looks exactly like a refresh even though
-              // no new request is made.
               allowImplicitScrolling: true,
-              itemCount: _tabOrder.length,
+              itemCount: tabOrder.length,
               itemBuilder: (context, index) {
-                final tab = _tabOrder[index];
+                final tab = tabOrder[index];
                 return _TabFeedView(
                   tab: tab,
-                  isVisible: isActive && currentTabIndex.value == index,
+                  isVisible: isActive && tabController.index == index,
                   onDiscover: () => tapTab(FeedTab.forYou),
                 );
               },
@@ -163,10 +190,7 @@ class _HomeFeedContent extends HookConsumerWidget {
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.only(top: 2),
-                child: FeedTopTabs(
-                  selected: _tabOrder[currentTabIndex.value],
-                  onChanged: tapTab,
-                ),
+                child: FeedTopTabs(controller: tabController),
               ),
             ),
           ],
@@ -215,6 +239,17 @@ class _TabFeedView extends HookConsumerWidget {
       return null;
     }, [currentPage.value, isVisible, state.items.length]);
 
+    // One view per video the user actually lands on while this tab is shown.
+    final visibleVideoId = isVisible && currentPage.value < state.items.length
+        ? state.items[currentPage.value].id
+        : null;
+    useEffect(() {
+      if (visibleVideoId != null) {
+        ref.read(feedRepositoryProvider).recordView(visibleVideoId);
+      }
+      return null;
+    }, [visibleVideoId]);
+
     Future<void> handleLike(String videoId) async {
       if (!await requireLogin(
         context,
@@ -245,7 +280,7 @@ class _TabFeedView extends HookConsumerWidget {
       )) {
         return;
       }
-      controller.markFollowedLocally(videoId);
+      controller.toggleFollowRestaurant(videoId);
     }
 
     // Returns the sheet's future so the comment button stays highlighted for
@@ -311,111 +346,124 @@ class _TabFeedView extends HookConsumerWidget {
       currentPage.value = 0;
     }
 
-    final feed = PageView.builder(
-      controller: pageController,
-      scrollDirection: Axis.vertical,
-      itemCount: videoCount + (showEnd ? 1 : 0),
-      onPageChanged: (page) {
-        currentPage.value = page;
-        if (page >= videoCount - 2) controller.loadMore();
-      },
-      itemBuilder: (context, index) {
-        if (index >= videoCount) {
-          return _EndOfFeed(
-            onBackToTop: () => pageController.animateToPage(
-              0,
-              duration: const Duration(milliseconds: 450),
-              curve: Curves.easeOutCubic,
-            ),
-          );
-        }
-        final item = state.items[index];
-
-        // Each page gets its own compositing layer so a swipe transition
-        // doesn't force neighboring pages' video textures to repaint, and
-        // the video texture itself is isolated from the overlay (gradient,
-        // action rail, caption) so the two don't repaint each other on
-        // every frame.
-        return RepaintBoundary(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              RepaintBoundary(
-                child: FeedVideoPage(
-                  item: item,
-                  controller: videoManager.controllerFor(item.id),
-                  failed: videoManager.hasFailed(item.id),
-                  onRetry: () => videoManager.retry(item),
-                  onDoubleTapLike: () {
-                    if (!item.likedByMe) handleLike(item.id);
-                  },
-                ),
+    // PageView defaults to a 0px cache extent (nothing beyond the viewport
+    // is built/painted ahead of time) unless allowImplicitScrolling is set,
+    // in which case it builds a full extra viewport on each side. Without
+    // it, the next/previous full-screen video page only gets built once the
+    // swipe drag actually reveals it, which is what made the swipe itself
+    // feel like it was popping content in instead of being smooth. The
+    // video itself is already buffered this far ahead by
+    // VideoControllerManager (current ± 1); this matches the page's own
+    // build/paint window to that same range.
+    final feed = RefreshIndicator(
+      onRefresh: onRefresh,
+      color: const Color(0xff9B6BFF),
+      backgroundColor: Colors.white,
+      edgeOffset: MediaQuery.paddingOf(context).top + 64,
+      child: PageView.builder(
+        controller: pageController,
+        scrollDirection: Axis.vertical,
+        physics: const _SnappyPageScrollPhysics(),
+        allowImplicitScrolling: true,
+        itemCount: videoCount + (showEnd ? 1 : 0),
+        onPageChanged: (page) {
+          currentPage.value = page;
+          if (page >= videoCount - 2) controller.loadMore();
+        },
+        itemBuilder: (context, index) {
+          if (index >= videoCount) {
+            return _EndOfFeed(
+              onBackToTop: () => pageController.animateToPage(
+                0,
+                duration: const Duration(milliseconds: 450),
+                curve: Curves.easeOutCubic,
               ),
+            );
+          }
+          final item = state.items[index];
 
-              // Bottom scrim, tinted deep purple so the overlay text and
-              // action rail stay readable and match the brand.
-              IgnorePointer(
-                child: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Color(0xC01F1B3A)],
-                      stops: [0.5, 1.0],
+          // Each page gets its own compositing layer so a swipe transition
+          // doesn't force neighboring pages' video textures to repaint, and
+          // the video texture itself is isolated from the overlay (gradient,
+          // action rail, caption) so the two don't repaint each other on
+          // every frame.
+          return RepaintBoundary(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                RepaintBoundary(
+                  child: FeedVideoPage(
+                    item: item,
+                    controller: videoManager.controllerFor(item.id),
+                    failed: videoManager.hasFailed(item.id),
+                    onRetry: () => videoManager.retry(item),
+                    onDoubleTapLike: () {
+                      if (!item.likedByMe) handleLike(item.id);
+                    },
+                  ),
+                ),
+
+                // Bottom scrim, tinted deep purple so the overlay text and
+                // action rail stay readable and match the brand.
+                IgnorePointer(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Color(0xC01F1B3A)],
+                        stops: [0.5, 1.0],
+                      ),
                     ),
                   ),
                 ),
-              ),
 
-              Positioned(
-                right: 12,
-                bottom: context.sc(50),
-                child: FeedActionRail(
-                  item: item,
-                  onLike: () => handleLike(item.id),
-                  onComment: () => handleComment(item.id),
-                  onSave: () => handleSave(item.id),
-                  onShare: () => shareVideo(item),
+                Positioned(
+                  right: 12,
+                  bottom: context.sc(50),
+                  child: FeedActionRail(
+                    item: item,
+                    onLike: () => handleLike(item.id),
+                    onComment: () => handleComment(item.id),
+                    onSave: () => handleSave(item.id),
+                    onShare: () => shareVideo(item),
+                    onFollowTap: () => handleFollow(item.id),
+                    onAvatarTap: () => AppRouter.router.pushNamed(
+                      AppRoute.userProfile.name,
+                      pathParameters: {'username': item.user.username},
+                    ),
+                  ),
                 ),
-              ),
 
-              Positioned(
-                left: context.sc(14),
-                right: 90,
-                bottom: context.sc(14),
-                child: FeedInfoOverlay(
-                  item: item,
-                  onFollowTap: () => handleFollow(item.id),
-                  onProfileTap: () {
-                    if (item.restaurant != null) {
-                      AppRouter.router.pushNamed(
-                        AppRoute.restaurantProfile.name,
-                        pathParameters: {'id': item.restaurant!.id},
-                      );
-                    } else {
-                      AppRouter.router.pushNamed(
-                        AppRoute.userProfile.name,
-                        pathParameters: {'username': item.user.username},
-                      );
-                    }
-                  },
+                Positioned(
+                  left: context.sc(14),
+                  right: 90,
+                  bottom: context.sc(14),
+                  child: FeedInfoOverlay(
+                    item: item,
+                    onFollowTap: () => handleFollow(item.id),
+                    onUserTap: () => AppRouter.router.pushNamed(
+                      AppRoute.userProfile.name,
+                      pathParameters: {'username': item.user.username},
+                    ),
+                    onRestaurantTap: item.restaurant == null
+                        ? null
+                        : () => AppRouter.router.pushNamed(
+                            AppRoute.restaurantProfile.name,
+                            pathParameters: {'id': item.restaurant!.id},
+                          ),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     );
 
     return Stack(
       children: [
-        RefreshIndicator(
-          onRefresh: onRefresh,
-          color: const Color(0xff9B6BFF),
-          backgroundColor: Colors.white,
-          edgeOffset: MediaQuery.paddingOf(context).top + 64,
-          child: feed,
-        ),
+        feed,
         if (state.isLoadingMore)
           Positioned(
             top: MediaQuery.paddingOf(context).top + 64,

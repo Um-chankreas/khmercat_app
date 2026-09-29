@@ -57,6 +57,14 @@ class AppRoute {
     name: 'restaurant-profile',
     path: '/restaurants/:id',
   );
+  static AppRoute restaurantMenu = AppRoute(
+    name: 'restaurant-menu',
+    path: '/restaurants/:id/menu',
+  );
+  static AppRoute editRestaurant = AppRoute(
+    name: 'edit-restaurant',
+    path: '/restaurants/:id/edit',
+  );
   static AppRoute userProfile = AppRoute(
     name: 'user-profile',
     path: '/users/:username',

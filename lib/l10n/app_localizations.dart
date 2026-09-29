@@ -332,6 +332,12 @@ abstract class AppLocalizations {
   /// **'Deleted videos stay here for 30 days.'**
   String get emptyTrash;
 
+  /// No description provided for @aboutSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Info'**
+  String get aboutSectionTitle;
+
   /// No description provided for @aboutName.
   ///
   /// In en, this message translates to:
@@ -361,6 +367,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Coming soon'**
   String get comingSoon;
+
+  /// No description provided for @currentlyViewing.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently viewing'**
+  String get currentlyViewing;
+
+  /// No description provided for @youAreViewingAs.
+  ///
+  /// In en, this message translates to:
+  /// **'You are using the app as {name}'**
+  String youAreViewingAs(String name);
+
+  /// No description provided for @switchTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to'**
+  String get switchTo;
+
+  /// No description provided for @profileTypePersonal.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal'**
+  String get profileTypePersonal;
+
+  /// No description provided for @profileTypeRestaurant.
+  ///
+  /// In en, this message translates to:
+  /// **'Restaurant'**
+  String get profileTypeRestaurant;
+
+  /// No description provided for @profileStatusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get profileStatusActive;
+
+  /// No description provided for @profileStatusInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive'**
+  String get profileStatusInactive;
+
+  /// No description provided for @switchedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Switched to {name}'**
+  String switchedTo(String name);
+
+  /// No description provided for @switchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not switch profile. Please try again.'**
+  String get switchFailed;
+
+  /// No description provided for @confirmSwitchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to {name}'**
+  String confirmSwitchTitle(String name);
+
+  /// No description provided for @confirmSwitchMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your password to switch back to your personal account.'**
+  String get confirmSwitchMessage;
+
+  /// No description provided for @passwordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get passwordHint;
+
+  /// No description provided for @continueAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get continueAction;
+
+  /// No description provided for @cancelAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancelAction;
+
+  /// No description provided for @switchAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch account'**
+  String get switchAccount;
+
+  /// No description provided for @profilesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 profile} other{{count} profiles}}'**
+  String profilesCount(int count);
 }
 
 class _AppLocalizationsDelegate

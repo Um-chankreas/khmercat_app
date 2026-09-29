@@ -52,6 +52,21 @@ class RestaurantProfileController
     }
   }
 
+  /// Refetches without the loading state (no spinner flash), keeping the
+  /// current data if it fails.
+  Future<void> refreshQuietly() async {
+    try {
+      final restaurant = await ref.read(restaurantRepositoryProvider).show(arg);
+      state = state.copyWith(restaurant: restaurant, isLoading: false);
+    } catch (_) {}
+  }
+
+  /// Shows an already-updated restaurant (e.g. the edit form's response)
+  /// without refetching.
+  void replace(Restaurant restaurant) {
+    state = state.copyWith(restaurant: restaurant, isLoading: false);
+  }
+
   /// No `is_following` flag comes back from GET /restaurants/{id} today, so
   /// this can only optimistically toggle for the current session — it won't
   /// reflect real follow state across reloads until the API exposes one.

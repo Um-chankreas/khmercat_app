@@ -11,6 +11,8 @@ import 'package:khmer_cat_app/src/onboarding/presentation/screens/onboarding_scr
 import 'package:khmer_cat_app/src/onboarding/presentation/screens/onboarding_screen_user.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/screens/create_restaurant.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/screens/restaurant_profile_screen.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/screens/edit_restaurant_screen.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/screens/restaurant_menu_screen.dart';
 import 'package:khmer_cat_app/src/profile/presentation/screens/edit_profile_screen.dart';
 import 'package:khmer_cat_app/src/settings/presentation/settings_screen.dart';
 import 'package:khmer_cat_app/src/splash/splash_screen.dart';
@@ -131,6 +133,24 @@ class AppRouter {
         name: AppRoute.restaurantProfile.name,
         pageBuilder: (context, state) => CupertinoPage(
           child: RestaurantProfileScreen(
+            restaurantId: state.pathParameters['id']!,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: AppRoute.restaurantMenu.path,
+        name: AppRoute.restaurantMenu.name,
+        pageBuilder: (context, state) => CupertinoPage(
+          child: RestaurantMenuScreen(
+            restaurantId: state.pathParameters['id']!,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: AppRoute.editRestaurant.path,
+        name: AppRoute.editRestaurant.name,
+        pageBuilder: (context, state) => CupertinoPage(
+          child: EditRestaurantScreen(
             restaurantId: state.pathParameters['id']!,
           ),
         ),

@@ -50,8 +50,7 @@ class ProfileTab extends HookConsumerWidget {
     double titleFadeDistance,
   ) {
     if (!controller.hasClients) return 0;
-    return controller.offset.clamp(0.0, titleFadeDistance) /
-        titleFadeDistance;
+    return controller.offset.clamp(0.0, titleFadeDistance) / titleFadeDistance;
   }
 
   static final _icons = [
@@ -79,14 +78,31 @@ class ProfileTab extends HookConsumerWidget {
     final user = authState.user!;
     final l = AppLocalizations.of(context);
     final summary = ref.watch(myProfileSummaryControllerProvider(user.id));
-    final surface = ProfileTheme.surface(context);
+    // This fills the whole screen, so it should be the page background, not
+    // ProfileTheme.surface — that's deliberately a lighter tone reserved for
+    // actual cards (ProfileCard, the stats row, ...), and using it here made
+    // the header/background read as a mismatched card-toned rectangle
+    // instead of blending into the rest of the app's dark background.
+    final pageBackground = Theme.of(context).scaffoldBackgroundColor;
 
+    // `SliverAppBar` (with the default `primary: true`) silently adds
+    // MediaQuery's top padding (the status bar) on top of whatever
+    // `expandedHeight` it's given — its real total height is
+    // `statusBarHeight + expandedHeight`, not just `expandedHeight`. We
+    // still want `primary: true` so the toolbar row (pinned title,
+    // share/settings) keeps clearing the status bar automatically, so
+    // instead of disabling it, we subtract `statusBarHeight` back out of
+    // the `expandedHeight` we pass in, leaving the *real* total height —
+    // and therefore where the next sliver starts — equal to
+    // `expandedHeaderHeight` as intended.
+    final statusBarHeight = MediaQuery.paddingOf(context).top;
     final coverHeight = MediaQuery.sizeOf(context).width / _coverAspectRatio;
     final expandedHeaderHeight = coverHeight + _contentGap;
-    final titleFadeDistance = expandedHeaderHeight - _pinnedHeaderHeight;
+    final titleFadeDistance =
+        expandedHeaderHeight - statusBarHeight - _pinnedHeaderHeight;
 
     return ColoredBox(
-      color: surface,
+      color: pageBackground,
       child: CustomScrollView(
         controller: scrollController,
         slivers: [
@@ -111,13 +127,17 @@ class ProfileTab extends HookConsumerWidget {
               return SliverAppBar(
                 pinned: true,
                 automaticallyImplyLeading: false,
-                expandedHeight: expandedHeaderHeight,
+                expandedHeight: expandedHeaderHeight - statusBarHeight,
                 toolbarHeight: _pinnedHeaderHeight,
                 // Transparent over the cover photo at rest, solidifying to
-                // [surface] in step with the pinned title fading in — so the
-                // bar only opaques once it actually has pinned content (the
-                // title) to show over the now-faded-out photo.
-                backgroundColor: Color.lerp(Colors.transparent, surface, opacity),
+                // [pageBackground] in step with the pinned title fading in —
+                // so the bar only opaques once it actually has pinned
+                // content (the title) to show over the now-faded-out photo.
+                backgroundColor: Color.lerp(
+                  Colors.transparent,
+                  pageBackground,
+                  opacity,
+                ),
                 surfaceTintColor: Colors.transparent,
                 scrolledUnderElevation: 0,
                 elevation: 0,
@@ -125,54 +145,68 @@ class ProfileTab extends HookConsumerWidget {
                 titleSpacing: context.sc(16),
                 flexibleSpace: FlexibleSpaceBar(
                   collapseMode: CollapseMode.pin,
-                  background: Align(
-                    alignment: Alignment.topCenter,
-                    // Ignore taps on the cover/avatar edit buttons once
-                    // they've faded out with the rest of the photo — they'd
-                    // otherwise sit, invisible, underneath the pinned title.
-                    child: IgnorePointer(
-                      ignoring: opacity >= 1,
-                      child: CoverAvatarHeader(
-                        coverUrl: user.coverPicture,
-                        avatarUrl: user.profilePicture,
-                        name: user.name,
-                        coverHeight: coverHeight,
-                        avatarSize: _avatarSize,
-                        coverRadius: 0,
-                        coverTint: ProfileTheme.coverMoodTint,
-                        topLeft: Text(
-                          '@${user.username}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                        coverAction: ProfileEditIconButton(
-                          icon: Icons.photo_camera_rounded,
-                          size: 34,
-                          onTap: () => changeProfileImage(
-                            context,
-                            ref,
-                            ProfileImageKind.cover,
-                          ),
-                        ),
-                        avatarBadge: ProfileEditIconButton(
-                          icon: Icons.edit_rounded,
-                          size: 26,
-                          ringed: true,
-                          onTap: () => changeProfileImage(
-                            context,
-                            ref,
-                            ProfileImageKind.avatar,
-                          ),
-                        ),
-                        belowFoldAction: ProfileEditIconButton(
-                          icon: Icons.edit_rounded,
-                          onTap: () => AppRouter.router.pushNamed(
-                            AppRoute.editProfile.name,
+                  background: SizedBox(
+                    height: expandedHeaderHeight,
+                    // The cover graphic itself is only `coverHeight` tall —
+                    // shorter than the app bar's full expanded height, which
+                    // also reserves room below the fold for the avatar to
+                    // overlap into. Without this backing, that extra strip
+                    // shows the app bar's own animated `backgroundColor`
+                    // bleeding through as a grey flash once you start
+                    // scrolling and it starts solidifying.
+                    child: ColoredBox(
+                      color: pageBackground,
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        // Ignore taps on the cover/avatar edit buttons once
+                        // they've faded out with the rest of the photo —
+                        // they'd otherwise sit, invisible, underneath the
+                        // pinned title.
+                        child: IgnorePointer(
+                          ignoring: opacity >= 1,
+                          child: CoverAvatarHeader(
+                            coverUrl: user.coverPicture,
+                            avatarUrl: user.profilePicture,
+                            name: user.name,
+                            coverHeight: coverHeight,
+                            avatarSize: _avatarSize,
+                            coverRadius: 0,
+                            coverTint: ProfileTheme.coverMoodTint,
+                            topLeft: Text(
+                              '@${user.username}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            coverAction: ProfileEditIconButton(
+                              icon: Icons.photo_camera_rounded,
+                              size: 34,
+                              onTap: () => changeProfileImage(
+                                context,
+                                ref,
+                                ProfileImageKind.cover,
+                              ),
+                            ),
+                            avatarBadge: ProfileEditIconButton(
+                              icon: Icons.photo_camera_rounded,
+                              size: 26,
+                              ringed: true,
+                              onTap: () => changeProfileImage(
+                                context,
+                                ref,
+                                ProfileImageKind.avatar,
+                              ),
+                            ),
+                            belowFoldAction: ProfileEditIconButton(
+                              icon: Icons.edit_rounded,
+                              onTap: () => AppRouter.router.pushNamed(
+                                AppRoute.editProfile.name,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -193,6 +227,7 @@ class ProfileTab extends HookConsumerWidget {
                     onTap: () =>
                         AppRouter.router.pushNamed(AppRoute.settings.name),
                   ),
+                  Gap(context.sc(16)),
                 ],
               );
             },
@@ -204,7 +239,7 @@ class ProfileTab extends HookConsumerWidget {
           // needing its own top gap.
           SliverToBoxAdapter(
             child: ColoredBox(
-              color: surface,
+              color: pageBackground,
               child: _ProfileInfo(user: user, summary: summary),
             ),
           ),
@@ -214,7 +249,7 @@ class ProfileTab extends HookConsumerWidget {
             delegate: FixedSliverHeaderDelegate(
               height: _tabBarHeight,
               child: Container(
-                color: surface,
+                color: pageBackground,
                 alignment: Alignment.center,
                 child: ProfileTabBar(
                   icons: _icons,
@@ -414,43 +449,84 @@ class _AboutPanel extends StatelessWidget {
   final User user;
   const _AboutPanel({required this.user});
 
+  /// Hairline rule between tiles, split evenly so the *total* space between
+  /// two tiles — not just the padding around the rule — comes out to a
+  /// consistent 16px.
+  static Widget _divider(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 7.5),
+    child: Divider(height: 1, thickness: 1, color: ProfileTheme.hairline),
+  );
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final hasBio = user.bio?.isNotEmpty == true;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: ProfileTheme.gradient,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.badge_rounded,
+                  size: 16,
+                  color: Colors.white,
+                ),
+              ),
+              const Gap(10),
+              Text(
+                l.aboutSectionTitle,
+                style: TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w800,
+                  color: ProfileTheme.textPrimary(context),
+                ),
+              ),
+            ],
+          ),
+          const Gap(16),
           ProfileCard(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: [
                 ProfileInfoTile(
                   icon: Icons.person_rounded,
                   label: l.aboutName,
                   value: user.name,
-                  color: ProfileTheme.pink,
+                  gradient: ProfileTheme.pinkPurple,
                 ),
+                _divider(context),
                 ProfileInfoTile(
                   icon: Icons.alternate_email_rounded,
                   label: l.aboutUsername,
                   value: '@${user.username}',
-                  color: ProfileTheme.purple,
+                  gradient: ProfileTheme.purpleBlue,
                 ),
+                _divider(context),
                 ProfileInfoTile(
                   icon: Icons.mail_rounded,
                   label: l.aboutEmail,
                   value: user.email,
-                  color: ProfileTheme.blue,
+                  gradient: ProfileTheme.pinkBlueGradient,
                 ),
-                if (user.bio?.isNotEmpty == true)
+                if (hasBio) ...[
+                  _divider(context),
                   ProfileInfoTile(
                     icon: Icons.info_rounded,
                     label: l.aboutBio,
                     value: user.bio!,
-                    color: ProfileTheme.pink,
+                    gradient: ProfileTheme.pinkPurple,
                   ),
+                ],
               ],
             ),
           ),
@@ -468,7 +544,7 @@ class _GuestProfilePrompt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: ProfileTheme.surface(context),
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: SafeArea(
         child: Center(
           child: Padding(

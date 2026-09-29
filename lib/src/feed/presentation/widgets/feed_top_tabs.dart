@@ -2,83 +2,62 @@
 import 'package:flutter/material.dart';
 import '../../domain/feed_tab.dart';
 
-/// "Following | For you" switcher: plain text labels with a gradient
-/// underline that slides to the selected one — no background or border.
-class FeedTopTabs extends StatelessWidget {
-  final FeedTab selected;
-  final ValueChanged<FeedTab> onChanged;
+const _pink = Color(0xffFF54AB);
+const _purple = Color(0xff9B6BFF);
+const _blue = Color(0xff74BFFF);
 
-  const FeedTopTabs({
-    required this.selected,
-    required this.onChanged,
-    super.key,
-  });
+/// Tab order the underlying [TabController]'s indices map to — must match
+/// the outer PageView's page order in home_feed.dart.
+const tabOrder = [FeedTab.following, FeedTab.forYou];
+
+/// "Following | For you" switcher, built on Flutter's real [TabBar] (kept
+/// in sync with the feed's own vertical-swipe PageView via [controller] —
+/// see home_feed.dart) instead of a hand-rolled Row of GestureDetectors, so
+/// it gets proper tap semantics, a correctly-sized touch target, and a
+/// Material ink response for free — plain text labels otherwise gave no
+/// feedback at all on tap.
+class FeedTopTabs extends StatelessWidget {
+  final TabController controller;
+
+  const FeedTopTabs({required this.controller, super.key});
 
   static const _tabWidth = 104.0;
 
   @override
   Widget build(BuildContext context) {
-    final isFollowing = selected == FeedTab.following;
-    // Row (not Center): Center would stretch the tabs to the full
-    // height the parent offers instead of hugging the text.
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Padding(
-          padding: EdgeInsets.zero,
-          child: SizedBox(
-            width: _tabWidth * 2,
-            child: Stack(
-              children: [
-                Row(
-                  children: [
-                    _TabLabel(
-                      text: 'Following',
-                      isActive: isFollowing,
-                      onTap: () => onChanged(FeedTab.following),
-                    ),
-                    _TabLabel(
-                      text: 'For you',
-                      isActive: !isFollowing,
-                      onTap: () => onChanged(FeedTab.forYou),
-                    ),
-                  ],
-                ),
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: AnimatedAlign(
-                      duration: const Duration(milliseconds: 280),
-                      curve: Curves.easeOutCubic,
-                      alignment: isFollowing
-                          ? const Alignment(-0.5, 1)
-                          : const Alignment(0.5, 1),
-                      child: Container(
-                        width: 30,
-                        height: 3.5,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(2),
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color(0xffFF54AB),
-                              Color(0xff9B6BFF),
-                              Color(0xff74BFFF),
-                            ],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(
-                                0xff9B6BFF,
-                              ).withValues(alpha: 0.6),
-                              blurRadius: 8,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+        SizedBox(
+          width: _tabWidth * tabOrder.length,
+          child: TabBar(
+            controller: controller,
+            indicator: const _GradientUnderlineIndicator(),
+            indicatorSize: TabBarIndicatorSize.tab,
+            dividerColor: Colors.transparent,
+            labelPadding: EdgeInsets.zero,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white.withValues(alpha: 0.65),
+            labelStyle: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
+              shadows: [Shadow(color: Colors.black38, blurRadius: 4)],
             ),
+            unselectedLabelStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
+              shadows: [Shadow(color: Colors.black38, blurRadius: 4)],
+            ),
+            splashBorderRadius: BorderRadius.circular(20),
+            overlayColor: WidgetStateProperty.all(
+              Colors.white.withValues(alpha: 0.1),
+            ),
+            tabs: const [
+              Tab(text: 'Following'),
+              Tab(text: 'For you'),
+            ],
           ),
         ),
       ],
@@ -86,46 +65,38 @@ class FeedTopTabs extends StatelessWidget {
   }
 }
 
-class _TabLabel extends StatelessWidget {
-  final String text;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _TabLabel({
-    required this.text,
-    required this.isActive,
-    required this.onTap,
-  });
+/// Paints the same small gradient pill the old hand-rolled indicator used,
+/// sitting under whichever tab is (or is animating towards being) selected
+/// — TabBar recomputes and repaints this every frame the controller's
+/// animation is running, same as the original AnimatedAlign did.
+class _GradientUnderlineIndicator extends Decoration {
+  const _GradientUnderlineIndicator();
 
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: FeedTopTabs._tabWidth,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 8, top: 4),
-          // heightFactor: 1 — a plain Center would grow to the full screen
-          // height when the tabs are stacked over the video.
-          child: Center(
-            heightFactor: 1,
-            child: AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                color: isActive
-                    ? Colors.white
-                    : Colors.white.withValues(alpha: 0.65),
-                fontSize: isActive ? 17 : 16,
-                fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
-                letterSpacing: -0.2,
-                shadows: const [Shadow(color: Colors.black38, blurRadius: 4)],
-              ),
-              child: Text(text),
-            ),
-          ),
-        ),
-      ),
+  BoxPainter createBoxPainter([VoidCallback? onChanged]) =>
+      _GradientUnderlinePainter(onChanged);
+}
+
+class _GradientUnderlinePainter extends BoxPainter {
+  _GradientUnderlinePainter(super.onChanged);
+
+  static const _width = 30.0;
+  static const _height = 3.5;
+
+  @override
+  void paint(Canvas canvas, Offset offset, ImageConfiguration configuration) {
+    final size = configuration.size!;
+    final rect = Rect.fromLTWH(
+      offset.dx + (size.width - _width) / 2,
+      offset.dy + size.height - _height - 6,
+      _width,
+      _height,
     );
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(2));
+    final paint = Paint()
+      ..shader = const LinearGradient(
+        colors: [_pink, _purple, _blue],
+      ).createShader(rect);
+    canvas.drawRRect(rrect, paint);
   }
 }

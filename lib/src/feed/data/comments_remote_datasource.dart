@@ -17,10 +17,27 @@ class CommentsRemoteDataSource {
     return json.dataMap;
   }
 
-  Future<Map<String, dynamic>> postComment(String videoId, String body) async {
+  Future<Map<String, dynamic>> getReplies(
+    String commentId, {
+    int page = 1,
+    int perPage = 10,
+  }) async {
+    final json = await _client.get(
+      ApiRoute.commentReplies(commentId),
+      query: {'page': page, 'per_page': perPage},
+    );
+    return json.dataMap;
+  }
+
+  /// Posts a comment, or a reply to [parentId].
+  Future<Map<String, dynamic>> postComment(
+    String videoId,
+    String body, {
+    String? parentId,
+  }) async {
     final json = await _client.post(
       ApiRoute.videoComments(videoId),
-      body: {'body': body},
+      body: {'body': body, 'parent_id': ?parentId},
     );
     return json.dataMap;
   }

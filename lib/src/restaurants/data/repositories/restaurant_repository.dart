@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:khmer_cat_app/src/auth/data/model/user_model.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
+import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant_menu.dart';
 
 import '../datasources/restaurant_remote_datasource.dart';
 
@@ -31,8 +32,42 @@ class RestaurantRepository {
     );
   }
 
-  Future<String?> switchTo(String restaurantId) {
-    return _remote.switchTo(restaurantId);
+  Future<Restaurant> update(String id, Map<String, dynamic> fields) async {
+    return Restaurant.fromJson(await _remote.update(id, fields));
+  }
+
+  Future<void> delete(String id, String password) =>
+      _remote.delete(id, password);
+
+  /// Show (true) or hide (false) the restaurant from the public.
+  Future<Restaurant> setPublished(String id, bool published) =>
+      update(id, {'is_published': published});
+
+  Future<RestaurantMenu> menu(String id) async =>
+      RestaurantMenu.fromJson(await _remote.menu(id));
+
+  Future<RestaurantMenu> uploadMenuPages(
+    String id,
+    List<File> files, {
+    void Function(int sent, int total)? onProgress,
+  }) async => RestaurantMenu.fromJson(
+    await _remote.uploadMenuPages(id, files, onProgress: onProgress),
+  );
+
+  Future<RestaurantMenu> deleteMenuPage(String id, String pageId) async =>
+      RestaurantMenu.fromJson(await _remote.deleteMenuPage(id, pageId));
+
+  Future<void> uploadImage(
+    String id,
+    File file, {
+    required bool cover,
+    void Function(int sent, int total)? onProgress,
+  }) => _remote.uploadImage(id, file, cover: cover, onProgress: onProgress);
+
+  /// Switches the active context; a null [restaurantId] means the user's
+  /// personal profile. Returns the new active restaurant id (or null).
+  Future<String?> switchTo(String? restaurantId, {String? password}) {
+    return _remote.switchTo(restaurantId, password: password);
   }
 
   Future<CreatedRestaurant> create({

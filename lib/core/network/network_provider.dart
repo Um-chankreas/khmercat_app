@@ -5,6 +5,7 @@ import 'package:khmer_cat_app/core/service/storage_provider.dart';
 
 import '../config/app_config.dart';
 import 'api_client.dart';
+import 'api_route.dart';
 import 'reverb_socket.dart';
 
 /// Set by AuthController on startup so the network layer can flip global
@@ -26,3 +27,21 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 /// One shared Reverb connection for the whole app — see [ReverbSocket]'s doc
 /// comment for why a single multiplexed socket instead of one per feature.
 final reverbSocketProvider = Provider<ReverbSocket>((ref) => ReverbSocket());
+
+/// Signs a [ReverbSocket.subscribePrivate] request via this app's own
+/// JWT-protected `/broadcasting/auth` — not Laravel's default endpoint,
+/// which expects session auth this API-only app never establishes.
+final privateChannelAuthProvider = Provider<PrivateChannelAuthProvider>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return (channelName, socketId) async {
+    try {
+      final result = await client.post(
+        ApiRoute.broadcastingAuth,
+        body: {'channel_name': channelName, 'socket_id': socketId},
+      );
+      return result['auth'] as String?;
+    } catch (_) {
+      return null;
+    }
+  };
+});

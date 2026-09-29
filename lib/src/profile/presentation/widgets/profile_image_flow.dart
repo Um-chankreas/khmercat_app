@@ -18,17 +18,29 @@ import 'package:khmer_cat_app/src/profile/providers/profile_providers.dart';
 
 enum ProfileImageKind { avatar, cover }
 
+/// Uploads [file] somewhere other than the signed-in user's own profile
+/// (e.g. a restaurant's logo/cover) and refreshes whatever shows it.
+typedef ProfileImageUploader =
+    Future<void> Function(
+      File file,
+      void Function(int sent, int total) onProgress,
+    );
+
 const _red = Color(0xffE5484D);
 
 /// Camera-icon flow for the profile's avatar / cover:
 /// choose Camera or Gallery → pick → preview with Cancel / Upload → upload
 /// (with progress, error message and Retry) → the profile updates and a
 /// success message shows.
+///
+/// By default it updates the signed-in user's photo; pass [uploader] to send
+/// the picked image elsewhere (a restaurant) with the same UI.
 Future<void> changeProfileImage(
   BuildContext context,
   WidgetRef ref,
-  ProfileImageKind kind,
-) async {
+  ProfileImageKind kind, {
+  ProfileImageUploader? uploader,
+}) async {
   final source = await showModalBottomSheet<ImageSource>(
     context: context,
     backgroundColor: Colors.transparent,
@@ -61,7 +73,11 @@ Future<void> changeProfileImage(
   final uploaded = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => _PreviewDialog(kind: kind, file: File(picked!.path)),
+    builder: (_) => _PreviewDialog(
+      kind: kind,
+      file: File(picked!.path),
+      uploader: uploader,
+    ),
   );
   if (uploaded == true) {
     AppService.showToast(
@@ -205,7 +221,8 @@ class _SourceTile extends StatelessWidget {
 class _PreviewDialog extends HookConsumerWidget {
   final ProfileImageKind kind;
   final File file;
-  const _PreviewDialog({required this.kind, required this.file});
+  final ProfileImageUploader? uploader;
+  const _PreviewDialog({required this.kind, required this.file, this.uploader});
 
   bool get _isAvatar => kind == ProfileImageKind.avatar;
 
@@ -240,6 +257,13 @@ class _PreviewDialog extends HookConsumerWidget {
       try {
         void onProgress(int sent, int total) {
           if (total > 0 && context.mounted) progress.value = sent / total;
+        }
+
+        final custom = uploader;
+        if (custom != null) {
+          await custom(file, onProgress);
+          if (context.mounted) Navigator.of(context).pop(true);
+          return;
         }
 
         final data = _isAvatar

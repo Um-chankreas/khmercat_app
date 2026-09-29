@@ -25,9 +25,16 @@ class AuthController extends Notifier<AuthState> {
     // Lets the network layer drop us back to guest state on an
     // unrecoverable 401 (expired token + failed refresh) without
     // core/network importing this feature directly.
-    ref.read(sessionExpiredCallbackProvider.notifier).state = () {
-      state = const AuthState.unauthenticated();
-    };
+    //
+    // Deferred to a microtask — Riverpod forbids a provider modifying
+    // another provider's state synchronously while it's still building
+    // (`sessionExpiredCallbackProvider` here), which threw on every cold
+    // start and could cascade into corrupted layout downstream.
+    Future.microtask(() {
+      ref.read(sessionExpiredCallbackProvider.notifier).state = () {
+        state = const AuthState.unauthenticated();
+      };
+    });
     return const AuthState.initial();
   }
 

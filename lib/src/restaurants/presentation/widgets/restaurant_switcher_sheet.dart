@@ -6,7 +6,10 @@ import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/core/themes/app_colors.dart';
+import 'package:khmer_cat_app/l10n/app_localizations.dart';
+import 'package:khmer_cat_app/src/auth/presentation/viewmodel/auth_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/my_restaurants_controller.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/widgets/switch_password_sheet.dart';
 
 Future<void> showRestaurantSwitcherSheet(BuildContext context) {
   return showModalBottomSheet(
@@ -23,6 +26,27 @@ class RestaurantSwitcherSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(myRestaurantsControllerProvider);
+    final user = ref.watch(currentUserProvider);
+    final l = AppLocalizations.of(context);
+
+    Future<void> switchTo(String? restaurantId, String name) async {
+      final bool ok;
+      if (restaurantId == null) {
+        // Back to personal needs the password (cancelled = stay put).
+        if (!await confirmSwitchToPersonal(context)) return;
+        ok = true;
+      } else {
+        ok = await ref
+            .read(myRestaurantsControllerProvider.notifier)
+            .switchTo(restaurantId);
+      }
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+      AppService.showToast(
+        ok ? l.switchedTo(name) : l.switchFailed,
+        isError: !ok,
+      );
+    }
 
     return SafeArea(
       child: Container(
@@ -47,10 +71,7 @@ class RestaurantSwitcherSheet extends ConsumerWidget {
               ),
             ),
             const Gap(16),
-            Text(
-              'Your restaurants',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text(l.switchTo, style: Theme.of(context).textTheme.titleMedium),
             const Gap(8),
             Flexible(
               child: state.when(
@@ -63,49 +84,50 @@ class RestaurantSwitcherSheet extends ConsumerWidget {
                   child: Text('Could not load your restaurants.'),
                 ),
                 data: (data) {
-                  if (data.restaurants.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text('You don\'t manage any restaurants yet.'),
-                    );
-                  }
+                  final personalActive = data.activeRestaurantId == null;
                   return ListView(
                     shrinkWrap: true,
-                    children: data.restaurants.map((r) {
-                      final isActive = r.id == data.activeRestaurantId;
-                      return ListTile(
-                        leading: ImageUserCircleProfile(
-                          imageUrl: r.profilePicture,
-                          name: r.name,
-                          size: 40,
+                    children: [
+                      // Back to the user's own profile.
+                      if (user != null)
+                        ListTile(
+                          leading: ImageUserCircleProfile(
+                            imageUrl: user.profilePicture,
+                            name: user.name,
+                            size: 40,
+                          ),
+                          title: Text(user.name),
+                          subtitle: Text(l.profileTypePersonal),
+                          trailing: personalActive
+                              ? Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.appPrimaryPink,
+                                )
+                              : null,
+                          onTap: personalActive
+                              ? null
+                              : () => switchTo(null, user.name),
                         ),
-                        title: Text(r.name),
-                        trailing: isActive
-                            ? Icon(
-                                Icons.check_circle,
-                                color: AppColors.appPrimaryPink,
-                              )
-                            : null,
-                        onTap: isActive
-                            ? null
-                            : () async {
-                                final ok = await ref
-                                    .read(
-                                      myRestaurantsControllerProvider.notifier,
-                                    )
-                                    .switchTo(r.id);
-                                if (context.mounted) {
-                                  Navigator.of(context).pop();
-                                  if (!ok) {
-                                    AppService.showToast(
-                                      'Could not switch restaurant.',
-                                      isError: true,
-                                    );
-                                  }
-                                }
-                              },
-                      );
-                    }).toList(),
+                      ...data.restaurants.map((r) {
+                        final isActive = r.id == data.activeRestaurantId;
+                        return ListTile(
+                          leading: ImageUserCircleProfile(
+                            imageUrl: r.profilePicture,
+                            name: r.name,
+                            size: 40,
+                          ),
+                          title: Text(r.name),
+                          subtitle: Text(l.profileTypeRestaurant),
+                          trailing: isActive
+                              ? Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.appPrimaryPink,
+                                )
+                              : null,
+                          onTap: isActive ? null : () => switchTo(r.id, r.name),
+                        );
+                      }),
+                    ],
                   );
                 },
               ),

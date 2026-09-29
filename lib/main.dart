@@ -14,7 +14,7 @@ import 'package:khmer_cat_app/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
-  AppConfig.environment = Environment.dev;
+  AppConfig.environment = Environment.staging;
   WidgetsFlutterBinding.ensureInitialized();
 
   // Firebase (push notifications) reads android/app/google-services.json and
@@ -25,7 +25,9 @@ void main() async {
   try {
     await Firebase.initializeApp();
   } catch (e) {
-    debugPrint('Firebase not initialized (expected until Firebase is set up): $e');
+    debugPrint(
+      'Firebase not initialized (expected until Firebase is set up): $e',
+    );
   }
 
   final prefs = await SharedPreferences.getInstance();

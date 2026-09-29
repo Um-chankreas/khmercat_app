@@ -61,6 +61,10 @@ dependencies:
   web_socket_channel: ^3.0.3
   firebase_core: ^4.15.0
   firebase_messaging: ^16.7.0
+  cached_video_player_plus: ^4.1.0
+  flutter_cache_manager: ^3.4.5
+  url_launcher: ^6.3.2
+  qr_flutter: ^4.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

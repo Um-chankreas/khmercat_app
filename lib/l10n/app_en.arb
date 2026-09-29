@@ -48,11 +48,45 @@
   "emptyLiked": "Videos you like show up here.",
   "emptyFavorites": "Your favorite videos show up here.",
   "emptyTrash": "Deleted videos stay here for 30 days.",
+  "aboutSectionTitle": "Account Info",
 
   "aboutName": "Name",
   "aboutUsername": "Username",
   "aboutEmail": "Email",
   "aboutBio": "Bio",
 
-  "comingSoon": "Coming soon"
+  "comingSoon": "Coming soon",
+
+  "currentlyViewing": "Currently viewing",
+  "youAreViewingAs": "You are using the app as {name}",
+  "@youAreViewingAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "switchTo": "Switch to",
+  "profileTypePersonal": "Personal",
+  "profileTypeRestaurant": "Restaurant",
+  "profileStatusActive": "Active",
+  "profileStatusInactive": "Inactive",
+  "switchedTo": "Switched to {name}",
+  "@switchedTo": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "switchFailed": "Could not switch profile. Please try again.",
+  "confirmSwitchTitle": "Switch to {name}",
+  "@confirmSwitchTitle": {"placeholders": {"name": {"type": "String"}}},
+  "confirmSwitchMessage": "Enter your password to switch back to your personal account.",
+  "passwordHint": "Password",
+  "continueAction": "Continue",
+  "cancelAction": "Cancel",
+  "switchAccount": "Switch account",
+  "profilesCount": "{count, plural, =1{1 profile} other{{count} profiles}}",
+  "@profilesCount": {"placeholders": {"count": {"type": "int"}}}
 }

@@ -1,4 +1,4 @@
-package com.example.khmer_cat_app
+package com.app.khmercat
 
 import io.flutter.embedding.android.FlutterActivity
 

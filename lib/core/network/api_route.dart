@@ -10,11 +10,14 @@ abstract class ApiRoute {
 
   // feed / videos
   static const String videosFeed = '/videos/feed';
+  static String video(String id) => '/videos/$id';
   static String videoLike(String id) => '/videos/$id/like';
   static String videoSave(String id) => '/videos/$id/save';
+  static String videoView(String id) => '/videos/$id/view';
   static String videoComments(String id) => '/videos/$id/comments';
   static String comment(String id) => '/comments/$id';
   static String commentLike(String id) => '/comments/$id/like';
+  static String commentReplies(String id) => '/comments/$id/replies';
 
   // search
   static const String search = '/search';
@@ -29,6 +32,11 @@ abstract class ApiRoute {
   static const String switchRestaurant = '/restaurants/switch';
   static String restaurant(String id) => '/restaurants/$id';
   static String restaurantFollow(String id) => '/restaurants/$id/follow';
+  static String restaurantAvatar(String id) => '/restaurants/$id/avatar';
+  static String restaurantCover(String id) => '/restaurants/$id/cover';
+  static String restaurantMenu(String id) => '/restaurants/$id/menu';
+  static String restaurantMenuPage(String id, String pageId) =>
+      '/restaurants/$id/menu/$pageId';
 
   // uploads
   static const String uploadReviewVideo = '/reviews/upload';
@@ -55,4 +63,16 @@ abstract class ApiRoute {
 
   // push notifications (Firebase Cloud Messaging device tokens)
   static const String deviceTokens = '/device-tokens';
+
+  // private-channel auth for Reverb (websockets) — JWT-protected variant,
+  // see routes/api.php for why this isn't Laravel's default endpoint.
+  static const String broadcastingAuth = '/broadcasting/auth';
+
+  // in-app notifications
+  static const String notifications = '/notifications';
+  static const String markAllNotificationsRead = '/notifications/read-all';
+  static String markNotificationRead(String id) => '/notifications/$id/read';
+  static String notification(String id) => '/notifications/$id';
+  static const String markNotificationsRead = '/notifications/read';
+  static const String notificationsBatch = '/notifications/batch';
 }
