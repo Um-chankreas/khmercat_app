@@ -148,7 +148,14 @@ class ReverbSocket {
   void _connect() {
     _setState(SocketConnectionState.connecting);
     try {
+      AppLog.info('ReverbSocket connecting to $_uri');
       _channel = WebSocketChannel.connect(_uri);
+      // A failed connect also fails `ready`; unobserved, that shows up as an
+      // "Unhandled Exception". The stream's onError below already handles
+      // the disconnect and reconnect.
+      _channel!.ready.catchError((Object e) {
+        AppLog.info('ReverbSocket connect failed: $e');
+      });
       _sub = _channel!.stream.listen(
         _handleMessage,
         onError: (_) => _handleDisconnect(),

@@ -30,23 +30,43 @@ class AppConfig {
     'REVERB_APP_KEY',
   );
 
-  /// Laravel Reverb's public app key — safe to embed client-side (unlike
-  /// REVERB_APP_SECRET, which never leaves the server). Defaults to this
-  /// repo's dev `.env` value.
-  static String get reverbAppKey => _reverbAppKeyOverride.isNotEmpty
-      ? _reverbAppKeyOverride
-      : 'f7pjogc8xmbgpu5vamu5';
+  /// Laravel Reverb's public app key (the server's REVERB_APP_KEY) — safe
+  /// to embed client-side, unlike REVERB_APP_SECRET, which never leaves the
+  /// server. Each server has its own; a wrong key is rejected with "4001
+  /// Application does not exist".
+  static String get reverbAppKey {
+    if (_reverbAppKeyOverride.isNotEmpty) return _reverbAppKeyOverride;
+    switch (environment) {
+      case Environment.dev:
+        return 'f7pjogc8xmbgpu5vamu5';
+      case Environment.staging:
+      // TODO: production's own key once api.khmercat.com has a server.
+      case Environment.production:
+        return '14b0a0e858ab588c728e521d070b03ecb4193613';
+    }
+  }
 
-  /// Reverb always shares the API's host (see [baseUrl]) — just a different
-  /// port, since both run on the same machine in dev and behind the same
-  /// domain in staging/production.
+  /// Reverb always shares the API's host (see [baseUrl]).
   static String get reverbHost => Uri.parse(baseUrl).host;
 
   static const int _reverbPortOverride = int.fromEnvironment('REVERB_PORT');
-  static int get reverbPort =>
-      _reverbPortOverride != 0 ? _reverbPortOverride : 8080;
 
-  static const bool reverbUseTls = bool.fromEnvironment('REVERB_TLS');
+  /// On a server, nginx proxies `/app` to Reverb, so the websocket uses the
+  /// API's own port (80/443) — Reverb's port 8080 isn't open to the
+  /// internet. Only a local `php artisan serve` API (an explicit port such
+  /// as :8000) talks to `reverb:start` on 8080 directly.
+  static int get reverbPort {
+    if (_reverbPortOverride != 0) return _reverbPortOverride;
+    final api = Uri.parse(baseUrl);
+    final behindProxy = !api.hasPort || api.port == 80 || api.port == 443;
+    return behindProxy ? api.port : 8080;
+  }
+
+  /// `wss` whenever the API is https, unless overridden with
+  /// --dart-define=REVERB_TLS=true|false.
+  static bool get reverbUseTls => const bool.hasEnvironment('REVERB_TLS')
+      ? const bool.fromEnvironment('REVERB_TLS')
+      : Uri.parse(baseUrl).scheme == 'https';
 
   /// Rewrites the scheme/host/port of an absolute media URL (video,
   /// thumbnail, profile picture, ...) to match [baseUrl].
