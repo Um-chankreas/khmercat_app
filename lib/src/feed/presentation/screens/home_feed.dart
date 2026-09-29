@@ -49,7 +49,6 @@ class HomeFeed extends StatefulWidget {
 
 class _HomeFeedState extends State<HomeFeed>
     with RouteAware, WidgetsBindingObserver {
-  bool _isTopRoute = true;
   bool _appInForeground = true;
 
   @override
@@ -72,13 +71,16 @@ class _HomeFeedState extends State<HomeFeed>
     super.dispose();
   }
 
-  // A route was pushed on top of this one (profile, upload, ...).
+  // Whether the feed is covered is read from the route itself in build(),
+  // not tracked from these callbacks: go_router *removes* routes on go()
+  // (e.g. posting a video: upload -> camera -> goNamed(index)), and a
+  // removal never calls didPopNext — so a flag set here stayed "covered"
+  // and the feed never loaded another video. These just force a rebuild.
   @override
-  void didPushNext() => setState(() => _isTopRoute = false);
+  void didPushNext() => setState(() {});
 
-  // Back on top again — the pushed route was popped.
   @override
-  void didPopNext() => setState(() => _isTopRoute = true);
+  void didPopNext() => setState(() {});
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -87,8 +89,11 @@ class _HomeFeedState extends State<HomeFeed>
 
   @override
   Widget build(BuildContext context) {
+    // True only while nothing is pushed on top of this route. Flutter
+    // rebuilds this widget whenever that changes, removals included.
+    final isTopRoute = ModalRoute.isCurrentOf(context) ?? true;
     return _HomeFeedContent(
-      isActive: widget.isTabActive && _isTopRoute && _appInForeground,
+      isActive: widget.isTabActive && isTopRoute && _appInForeground,
     );
   }
 }

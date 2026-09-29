@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:http/http.dart' show ClientException;
 import 'package:video_player/video_player.dart';
 
 import '../../domain/video_feed_item.dart';
@@ -120,6 +122,34 @@ class VideoControllerManager extends ChangeNotifier {
           );
     _players[item.id] = player;
 
+    // The package caches the file with a fire-and-forget download that has
+    // no error handler, so a dropped connection mid-download surfaced as an
+    // "Unhandled Exception". Unhandled async errors go to the zone they were
+    // created in, so running initialize() in this zone catches exactly
+    // those. The chain's own catchError below is registered in the same
+    // zone, so real playback failures still reach it.
+    runZonedGuarded(() => _initialize(item, player), _onBackgroundCacheError);
+  }
+
+  /// Only the background cache download lands here; the video already plays
+  /// from the network and just gets cached on a later view.
+  static void _onBackgroundCacheError(Object error, StackTrace stack) {
+    if (error is ClientException ||
+        error is IOException ||
+        error is HttpExceptionWithStatus) {
+      debugPrint('Video cache download failed (will retry later): $error');
+      return;
+    }
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stack,
+        library: 'video_controller_manager',
+      ),
+    );
+  }
+
+  void _initialize(VideoFeedItem item, CachedVideoPlayerPlus player) {
     player
         .initialize()
         .timeout(_initTimeout)
