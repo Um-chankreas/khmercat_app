@@ -284,3 +284,8 @@ class SearchViewModel extends Notifier<SearchState> {
 final searchViewModelProvider = NotifierProvider<SearchViewModel, SearchState>(
   SearchViewModel.new,
 );
+
+/// Separate instance for the upload restaurant picker, so the Search tab's
+/// cuisine / "Nearest" filters and results don't leak into it.
+final restaurantPickerSearchProvider =
+    NotifierProvider<SearchViewModel, SearchState>(SearchViewModel.new);

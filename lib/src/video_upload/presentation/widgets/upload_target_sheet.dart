@@ -58,12 +58,7 @@ class _UploadTargetSheet extends HookConsumerWidget {
         myRestaurants.valueOrNull?.restaurants ?? const <Restaurant>[];
     final hasOwnRestaurants = myList.isNotEmpty;
 
-    // Acting as a restaurant → open on "My restaurant".
-    final mode = useState(
-      myRestaurants.valueOrNull?.activeRestaurantId != null && hasOwnRestaurants
-          ? UploadMode.restaurantPost
-          : UploadMode.review,
-    );
+    final mode = useState(UploadMode.review);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.95,
@@ -369,9 +364,14 @@ class _RestaurantSearchList extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(searchViewModelProvider);
-    final vm = ref.read(searchViewModelProvider.notifier);
+    final state = ref.watch(restaurantPickerSearchProvider);
+    final vm = ref.read(restaurantPickerSearchProvider.notifier);
     final inputCtr = useTextEditingController();
+    // Start empty each time — the search box is, so the results should be.
+    useEffect(() {
+      Future.microtask(() => vm.onQueryChanged(''));
+      return null;
+    }, const []);
     final focus = useFocusNode();
     // Rebuild on focus / text change for the border glow + clear button.
     useListenable(focus);
