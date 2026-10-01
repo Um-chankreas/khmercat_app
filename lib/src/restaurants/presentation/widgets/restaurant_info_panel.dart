@@ -85,21 +85,25 @@ class RestaurantInfoPanel extends StatelessWidget {
       required String? value,
       required String addText,
       IconData? icon,
+      String? iconAsset,
       String? asset,
       Color color = ProfileTheme.purple,
       Widget? trailing,
       IconData? actionIcon,
+      String? actionAsset,
       VoidCallback? onTap,
     }) {
       if (value == null && !editable) return null;
       return InfoRow(
         icon: icon,
+        iconAsset: iconAsset,
         asset: asset,
         color: color,
         label: label,
         value: value,
         trailing: trailing,
         actionIcon: actionIcon,
+        actionAsset: actionAsset,
         onTap: onTap,
         addText: addText,
         onAdd: onEdit,
@@ -119,13 +123,13 @@ class RestaurantInfoPanel extends StatelessWidget {
         ...section('Menu', [
           if (pages > 0 || editable)
             InfoRow(
-              icon: Icons.menu_book_rounded,
+              iconAsset: AssetsName.lcMenu,
               color: ProfileTheme.deepPurple,
               label: 'Menu',
               value: pages == 0
                   ? null
                   : '$pages page${pages == 1 ? '' : 's'} · QR code',
-              actionIcon: Icons.qr_code_2_rounded,
+              actionAsset: AssetsName.lcQr,
               onTap: onOpenMenu,
               addText: 'Add your menu',
               onAdd: onOpenMenu,
@@ -133,13 +137,13 @@ class RestaurantInfoPanel extends StatelessWidget {
         ]),
       ...section('Details', [
         row(
-          icon: Icons.restaurant_menu_rounded,
+          iconAsset: AssetsName.lcCategory,
           label: 'Category',
           value: r.category?.name,
           addText: 'Add category',
         ),
         row(
-          icon: Icons.schedule_rounded,
+          iconAsset: AssetsName.lcClock,
           color: ProfileTheme.blue,
           label: 'Opening hours',
           value: opens != null && closes != null ? '$opens – $closes' : null,
@@ -147,7 +151,7 @@ class RestaurantInfoPanel extends StatelessWidget {
           addText: 'Add opening hours',
         ),
         row(
-          icon: Icons.delivery_dining_rounded,
+          iconAsset: AssetsName.lcService,
           color: ProfileTheme.pink,
           label: 'Service',
           value: r.serviceTypeLabel,
@@ -156,11 +160,11 @@ class RestaurantInfoPanel extends StatelessWidget {
       ]),
       ...section('Contact', [
         row(
-          icon: Icons.phone_rounded,
+          iconAsset: AssetsName.lcPhone,
           color: _green,
           label: 'Phone',
           value: phone,
-          actionIcon: Icons.call_rounded,
+          actionAsset: AssetsName.lcPhone,
           onTap: phone == null
               ? null
               : () => SocialLinks.open(
@@ -169,11 +173,11 @@ class RestaurantInfoPanel extends StatelessWidget {
           addText: 'Add phone number',
         ),
         row(
-          icon: Icons.location_on_rounded,
+          iconAsset: AssetsName.lcPin,
           color: _red,
           label: 'Address',
           value: address,
-          actionIcon: Icons.directions_rounded,
+          actionAsset: AssetsName.lcNavigate,
           onTap: mapQuery == null
               ? null
               : () => SocialLinks.open(
@@ -313,12 +317,18 @@ class InfoGroup extends StatelessWidget {
 /// an optional action icon. Unset values become a purple "Add …" link.
 class InfoRow extends StatelessWidget {
   final IconData? icon;
+
+  /// Tinted line icon (PNG, black glyph recolored with [color]).
+  final String? iconAsset;
+
+  /// Brand logo, drawn as-is.
   final String? asset;
   final Color color;
   final String label;
   final String? value;
   final Widget? trailing;
   final IconData? actionIcon;
+  final String? actionAsset;
   final VoidCallback? onTap;
 
   /// Shown (as a purple link to [onAdd]) when [value] is null. Read-only
@@ -333,10 +343,12 @@ class InfoRow extends StatelessWidget {
     this.onAdd,
     super.key,
     this.icon,
+    this.iconAsset,
     this.asset,
     this.color = ProfileTheme.purple,
     this.trailing,
     this.actionIcon,
+    this.actionAsset,
     this.onTap,
   });
 
@@ -364,6 +376,8 @@ class InfoRow extends StatelessWidget {
               ),
               child: asset != null
                   ? Image.asset(asset!, width: 20, height: 20)
+                  : iconAsset != null
+                  ? Image.asset(iconAsset!, width: 19, height: 19, color: color)
                   : Icon(icon, size: 19, color: color),
             ),
             const Gap(12),
@@ -375,7 +389,7 @@ class InfoRow extends StatelessWidget {
                   const Gap(2),
                   Text(
                     value ?? addText,
-                    maxLines: 2,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 15,
@@ -389,9 +403,13 @@ class InfoRow extends StatelessWidget {
               ),
             ),
             if (isSet && trailing != null) ...[const Gap(8), trailing!],
-            if (isSet && actionIcon != null && onTap != null) ...[
+            if (isSet &&
+                (actionIcon != null || actionAsset != null) &&
+                onTap != null) ...[
               const Gap(8),
-              Icon(actionIcon, size: 18, color: muted),
+              actionAsset != null
+                  ? Image.asset(actionAsset!, width: 18, height: 18, color: muted)
+                  : Icon(actionIcon, size: 18, color: muted),
             ],
             if (!isSet)
               const Icon(
