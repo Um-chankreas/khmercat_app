@@ -559,8 +559,8 @@ class _Card extends StatelessWidget {
   }
 }
 
-/// Where the post is tagged: an inviting empty state, or the chosen
-/// restaurant with its role (posting as / reviewing) and a Change action.
+/// Where the post is tagged: a soft gradient-washed tile showing the chosen
+/// restaurant (with its role) or an inviting empty state.
 class _TargetCard extends StatelessWidget {
   final UploadTargetSelection? selection;
   final VoidCallback onTap;
@@ -570,100 +570,133 @@ class _TargetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final sel = selection;
     final isPost = sel?.mode == UploadMode.restaurantPost;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      splashColor: Colors.transparent,
-      highlightColor: Colors.transparent,
-      child: _Card(
-        highlight: sel != null,
-        child: Row(
-          children: [
-            sel != null
-                ? RestaurantLogo(
+    final accent = isPost ? _Brand.pink : const Color(0xff3E8FE0);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                _Brand.pink.withValues(alpha: 0.08),
+                _Brand.purple.withValues(alpha: 0.08),
+                _Brand.blue.withValues(alpha: 0.12),
+              ],
+            ),
+            border: Border.all(
+              color: _Brand.purple.withValues(alpha: sel == null ? 0.18 : 0.28),
+            ),
+          ),
+          child: Row(
+            children: [
+              if (sel != null)
+                Container(
+                  padding: const EdgeInsets.all(2.5),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: _Brand.cardShadow(),
+                  ),
+                  child: RestaurantLogo(
                     restaurant: sel.restaurant,
-                    size: 48,
-                    borderRadius: 14,
-                  )
-                : const _IconBadge(
-                    icon: Icons.storefront_rounded,
-                    gradient: _Brand.pinkBlue,
+                    size: 46,
+                    borderRadius: 11,
                   ),
-            const Gap(14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (sel != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: (isPost ? _Brand.pink : _Brand.blue).withValues(
-                          alpha: 0.12,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        isPost ? 'POSTING AS' : 'REVIEWING',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.6,
-                          color: isPost
-                              ? _Brand.pink
-                              : const Color(0xff3E8FE0),
-                        ),
-                      ),
-                    ),
-                  if (sel != null) const Gap(4),
-                  Text(
-                    sel?.restaurant.name ?? 'Select a restaurant',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16.5,
-                      letterSpacing: -0.2,
-                      color: _Brand.ink,
+                )
+              else
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: _Brand.cardShadow(),
+                  ),
+                  child: ShaderMask(
+                    shaderCallback: (r) => _Brand.gradient.createShader(r),
+                    child: const Icon(
+                      Icons.add_location_alt_rounded,
+                      size: 26,
+                      color: Colors.white,
                     ),
                   ),
-                  if (sel == null) ...[
-                    const Gap(2),
-                    const Text(
-                      'Tag where this was taken or created',
-                      style: TextStyle(fontSize: 12.5, color: _Brand.muted),
+                ),
+              const Gap(14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: sel == null ? _Brand.muted : accent,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const Gap(6),
+                        Text(
+                          sel == null
+                              ? 'LOCATION'
+                              : (isPost ? 'POSTING AS' : 'REVIEWING'),
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                            color: sel == null ? _Brand.muted : accent,
+                          ),
+                        ),
+                      ],
                     ),
+                    const Gap(3),
+                    Text(
+                      sel?.restaurant.name ?? 'Choose a restaurant',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                        letterSpacing: -0.2,
+                        color: _Brand.ink,
+                      ),
+                    ),
+                    if (sel == null) ...[
+                      const Gap(1),
+                      const Text(
+                        'Tag where this was taken or created',
+                        style: TextStyle(fontSize: 12.5, color: _Brand.muted),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            const Gap(8),
-            Container(
-              padding: sel == null
-                  ? const EdgeInsets.all(4)
-                  : const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color: _Brand.purple.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
+              const Gap(8),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  gradient: _Brand.pinkPurple,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  sel == null
+                      ? Icons.arrow_forward_rounded
+                      : Icons.swap_horiz_rounded,
+                  size: 19,
+                  color: Colors.white,
+                ),
               ),
-              child: sel == null
-                  ? const Icon(
-                      Icons.chevron_right_rounded,
-                      color: _Brand.purple,
-                    )
-                  : const Text(
-                      'Change',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: _Brand.purple,
-                      ),
-                    ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
