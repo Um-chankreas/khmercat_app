@@ -287,6 +287,7 @@ class VideoUploadScreen extends HookConsumerWidget {
 
                         const Gap(14),
 
+                        const _SectionLabel('Hashtags'),
                         // ---- Hashtags ------------------------------------
                         _Card(
                           child: Column(
@@ -309,7 +310,7 @@ class VideoUploadScreen extends HookConsumerWidget {
                                   }
                                 },
                                 decoration: InputDecoration(
-                                  hintText: 'Add hashtags to get discovered',
+                                  hintText: 'Add a hashtag',
                                   filled: true,
                                   fillColor: const Color(0xffF6F5FB),
                                   border: OutlineInputBorder(
@@ -408,6 +409,7 @@ class VideoUploadScreen extends HookConsumerWidget {
                         const Gap(14),
 
                         // ---- Restaurant ------------------------------------
+                        const _SectionLabel('Post to'),
                         _TargetCard(
                           selection: selectedTarget.value,
                           onTap: pickTarget,
@@ -570,20 +572,12 @@ class _TargetCard extends StatelessWidget {
     final sel = selection;
     final isPost = sel?.mode == UploadMode.restaurantPost;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Ink(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: _Brand.ink,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: _Brand.softShadow(_Brand.ink, alpha: 0.25),
-          ),
-          child: Row(
-            children: [
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: _Card(
+        child: Row(
+          children: [
               // Gradient ring around the logo / empty-state icon.
               Container(
                 padding: const EdgeInsets.all(2.5),
@@ -601,13 +595,13 @@ class _TargetCard extends StatelessWidget {
                         width: 46,
                         height: 46,
                         decoration: const BoxDecoration(
-                          color: _Brand.ink,
+                          color: Colors.white,
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
                           Icons.add_location_alt_rounded,
                           size: 24,
-                          color: Colors.white,
+                          color: _Brand.purple,
                         ),
                       ),
               ),
@@ -624,7 +618,7 @@ class _TargetCard extends StatelessWidget {
                         fontSize: 10.5,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.9,
-                        color: Colors.white.withValues(alpha: 0.55),
+                        color: _Brand.muted,
                       ),
                     ),
                     const Gap(3),
@@ -636,7 +630,7 @@ class _TargetCard extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                         fontSize: 17,
                         letterSpacing: -0.2,
-                        color: Colors.white,
+                        color: _Brand.ink,
                       ),
                     ),
                     if (sel == null) ...[
@@ -645,7 +639,7 @@ class _TargetCard extends StatelessWidget {
                         'Tag where this was taken or created',
                         style: TextStyle(
                           fontSize: 12.5,
-                          color: Colors.white.withValues(alpha: 0.65),
+                          color: _Brand.muted,
                         ),
                       ),
                     ],
@@ -659,7 +653,7 @@ class _TargetCard extends StatelessWidget {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.14),
+                  color: _Brand.purple.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -667,12 +661,32 @@ class _TargetCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: _Brand.purple,
                   ),
                 ),
               ),
-            ],
-          ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Small muted heading above a card, so each block is easy to scan.
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 0, 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: _Brand.muted,
         ),
       ),
     );
