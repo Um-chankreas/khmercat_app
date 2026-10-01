@@ -287,13 +287,6 @@ class VideoUploadScreen extends HookConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const _SectionHeader(
-                                icon: Icons.tag_rounded,
-                                gradient: _Brand.purpleBlue,
-                                title: 'Hashtags',
-                                subtitle: 'Help people discover your post',
-                              ),
-                              const Gap(12),
                               TextField(
                                 controller: tagInputCtr,
                                 textInputAction: TextInputAction.done,
@@ -311,7 +304,7 @@ class VideoUploadScreen extends HookConsumerWidget {
                                   }
                                 },
                                 decoration: InputDecoration(
-                                  hintText: 'Type a hashtag, then space',
+                                  hintText: 'Add hashtags to get discovered',
                                   prefixIcon: const Icon(
                                     Icons.tag_rounded,
                                     size: 18,
@@ -842,8 +835,8 @@ class _VideoThumb extends HookWidget {
   final VoidCallback onChange;
   const _VideoThumb({required this.path, required this.onChange});
 
-  static const double width = 112;
-  static const double height = 168;
+  static const double width = 132;
+  static const double height = 198;
 
   @override
   Widget build(BuildContext context) {
