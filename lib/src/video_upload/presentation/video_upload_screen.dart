@@ -603,13 +603,13 @@ class _TargetCard extends StatelessWidget {
                   padding: const EdgeInsets.all(2.5),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
+                    shape: BoxShape.circle,
                     boxShadow: _Brand.cardShadow(),
                   ),
                   child: RestaurantLogo(
                     restaurant: sel.restaurant,
                     size: 46,
-                    borderRadius: 11,
+                    borderRadius: 23,
                   ),
                 )
               else
@@ -618,7 +618,7 @@ class _TargetCard extends StatelessWidget {
                   height: 52,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
+                    shape: BoxShape.circle,
                     boxShadow: _Brand.cardShadow(),
                   ),
                   child: ShaderMask(
@@ -760,10 +760,7 @@ class _IconBadge extends StatelessWidget {
     return Container(
       width: 36,
       height: 36,
-      decoration: BoxDecoration(
-        gradient: gradient,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: BoxDecoration(gradient: gradient, shape: BoxShape.circle),
       child: Icon(icon, size: 19, color: Colors.white),
     );
   }
