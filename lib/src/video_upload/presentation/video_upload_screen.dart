@@ -218,6 +218,13 @@ class VideoUploadScreen extends HookConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        _VideoPreviewCard(
+                          path: state.originalPath,
+                          onChange: vm.pickVideo,
+                        ),
+
+                        const Gap(14),
+
                         _Card(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -229,45 +236,36 @@ class VideoUploadScreen extends HookConsumerWidget {
                                 subtitle: 'Tell people what this is about',
                               ),
                               const Gap(14),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: titleCtr,
-                                      maxLength: _maxTitleLength,
-                                      maxLines: null,
-                                      minLines: 3,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 16,
-                                        height: 1.4,
-                                        color: _Brand.ink,
-                                      ),
-                                      decoration: InputDecoration(
-                                        hintText: 'Add a title...',
-                                        hintStyle: TextStyle(
-                                          color: _Brand.muted.withValues(
-                                            alpha: 0.6,
-                                          ),
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        border: InputBorder.none,
-                                        enabledBorder: InputBorder.none,
-                                        focusedBorder: InputBorder.none,
-                                        filled: false,
-                                        counterText: '',
-                                        contentPadding: EdgeInsets.zero,
-                                        isDense: true,
-                                      ),
-                                    ),
+                              TextField(
+                                controller: titleCtr,
+                                maxLength: _maxTitleLength,
+                                maxLines: null,
+                                minLines: 3,
+                                textCapitalization:
+                                    TextCapitalization.sentences,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                  height: 1.4,
+                                  color: _Brand.ink,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Write a caption...',
+                                  hintStyle: TextStyle(
+                                    color: _Brand.muted.withValues(alpha: 0.6),
+                                    fontWeight: FontWeight.w500,
                                   ),
-                                  const Gap(12),
-                                  _PreviewThumb(
-                                    path: state.originalPath,
-                                    onTap: vm.pickVideo,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  filled: false,
+                                  contentPadding: EdgeInsets.zero,
+                                  isDense: true,
+                                  counterStyle: TextStyle(
+                                    fontSize: 11.5,
+                                    color: _Brand.muted.withValues(alpha: 0.8),
                                   ),
-                                ],
+                                ),
                               ),
                             ],
                           ),
@@ -774,98 +772,328 @@ class _SuggestedChip extends StatelessWidget {
 }
 
 // =============================================================================
-// Video preview thumbnail
+// Video preview
 // =============================================================================
 
-class _PreviewThumb extends HookWidget {
-  final String? path;
-  final VoidCallback onTap;
-  const _PreviewThumb({required this.path, required this.onTap});
+String _fmt(Duration d) {
+  final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+  final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+  return '$m:$s';
+}
 
-  static const double _size = 96;
+/// Hero preview at the top of the form: tap to play/pause, scrub, mute,
+/// expand to full screen, or swap the video.
+class _VideoPreviewCard extends HookWidget {
+  final String? path;
+  final VoidCallback onChange;
+  const _VideoPreviewCard({required this.path, required this.onChange});
+
+  static const double _height = 320;
 
   @override
   Widget build(BuildContext context) {
     final controller = useState<VideoPlayerController?>(null);
-    final isInitialized = useState(false);
+    final ready = useState(false);
+    final muted = useState(false);
 
     useEffect(() {
+      ready.value = false;
       if (path == null) {
         controller.value = null;
-        isInitialized.value = false;
         return null;
       }
       final player = VideoPlayerController.file(File(path!));
       controller.value = player;
+      var disposed = false;
       player.initialize().then((_) {
-        isInitialized.value = true;
+        if (disposed) return;
+        ready.value = true;
         player.setLooping(true);
-        player.setVolume(0);
         player.play();
       });
-      return player.dispose;
+      return () {
+        disposed = true;
+        player.dispose();
+      };
     }, [path]);
 
-    Widget child;
+    final player = controller.value;
+
+    Widget body;
     if (path == null) {
-      child = Container(
-        color: _Brand.purple.withValues(alpha: 0.08),
-        child: const Icon(
-          Icons.video_call_rounded,
-          size: 32,
-          color: _Brand.purple,
+      body = InkWell(
+        onTap: onChange,
+        child: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.video_call_rounded, size: 44, color: _Brand.purple),
+              Gap(8),
+              Text(
+                'Tap to choose a video',
+                style: TextStyle(
+                  color: _Brand.purple,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
       );
-    } else if (!isInitialized.value || controller.value == null) {
-      child = Container(
-        color: Colors.black12,
-        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+    } else if (!ready.value || player == null) {
+      body = const Center(
+        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
       );
     } else {
-      child = Stack(
-        fit: StackFit.expand,
-        children: [
-          FittedBox(
-            fit: BoxFit.cover,
-            clipBehavior: Clip.hardEdge,
-            child: SizedBox(
-              width: controller.value!.value.size.width,
-              height: controller.value!.value.size.height,
-              child: VideoPlayer(controller.value!),
-            ),
-          ),
-          Positioned(
-            right: 4,
-            bottom: 4,
-            child: Container(
-              padding: const EdgeInsets.all(3),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.55),
-                shape: BoxShape.circle,
+      body = ValueListenableBuilder<VideoPlayerValue>(
+        valueListenable: player,
+        builder: (context, v, _) {
+          final playing = v.isPlaying;
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => playing ? player.pause() : player.play(),
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: v.aspectRatio == 0 ? 9 / 16 : v.aspectRatio,
+                    child: VideoPlayer(player),
+                  ),
+                ),
               ),
-              child: const Icon(
-                Icons.photo_camera,
-                size: 12,
-                color: Colors.white,
+              // Bottom scrim with scrubber + time.
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(14, 22, 14, 10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.6),
+                      ],
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${_fmt(v.position)} / ${_fmt(v.duration)}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Gap(10),
+                      Expanded(
+                        child: VideoProgressIndicator(
+                          player,
+                          allowScrubbing: true,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          colors: VideoProgressColors(
+                            playedColor: _Brand.pink,
+                            bufferedColor: Colors.white30,
+                            backgroundColor: Colors.white24,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
+              if (!playing)
+                IgnorePointer(
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.play_arrow_rounded,
+                        size: 40,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              // Top-right actions.
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Row(
+                  children: [
+                    _PreviewAction(
+                      icon: muted.value
+                          ? Icons.volume_off_rounded
+                          : Icons.volume_up_rounded,
+                      onTap: () {
+                        muted.value = !muted.value;
+                        player.setVolume(muted.value ? 0 : 1);
+                      },
+                    ),
+                    const Gap(8),
+                    _PreviewAction(
+                      icon: Icons.fullscreen_rounded,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          fullscreenDialog: true,
+                          builder: (_) => _FullscreenPreview(player: player),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Top-left: change video.
+              Positioned(
+                top: 10,
+                left: 10,
+                child: GestureDetector(
+                  onTap: onChange,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.swap_horiz_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                        Gap(6),
+                        Text(
+                          'Change',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       );
     }
 
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        gradient: _Brand.gradient,
+        borderRadius: BorderRadius.circular(26),
+        boxShadow: _Brand.softShadow(_Brand.pink, alpha: 0.12),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          height: _height,
+          color: path == null
+              ? _Brand.purple.withValues(alpha: 0.08)
+              : Colors.black,
+          child: body,
+        ),
+      ),
+    );
+  }
+}
+
+class _PreviewAction extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _PreviewAction({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(2),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          gradient: _Brand.gradient,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: _Brand.softShadow(_Brand.pink, alpha: 0.12),
+          color: Colors.black.withValues(alpha: 0.45),
+          shape: BoxShape.circle,
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: SizedBox(width: _size, height: _size, child: child),
+        child: Icon(icon, size: 18, color: Colors.white),
+      ),
+    );
+  }
+}
+
+/// Full-screen preview sharing the inline player (not disposed here).
+class _FullscreenPreview extends StatelessWidget {
+  final VideoPlayerController player;
+  const _FullscreenPreview({required this.player});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      extendBodyBehindAppBar: true,
+      body: ValueListenableBuilder<VideoPlayerValue>(
+        valueListenable: player,
+        builder: (context, v, _) => GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => v.isPlaying ? player.pause() : player.play(),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Center(
+                child: AspectRatio(
+                  aspectRatio: v.aspectRatio == 0 ? 9 / 16 : v.aspectRatio,
+                  child: VideoPlayer(player),
+                ),
+              ),
+              if (!v.isPlaying)
+                const IgnorePointer(
+                  child: Center(
+                    child: Icon(
+                      Icons.play_arrow_rounded,
+                      size: 72,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ),
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 24,
+                child: SafeArea(
+                  child: VideoProgressIndicator(
+                    player,
+                    allowScrubbing: true,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    colors: VideoProgressColors(
+                      playedColor: _Brand.pink,
+                      bufferedColor: Colors.white30,
+                      backgroundColor: Colors.white24,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
