@@ -308,15 +308,15 @@ class VideoUploadScreen extends HookConsumerWidget {
                                   filled: true,
                                   fillColor: const Color(0xffF6F5FB),
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(12),
                                     borderSide: BorderSide.none,
                                   ),
                                   enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(12),
                                     borderSide: BorderSide.none,
                                   ),
                                   focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(12),
                                     borderSide: BorderSide(
                                       color: _Brand.purple.withValues(
                                         alpha: 0.5,
@@ -543,7 +543,7 @@ class _Card extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(12),
         border: highlight
             ? Border.all(color: _Brand.purple.withValues(alpha: 0.35), width: 1.5)
             : null,
@@ -567,7 +567,7 @@ class _TargetCard extends StatelessWidget {
     final isPost = sel?.mode == UploadMode.restaurantPost;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(12),
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       child: _Card(
@@ -968,10 +968,10 @@ class _VideoThumb extends HookWidget {
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
                   gradient: _Brand.gradient,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(10),
                   child: ColoredBox(
                     color: path == null
                         ? const Color(0xffF1ECFF)
@@ -1147,7 +1147,7 @@ class _SuccessBanner extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.green.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
       ),
       child: Row(
@@ -1180,7 +1180,7 @@ class _ErrorBanner extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.red.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
       ),
       child: Row(
@@ -1245,7 +1245,7 @@ class _BottomAction extends StatelessWidget {
                 side: BorderSide(color: _Brand.purple.withValues(alpha: 0.4)),
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
@@ -1365,7 +1365,7 @@ class _GradientButtonState extends State<_GradientButton> {
             duration: const Duration(milliseconds: 200),
             height: 58,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(12),
               gradient: enabled
                   ? _Brand.gradient
                   : LinearGradient(
