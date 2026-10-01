@@ -668,7 +668,6 @@ class _IconBadge extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: gradient,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: _Brand.softShadow(_Brand.purple, alpha: 0.10),
       ),
       child: Icon(icon, size: 21, color: Colors.white),
     );
@@ -1284,7 +1283,7 @@ class _BottomAction extends StatelessWidget {
   }
 }
 
-/// Gradient send icon in the app bar; muted when the form isn't ready.
+/// Text "Post" action in the app bar; muted when the form isn't ready.
 class _PostAction extends StatelessWidget {
   final bool enabled;
   final bool retry;
@@ -1297,31 +1296,28 @@ class _PostAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final label = Text(
+      retry ? 'Retry' : 'Post',
+      style: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w800,
+        color: enabled ? Colors.white : Colors.grey.shade500,
+      ),
+    );
     return Padding(
       padding: const EdgeInsets.only(right: 16),
       child: Center(
-        child: Tooltip(
-          message: retry ? 'Try again' : 'Post',
-          child: GestureDetector(
-            onTap: enabled ? onTap : null,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: enabled ? _Brand.gradient : null,
-                color: enabled ? null : Colors.grey.shade300,
-                boxShadow: enabled
-                    ? _Brand.softShadow(_Brand.pink, alpha: 0.3)
-                    : const [],
-              ),
-              child: Icon(
-                retry ? Icons.refresh_rounded : Icons.send_rounded,
-                size: 19,
-                color: enabled ? Colors.white : Colors.grey.shade500,
-              ),
+        child: GestureDetector(
+          onTap: enabled ? onTap : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: enabled ? _Brand.gradient : null,
+              color: enabled ? null : Colors.grey.shade300,
             ),
+            child: label,
           ),
         ),
       ),
