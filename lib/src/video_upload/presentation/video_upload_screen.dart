@@ -181,7 +181,7 @@ class VideoUploadScreen extends HookConsumerWidget {
       onTap: () => AppService.dismissKeyboard(context),
       behavior: HitTestBehavior.opaque,
       child: Container(
-        color: Colors.white,
+        color: const Color(0xffF6F5FB),
         child: Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
@@ -225,52 +225,54 @@ class VideoUploadScreen extends HookConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _VideoPreviewCard(
-                          path: state.originalPath,
-                          onChange: vm.pickVideo,
-                        ),
-
-                        const Gap(14),
-
                         _Card(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const _SectionHeader(
-                                icon: Icons.edit_rounded,
-                                gradient: _Brand.pinkPurple,
-                                title: 'Caption',
-                                subtitle: 'Tell people what this is about',
+                              _VideoThumb(
+                                path: state.originalPath,
+                                onChange: vm.pickVideo,
                               ),
                               const Gap(14),
-                              TextField(
-                                controller: titleCtr,
-                                maxLength: _maxTitleLength,
-                                maxLines: null,
-                                minLines: 3,
-                                textCapitalization:
-                                    TextCapitalization.sentences,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
-                                  height: 1.4,
-                                  color: _Brand.ink,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Write a caption...',
-                                  hintStyle: TextStyle(
-                                    color: _Brand.muted.withValues(alpha: 0.6),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  filled: false,
-                                  contentPadding: EdgeInsets.zero,
-                                  isDense: true,
-                                  counterStyle: TextStyle(
-                                    fontSize: 11.5,
-                                    color: _Brand.muted.withValues(alpha: 0.8),
+                              Expanded(
+                                child: SizedBox(
+                                  height: _VideoThumb.height,
+                                  child: TextField(
+                                    controller: titleCtr,
+                                    maxLength: _maxTitleLength,
+                                    maxLines: null,
+                                    expands: true,
+                                    textAlignVertical: TextAlignVertical.top,
+                                    textCapitalization:
+                                        TextCapitalization.sentences,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                      height: 1.4,
+                                      color: _Brand.ink,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText:
+                                          'Write a caption...\nWhat makes it special?',
+                                      hintStyle: TextStyle(
+                                        color: _Brand.muted.withValues(
+                                          alpha: 0.55,
+                                        ),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      filled: false,
+                                      contentPadding: EdgeInsets.zero,
+                                      isDense: true,
+                                      counterStyle: TextStyle(
+                                        fontSize: 11.5,
+                                        color: _Brand.muted.withValues(
+                                          alpha: 0.8,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -529,7 +531,7 @@ class _Card extends StatelessWidget {
         borderRadius: BorderRadius.circular(highlight ? 22.5 : 24),
         border: highlight
             ? null
-            : Border.all(color: _Brand.purple.withValues(alpha: 0.10)),
+            : null,
       ),
       child: child,
     );
@@ -709,13 +711,13 @@ class _IconBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 40,
-      height: 40,
+      width: 36,
+      height: 36,
       decoration: BoxDecoration(
         gradient: gradient,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Icon(icon, size: 21, color: Colors.white),
+      child: Icon(icon, size: 19, color: Colors.white),
     );
   }
 }
@@ -833,20 +835,20 @@ String _fmt(Duration d) {
   return '$m:$s';
 }
 
-/// Hero preview at the top of the form: tap to play/pause, scrub, mute,
-/// expand to full screen, or swap the video.
-class _VideoPreviewCard extends HookWidget {
+/// Compact 2:3 video thumbnail (muted autoplay loop). Tap to open the
+/// full-screen preview with sound; the corner button swaps the video.
+class _VideoThumb extends HookWidget {
   final String? path;
   final VoidCallback onChange;
-  const _VideoPreviewCard({required this.path, required this.onChange});
+  const _VideoThumb({required this.path, required this.onChange});
 
-  static const double _height = 320;
+  static const double width = 112;
+  static const double height = 168;
 
   @override
   Widget build(BuildContext context) {
     final controller = useState<VideoPlayerController?>(null);
     final ready = useState(false);
-    final muted = useState(false);
 
     useEffect(() {
       ready.value = false;
@@ -860,8 +862,10 @@ class _VideoPreviewCard extends HookWidget {
       player.initialize().then((_) {
         if (disposed) return;
         ready.value = true;
-        player.setLooping(true);
-        player.play();
+        player
+          ..setLooping(true)
+          ..setVolume(0)
+          ..play();
       });
       return () {
         disposed = true;
@@ -871,197 +875,116 @@ class _VideoPreviewCard extends HookWidget {
 
     final player = controller.value;
 
+    Future<void> openPreview() async {
+      if (player == null || !ready.value) return;
+      await player.setVolume(1);
+      await player.play();
+      if (!context.mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          fullscreenDialog: true,
+          builder: (_) => _FullscreenPreview(player: player),
+        ),
+      );
+      try {
+        await player.setVolume(0);
+      } catch (_) {
+        // Player was disposed (video swapped) while the preview was open.
+      }
+    }
+
     Widget body;
     if (path == null) {
-      body = InkWell(
-        onTap: onChange,
-        child: const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.video_call_rounded, size: 44, color: _Brand.purple),
-              Gap(8),
-              Text(
-                'Tap to choose a video',
-                style: TextStyle(
-                  color: _Brand.purple,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
+      body = const Center(
+        child: Icon(Icons.video_call_rounded, size: 36, color: _Brand.purple),
       );
     } else if (!ready.value || player == null) {
       body = const Center(
         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
       );
     } else {
-      body = ValueListenableBuilder<VideoPlayerValue>(
-        valueListenable: player,
-        builder: (context, v, _) {
-          final playing = v.isPlaying;
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => playing ? player.pause() : player.play(),
-                child: Center(
-                  child: AspectRatio(
-                    aspectRatio: v.aspectRatio == 0 ? 9 / 16 : v.aspectRatio,
-                    child: VideoPlayer(player),
-                  ),
-                ),
+      body = Stack(
+        fit: StackFit.expand,
+        children: [
+          FittedBox(
+            fit: BoxFit.cover,
+            clipBehavior: Clip.hardEdge,
+            child: SizedBox(
+              width: player.value.size.width,
+              height: player.value.size.height,
+              child: VideoPlayer(player),
+            ),
+          ),
+          Positioned(
+            left: 8,
+            bottom: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(10),
               ),
-              // Bottom scrim with scrubber + time.
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(14, 22, 14, 10),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withValues(alpha: 0.6),
-                      ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.play_arrow_rounded,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                  const Gap(2),
+                  Text(
+                    _fmt(player.value.duration),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Text(
-                        '${_fmt(v.position)} / ${_fmt(v.duration)}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const Gap(10),
-                      Expanded(
-                        child: VideoProgressIndicator(
-                          player,
-                          allowScrubbing: true,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          colors: VideoProgressColors(
-                            playedColor: _Brand.pink,
-                            bufferedColor: Colors.white30,
-                            backgroundColor: Colors.white24,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                ],
               ),
-              if (!playing)
-                IgnorePointer(
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.45),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.play_arrow_rounded,
-                        size: 40,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              // Top-right actions.
-              Positioned(
-                top: 10,
-                right: 10,
-                child: Row(
-                  children: [
-                    _PreviewAction(
-                      icon: muted.value
-                          ? Icons.volume_off_rounded
-                          : Icons.volume_up_rounded,
-                      onTap: () {
-                        muted.value = !muted.value;
-                        player.setVolume(muted.value ? 0 : 1);
-                      },
-                    ),
-                    const Gap(8),
-                    _PreviewAction(
-                      icon: Icons.fullscreen_rounded,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          fullscreenDialog: true,
-                          builder: (_) => _FullscreenPreview(player: player),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Top-left: change video.
-              Positioned(
-                top: 10,
-                left: 10,
-                child: GestureDetector(
-                  onTap: onChange,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.45),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.swap_horiz_rounded,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                        Gap(6),
-                        Text(
-                          'Change',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+            ),
+          ),
+        ],
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        gradient: _Brand.gradient,
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: _Brand.softShadow(_Brand.pink, alpha: 0.12),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Container(
-          height: _height,
-          color: path == null
-              ? _Brand.purple.withValues(alpha: 0.08)
-              : Colors.black,
-          child: body,
-        ),
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: path == null ? onChange : openPreview,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  gradient: _Brand.gradient,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: ColoredBox(
+                    color: path == null
+                        ? const Color(0xffF1ECFF)
+                        : Colors.black,
+                    child: body,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (path != null)
+            Positioned(
+              top: 6,
+              right: 6,
+              child: _PreviewAction(
+                icon: Icons.swap_horiz_rounded,
+                onTap: onChange,
+              ),
+            ),
+        ],
       ),
     );
   }
