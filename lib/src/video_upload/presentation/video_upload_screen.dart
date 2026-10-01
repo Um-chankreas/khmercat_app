@@ -403,74 +403,9 @@ class VideoUploadScreen extends HookConsumerWidget {
                         const Gap(14),
 
                         // ---- Restaurant ------------------------------------
-                        InkWell(
+                        _TargetCard(
+                          selection: selectedTarget.value,
                           onTap: pickTarget,
-                          borderRadius: BorderRadius.circular(24),
-                          splashColor: Colors.transparent,
-                          highlightColor: Colors.transparent,
-                          hoverColor: Colors.transparent,
-                          child: _Card(
-                            highlight: selectedTarget.value != null,
-                            child: Row(
-                              children: [
-                                selectedTarget.value != null
-                                    ? RestaurantLogo(
-                                        restaurant:
-                                            selectedTarget.value!.restaurant,
-                                        size: 34,
-                                        borderRadius: 12,
-                                      )
-                                    : const _IconBadge(
-                                        icon: Icons.storefront_rounded,
-                                        gradient: _Brand.pinkBlue,
-                                      ),
-                                const Gap(12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        selectedTarget.value == null
-                                            ? 'Select restaurant'
-                                            : selectedTarget.value!.mode ==
-                                                  UploadMode.restaurantPost
-                                            ? 'Posting as ${selectedTarget.value!.restaurant.name}'
-                                            : 'Reviewing ${selectedTarget.value!.restaurant.name}',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 16,
-                                          color: _Brand.ink,
-                                        ),
-                                      ),
-                                      const Gap(2),
-                                      const Text(
-                                        'Tag where this was taken or created',
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          color: _Brand.muted,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const Gap(8),
-                                Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: _Brand.purple.withValues(alpha: 0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.chevron_right_rounded,
-                                    color: _Brand.purple,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                         ),
 
                         // ---- Rating (reviews only) -------------------------
@@ -606,6 +541,117 @@ class _Card extends StatelessWidget {
         boxShadow: _Brand.cardShadow(),
       ),
       child: inner,
+    );
+  }
+}
+
+/// Where the post is tagged: an inviting empty state, or the chosen
+/// restaurant with its role (posting as / reviewing) and a Change action.
+class _TargetCard extends StatelessWidget {
+  final UploadTargetSelection? selection;
+  final VoidCallback onTap;
+  const _TargetCard({required this.selection, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final sel = selection;
+    final isPost = sel?.mode == UploadMode.restaurantPost;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      child: _Card(
+        highlight: sel != null,
+        child: Row(
+          children: [
+            sel != null
+                ? RestaurantLogo(
+                    restaurant: sel.restaurant,
+                    size: 48,
+                    borderRadius: 14,
+                  )
+                : const _IconBadge(
+                    icon: Icons.storefront_rounded,
+                    gradient: _Brand.pinkBlue,
+                  ),
+            const Gap(14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (sel != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: (isPost ? _Brand.pink : _Brand.blue).withValues(
+                          alpha: 0.12,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        isPost ? 'POSTING AS' : 'REVIEWING',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                          color: isPost
+                              ? _Brand.pink
+                              : const Color(0xff3E8FE0),
+                        ),
+                      ),
+                    ),
+                  if (sel != null) const Gap(4),
+                  Text(
+                    sel?.restaurant.name ?? 'Select a restaurant',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16.5,
+                      letterSpacing: -0.2,
+                      color: _Brand.ink,
+                    ),
+                  ),
+                  if (sel == null) ...[
+                    const Gap(2),
+                    const Text(
+                      'Tag where this was taken or created',
+                      style: TextStyle(fontSize: 12.5, color: _Brand.muted),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const Gap(8),
+            Container(
+              padding: sel == null
+                  ? const EdgeInsets.all(4)
+                  : const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: _Brand.purple.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: sel == null
+                  ? const Icon(
+                      Icons.chevron_right_rounded,
+                      color: _Brand.purple,
+                    )
+                  : const Text(
+                      'Change',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: _Brand.purple,
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
