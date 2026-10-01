@@ -189,6 +189,11 @@ class VideoUploadScreen extends HookConsumerWidget {
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             centerTitle: true,
+            systemOverlayStyle: const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.dark, // Android
+              statusBarBrightness: Brightness.light, // iOS
+            ),
             leading: Center(
               child: _BackButton(
                 onTap: () {
