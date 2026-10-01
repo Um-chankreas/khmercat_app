@@ -116,6 +116,7 @@ class VideoUploadViewModel extends Notifier<VideoUploadState> {
     }
 
     _showPending(caption: caption, rating: rating);
+    _loadPendingThumbnail();
 
     final stopwatch = Stopwatch()..start();
     state = state.copyWith(
@@ -206,6 +207,23 @@ class VideoUploadViewModel extends Notifier<VideoUploadState> {
         errorMessage: e.toString(),
       );
     }
+  }
+
+  /// A small frame for the feed's posting indicator. Best effort — the
+  /// indicator shows a plain tile until (or if never) this arrives.
+  Future<void> _loadPendingThumbnail() async {
+    final pendingId = _pendingId;
+    final path = state.originalPath;
+    if (pendingId == null || path == null) return;
+    try {
+      final thumb = await _compressor.getVideoThumbnail(
+        path,
+        const VVideoThumbnailConfig(timeMs: 500, maxWidth: 160),
+      );
+      if (thumb != null) {
+        _feed.setPendingThumbnail(pendingId, thumb.thumbnailPath);
+      }
+    } catch (_) {}
   }
 
   FeedController get _feed =>

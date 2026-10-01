@@ -7,6 +7,7 @@ import 'package:khmer_cat_app/core/themes/app_colors.dart';
 import 'package:khmer_cat_app/core/themes/app_themes_mode.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import 'package:khmer_cat_app/core/utils/size_responsive.dart';
+import 'package:khmer_cat_app/l10n/app_localizations.dart';
 import 'gradient_ring_button.dart';
 import 'nav_item.dart';
 
@@ -49,6 +50,7 @@ class AppBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Container(
       padding: context.sym(h: 16),
       height: context.sc(50),
@@ -63,13 +65,13 @@ class AppBottomNavBar extends StatelessWidget {
         children: [
           NavItem(
             imagePath: AssetsName.navHome,
-            label: 'Home',
+            label: l.navHome,
             isActive: currentIndex == 0,
             onTap: () => onTap(0),
           ),
           NavItem(
             imagePath: AssetsName.navSearch,
-            label: 'Search',
+            label: l.navSearch,
             isActive: currentIndex == 1,
             onTap: () => onTap(1),
           ),
@@ -82,7 +84,7 @@ class AppBottomNavBar extends StatelessWidget {
           ),
           NavItem(
             imagePath: AssetsName.navNotification,
-            label: 'Notification',
+            label: l.navNotifications,
             isActive: currentIndex == 2,
             onTap: () => onTap(2),
           ),
@@ -131,14 +133,14 @@ class AppBottomNavBar extends StatelessWidget {
                 Gap(context.sc(2)),
                 currentIndex == 3
                     ? GradientText(
-                        "Profile",
+                        l.navProfile,
                         style: Theme.of(context).textTheme.bodySmall!.copyWith(
                           fontSize: fs(12),
                           fontWeight: FontWeight.bold,
                         ),
                       )
                     : Text(
-                        "Profile",
+                        l.navProfile,
                         style: Theme.of(context).textTheme.bodySmall!.copyWith(
                           fontSize: fs(12),
                           fontWeight: FontWeight.bold,

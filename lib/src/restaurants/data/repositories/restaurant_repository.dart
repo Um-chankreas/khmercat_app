@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:khmer_cat_app/src/auth/data/model/user_model.dart';
+import 'package:khmer_cat_app/src/feed/data/feed_repository.dart' show FeedPage;
+import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant_menu.dart';
 
@@ -42,6 +44,22 @@ class RestaurantRepository {
   /// Show (true) or hide (false) the restaurant from the public.
   Future<Restaurant> setPublished(String id, bool published) =>
       update(id, {'is_published': published});
+
+  Future<void> deleteVideo(String id, String videoId) =>
+      _remote.deleteVideo(id, videoId);
+
+  Future<FeedPage> deletedVideos(String id, {String? cursor}) async {
+    final data = await _remote.deletedVideos(id, cursor: cursor);
+    final meta = (data['meta'] as Map?)?.cast<String, dynamic>() ?? {};
+    return (
+      items: (data['contents'] as List? ?? [])
+          .cast<Map<String, dynamic>>()
+          .map(VideoFeedItem.fromJson)
+          .toList(),
+      nextCursor: meta['next_cursor']?.toString(),
+      hasMore: meta['has_more'] == true,
+    );
+  }
 
   Future<RestaurantMenu> menu(String id) async =>
       RestaurantMenu.fromJson(await _remote.menu(id));

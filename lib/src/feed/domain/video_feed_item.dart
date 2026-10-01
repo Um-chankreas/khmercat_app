@@ -75,6 +75,10 @@ class VideoFeedItem {
   final String? localFilePath;
   bool get isPending => localFilePath != null;
 
+  /// A frame of [localFilePath] as a local image, for the posting indicator.
+  /// Arrives a moment after the pending item itself.
+  final String? localThumbnailPath;
+
   VideoFeedItem({
     required this.id,
     required this.caption,
@@ -93,6 +97,7 @@ class VideoFeedItem {
     this.viewsCount = 0,
     this.durationSeconds,
     this.localFilePath,
+    this.localThumbnailPath,
   });
 
   /// "0:45", "1:20", "1:02:03", or null when the length is unknown.
@@ -133,6 +138,7 @@ class VideoFeedItem {
     bool? likedByMe,
     bool? savedByMe,
     bool? isFollowingRestaurant,
+    String? localThumbnailPath,
   }) {
     return VideoFeedItem(
       id: id,
@@ -153,6 +159,7 @@ class VideoFeedItem {
       viewsCount: viewsCount,
       durationSeconds: durationSeconds,
       localFilePath: localFilePath,
+      localThumbnailPath: localThumbnailPath ?? this.localThumbnailPath,
     );
   }
 }

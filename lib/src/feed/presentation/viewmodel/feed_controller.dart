@@ -240,6 +240,12 @@ class FeedController extends FamilyNotifier<FeedState, FeedTab> {
     state = state.copyWith(items: rest);
   }
 
+  void setPendingThumbnail(String pendingId, String path) {
+    final index = state.items.indexWhere((v) => v.id == pendingId);
+    if (index == -1) return;
+    _replaceAt(index, state.items[index].copyWith(localThumbnailPath: path));
+  }
+
   void removePending(String pendingId) {
     if (!state.items.any((v) => v.id == pendingId)) return;
     state = state.copyWith(

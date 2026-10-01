@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:khmer_cat_app/core/themes/app_colors.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -19,6 +18,17 @@ double lh(double height) {
       : height; // tighten slightly more on Android
 }
 
+/// Inter for Latin text; any character Inter has no glyph for (all of
+/// Khmer) falls back to Hanuman, per character — so mixed English/Khmer
+/// text uses each font where it belongs. Both are bundled (pubspec.yaml).
+///
+/// Set on [ThemeData], these reach every text style in the app, including
+/// widgets' own `TextStyle(...)`s that only set a size or weight.
+abstract final class AppFonts {
+  static const family = 'Inter';
+  static const fallback = ['Hanuman'];
+}
+
 class AppThemesMode {
   static ThemeData lightTheme = ThemeData(
     navigationBarTheme: NavigationBarThemeData(
@@ -28,7 +38,8 @@ class AppThemesMode {
     useSystemColors: true,
     platform: TargetPlatform.iOS,
     scaffoldBackgroundColor: AppColors.lightBackground,
-    fontFamily: GoogleFonts.inter().fontFamily,
+    fontFamily: AppFonts.family,
+    fontFamilyFallback: AppFonts.fallback,
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       contentPadding: EdgeInsets.symmetric(
@@ -44,7 +55,9 @@ class AppThemesMode {
         borderRadius: BorderRadius.circular(16),
       ),
       fillColor: AppColors.whiteColor,
-      hintStyle: GoogleFonts.inter(
+      hintStyle: TextStyle(
+        fontFamily: AppFonts.family,
+        fontFamilyFallback: AppFonts.fallback,
         fontWeight: FontWeight.w400,
         fontSize: fs(16),
         color: AppColors.lightGrey.withValues(alpha: 0.4),
@@ -74,28 +87,28 @@ class AppThemesMode {
       toolbarHeight: 56,
       backgroundColor: AppColors.whiteColor,
     ),
-    textTheme: GoogleFonts.interTextTheme().copyWith(
-      titleMedium: GoogleFonts.inter(
+    textTheme: const TextTheme().copyWith(
+      titleMedium: TextStyle(
         fontWeight: FontWeight.w600,
         fontSize: fs(16),
         height: lh(1.3),
       ),
-      titleLarge: GoogleFonts.inter(
+      titleLarge: TextStyle(
         fontWeight: FontWeight.w600,
         fontSize: fs(20),
         height: lh(1.3),
       ),
-      bodyLarge: GoogleFonts.inter(
+      bodyLarge: TextStyle(
         fontWeight: FontWeight.w400,
         fontSize: fs(18),
         height: lh(1.3),
       ),
-      bodyMedium: GoogleFonts.inter(
+      bodyMedium: TextStyle(
         fontWeight: FontWeight.w400,
         fontSize: fs(16),
         height: lh(1.3),
       ),
-      bodySmall: GoogleFonts.inter(
+      bodySmall: TextStyle(
         fontWeight: FontWeight.w400,
         fontSize: fs(14),
         height: lh(1.3),
@@ -117,16 +130,15 @@ class AppThemesMode {
 
   static ThemeData darkTheme = ThemeData(
     scaffoldBackgroundColor: AppColors.darkColor,
+    fontFamily: AppFonts.family,
+    fontFamilyFallback: AppFonts.fallback,
     useMaterial3: true,
-    textTheme: GoogleFonts.interTextTheme().copyWith(
-      titleMedium: GoogleFonts.inter(
-        fontWeight: FontWeight.w600,
-        fontSize: fs(16),
-      ),
-      titleLarge: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 20),
-      bodyLarge: GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 18),
-      bodyMedium: GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 16),
-      bodySmall: GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 14),
+    textTheme: const TextTheme().copyWith(
+      titleMedium: TextStyle(fontWeight: FontWeight.w600, fontSize: fs(16)),
+      titleLarge: TextStyle(fontWeight: FontWeight.w600, fontSize: 20),
+      bodyLarge: TextStyle(fontWeight: FontWeight.w400, fontSize: 18),
+      bodyMedium: TextStyle(fontWeight: FontWeight.w400, fontSize: 16),
+      bodySmall: TextStyle(fontWeight: FontWeight.w400, fontSize: 14),
     ),
     colorScheme:
         .fromSeed(

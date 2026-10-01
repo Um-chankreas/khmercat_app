@@ -1,3 +1,5 @@
+import 'dart:io';
+
 // lib/features/feed/presentation/screens/home_feed_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +11,8 @@ import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart'
     show AppRouter, routeObserver;
 import 'package:khmer_cat_app/core/utils/size_responsive.dart';
+import 'package:khmer_cat_app/src/video_upload/domain/video_upload_state.dart';
+import 'package:khmer_cat_app/src/video_upload/presentation/video_upload_viewmodel.dart';
 import '../../domain/feed_tab.dart';
 import '../../providers/feed_providers.dart';
 import '../viewmodel/feed_controller.dart';
@@ -444,17 +448,6 @@ class _TabFeedView extends HookConsumerWidget {
                   ),
                 ),
 
-                // Still uploading — likes, comments etc. need the real video.
-                if (item.isPending)
-                  Positioned(
-                    top: MediaQuery.paddingOf(context).top + 64,
-                    left: 0,
-                    right: 0,
-                    child: const Center(
-                      child: _LoadingMorePill(label: 'Posting…'),
-                    ),
-                  ),
-
                 Positioned(
                   right: 12,
                   bottom: context.sc(50),
@@ -504,16 +497,53 @@ class _TabFeedView extends HookConsumerWidget {
       ),
     );
 
+    // TikTok-style: loading the next page is just a small spinner at the
+    // bottom edge, in the gap under the info card — nothing over the video.
+    final pending = state.items.where((v) => v.isPending).firstOrNull;
     return Stack(
       children: [
         feed,
-        if (state.isLoadingMore)
-          Positioned(
-            top: MediaQuery.paddingOf(context).top + 64,
-            left: 0,
-            right: 0,
-            child: const Center(child: _LoadingMorePill()),
+        // TikTok-style: your post's thumbnail with its progress, top-left,
+        // over whichever video you're watching. Tap to jump to it.
+        Positioned(
+          top: MediaQuery.paddingOf(context).top + 8,
+          left: 12,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(scale: animation, child: child),
+            ),
+            child: pending == null
+                ? const SizedBox.shrink()
+                : _PostingIndicator(
+                    key: ValueKey(pending.id),
+                    thumbnailPath: pending.localThumbnailPath,
+                    onTap: () {
+                      if (!pageController.hasClients) return;
+                      pageController.animateToPage(
+                        state.items.indexOf(pending),
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeOutCubic,
+                      );
+                    },
+                  ),
           ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: context.sc(14),
+          child: IgnorePointer(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: state.isLoadingMore
+                  ? const Center(child: _LoadingMoreSpinner())
+                  : const SizedBox.shrink(),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -764,40 +794,111 @@ class _FeedLoading extends HookWidget {
   }
 }
 
-class _LoadingMorePill extends StatelessWidget {
-  final String label;
-  const _LoadingMorePill({this.label = 'Loading more'});
+/// Your post while it's on its way: a small thumbnail with a progress ring
+/// and percentage while compressing (first half) and uploading (second
+/// half), then a spinning ring while the server finishes processing it.
+class _PostingIndicator extends ConsumerWidget {
+  final String? thumbnailPath;
+  final VoidCallback onTap;
+  const _PostingIndicator({
+    required this.thumbnailPath,
+    required this.onTap,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final upload = ref.watch(videoUploadViewModelProvider);
+    final double? progress = switch (upload.stage) {
+      UploadStage.compressing => upload.compressionProgress * 0.5,
+      UploadStage.uploading => 0.5 + upload.uploadProgress * 0.5,
+      // Uploaded; the server is still processing it.
+      _ => null,
+    };
+    final thumb = thumbnailPath;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 42,
+        height: 56,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.9),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.4),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(6.5),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (thumb != null)
+                Image.file(File(thumb), fit: BoxFit.cover)
+              else
+                const DecoratedBox(
+                  decoration: BoxDecoration(gradient: _brandGradient),
+                ),
+              ColoredBox(color: Colors.black.withValues(alpha: 0.45)),
+              Center(
+                child: SizedBox.square(
+                  dimension: 26,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        value: progress,
+                        strokeWidth: 2.2,
+                        color: Colors.white,
+                        backgroundColor: Colors.white.withValues(alpha: 0.25),
+                      ),
+                      if (progress != null)
+                        Text(
+                          '${(progress * 100).round()}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Small white spinner with a soft shadow, so it reads on light videos too.
+class _LoadingMoreSpinner extends StatelessWidget {
+  const _LoadingMoreSpinner();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      width: 12,
+      height: 12,
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: Colors.white,
-            ),
-          ),
-          const Gap(8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 6),
         ],
+      ),
+      child: CircularProgressIndicator(
+        strokeWidth: 1.8,
+        color: Colors.white.withValues(alpha: 0.9),
       ),
     );
   }

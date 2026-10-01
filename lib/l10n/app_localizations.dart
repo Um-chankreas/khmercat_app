@@ -589,6 +589,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Something went wrong. Please try again.'**
   String get accountActionFailed;
+
+  /// No description provided for @navHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get navHome;
+
+  /// No description provided for @navSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get navSearch;
+
+  /// No description provided for @navNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification'**
+  String get navNotifications;
+
+  /// No description provided for @navProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get navProfile;
 }
 
 class _AppLocalizationsDelegate

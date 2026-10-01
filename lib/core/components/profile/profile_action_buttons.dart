@@ -219,81 +219,52 @@ class ProfileFollowButton extends StatelessWidget {
   }
 }
 
-/// Icon badge + label/value row for contact and account details. Pass
-/// [gradient] for a bolder, brand-gradient icon badge (with a matching
-/// color glow) instead of the flatter, single-[color] badge.
+/// One read-only line of profile info: a plain grey icon, a small grey label
+/// and the value. Sits in a flat group, like the Settings screen's rows.
 class ProfileInfoTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  final Color color;
-  final LinearGradient? gradient;
   const ProfileInfoTile({
     required this.icon,
     required this.label,
     required this.value,
-    this.color = ProfileTheme.purple,
-    this.gradient,
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: gradient == null ? color.withValues(alpha: 0.12) : null,
-            gradient: gradient,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: gradient == null
-                ? null
-                : [
-                    BoxShadow(
-                      color: gradient!.colors.first.withValues(alpha: 0.32),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+    final muted = ProfileTheme.textSecondary(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 20, color: muted),
           ),
-          child: Icon(
-            icon,
-            size: 19,
-            color: gradient == null ? color : Colors.white,
-          ),
-        ),
-        const Gap(14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.2,
-                  color: ProfileTheme.textSecondary(context),
+          const Gap(14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 12, color: muted)),
+                const Gap(2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                    color: ProfileTheme.textPrimary(context),
+                  ),
                 ),
-              ),
-              const Gap(3),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  height: 1.3,
-                  color: ProfileTheme.textPrimary(context),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

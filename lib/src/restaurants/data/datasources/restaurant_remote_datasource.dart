@@ -28,6 +28,24 @@ class RestaurantRemoteDataSource {
     await _client.delete(ApiRoute.restaurant(id), body: {'password': password});
   }
 
+  /// DELETE /restaurants/{id}/videos/{videoId} — team only; moves one of
+  /// the restaurant's own posts to its Delete tab for 30 days.
+  Future<void> deleteVideo(String id, String videoId) async {
+    await _client.delete(ApiRoute.restaurantVideo(id, videoId));
+  }
+
+  /// GET /restaurants/{id}/videos/deleted — team only, feed-shaped page.
+  Future<Map<String, dynamic>> deletedVideos(
+    String id, {
+    String? cursor,
+  }) async {
+    final json = await _client.get(
+      ApiRoute.restaurantDeletedVideos(id),
+      query: {'cursor': ?cursor},
+    );
+    return json.dataMap;
+  }
+
   /// GET /restaurants/{id}/menu — public.
   Future<Map<String, dynamic>> menu(String id) async {
     final json = await _client.get(ApiRoute.restaurantMenu(id));

@@ -1,28 +1,43 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_empty_tab_body.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
+import 'package:khmer_cat_app/core/components/profile/video_grid_tile.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
+import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
 import 'package:khmer_cat_app/src/feed/providers/feed_providers.dart';
+import 'package:khmer_cat_app/src/restaurants/providers/restaurant_providers.dart';
 
 /// 3-column grid of a restaurant's videos (posts, or `type: 'review'`
-/// uploads). Loads page by page: a small sentinel under the grid asks for the
-/// next page as it scrolls into view, so it works inside a parent ListView.
+/// uploads), or with [deleted] its team's Delete tab. Loads page by page: a
+/// small sentinel under the grid asks for the next page as it scrolls into
+/// view, so it works inside a parent ListView.
 class RestaurantVideosGrid extends HookConsumerWidget {
   final String restaurantId;
   final String? type;
+
+  /// The restaurant's deleted posts (team only), shown dimmed.
+  final bool deleted;
+
+  /// Long-press offers Delete — for the team, on the restaurant's own posts.
+  final bool canManage;
+
+  /// Called after a video is deleted, e.g. to refresh counts.
+  final VoidCallback? onDeleted;
   final String emptyTitle;
   final String emptyMessage;
 
   const RestaurantVideosGrid({
     required this.restaurantId,
     this.type,
+    this.deleted = false,
+    this.canManage = false,
+    this.onDeleted,
     this.emptyTitle = 'No videos yet',
     this.emptyMessage = 'No videos yet.',
     super.key,
@@ -42,14 +57,21 @@ class RestaurantVideosGrid extends HookConsumerWidget {
       loading.value = true;
       failed.value = false;
       try {
-        final page = await ref
-            .read(feedRepositoryProvider)
-            .getFeed(
-              tab: 'for_you',
-              cursor: reset ? null : cursor.value,
-              restaurantId: restaurantId,
-              type: type,
-            );
+        final page = deleted
+            ? await ref
+                  .read(restaurantRepositoryProvider)
+                  .deletedVideos(
+                    restaurantId,
+                    cursor: reset ? null : cursor.value,
+                  )
+            : await ref
+                  .read(feedRepositoryProvider)
+                  .getFeed(
+                    tab: 'for_you',
+                    cursor: reset ? null : cursor.value,
+                    restaurantId: restaurantId,
+                    type: type,
+                  );
         if (!context.mounted) return;
         items.value = reset ? page.items : [...items.value, ...page.items];
         cursor.value = page.nextCursor;
@@ -68,16 +90,57 @@ class RestaurantVideosGrid extends HookConsumerWidget {
       firstLoadDone.value = false;
       Future.microtask(() => loadMore(reset: true));
       return null;
-    }, [restaurantId, type]);
+    }, [restaurantId, type, deleted]);
 
-    if (!firstLoadDone.value) return const _GridSkeleton();
+    Future<void> handleDelete(VideoFeedItem video) async {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Delete video?'),
+          content: const Text(
+            'It will be moved to Delete for 30 days, then removed permanently.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      final previous = items.value;
+      items.value = items.value.where((v) => v.id != video.id).toList();
+      try {
+        await ref
+            .read(restaurantRepositoryProvider)
+            .deleteVideo(restaurantId, video.id);
+        onDeleted?.call();
+        if (context.mounted) AppService.showToast('Video deleted.');
+      } catch (_) {
+        if (!context.mounted) return;
+        items.value = previous;
+        AppService.showToast('Failed to delete video.', isError: true);
+      }
+    }
+
+    if (!firstLoadDone.value) return const VideoGridSkeleton();
 
     if (items.value.isEmpty) {
       if (failed.value) {
         return _RetryBox(onRetry: () => loadMore(reset: true));
       }
       return ProfileEmptyTabBody(
-        asset: type == 'review' ? AssetsName.comment : AssetsName.feeds,
+        asset: deleted
+            ? AssetsName.delete
+            : type == 'review'
+            ? AssetsName.comment
+            : AssetsName.feeds,
         title: emptyTitle,
         message: emptyMessage,
       );
@@ -91,18 +154,36 @@ class RestaurantVideosGrid extends HookConsumerWidget {
             shrinkWrap: true,
             padding: EdgeInsets.zero,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 0.78,
-            ),
+            gridDelegate: VideoGrid.delegate,
             itemCount: items.value.length,
-            itemBuilder: (context, index) => _FadeIn(
-              // Stagger only within a page's worth of tiles.
-              delayMs: (index % 12) * 40,
-              child: _VideoThumb(video: items.value[index]),
-            ),
+            itemBuilder: (context, index) {
+              final video = items.value[index];
+              return VideoGridTile(
+                // Stagger only within a page's worth of tiles.
+                fadeDelayMs: (index % 12) * 40,
+                thumbnailUrl: video.thumbnailUrl,
+                likesCount: video.likesCount,
+                rating: type == 'review' ? video.rating : null,
+                trashed: deleted,
+                onTap: deleted
+                    ? null
+                    : () => AppRouter.router.pushNamed(
+                        AppRoute.videoViewer.name,
+                        pathParameters: {'id': video.id},
+                        extra: video,
+                      ),
+                onLongPress: canManage && !deleted
+                    ? () => showVideoTileActions(context, [
+                        VideoTileAction(
+                          icon: Icons.delete_outline_rounded,
+                          label: 'Delete',
+                          destructive: true,
+                          onTap: () => handleDelete(video),
+                        ),
+                      ])
+                    : null,
+              );
+            },
           ),
         ),
         if (failed.value)
@@ -177,179 +258,6 @@ class _RetryBox extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _FadeIn extends StatelessWidget {
-  final int delayMs;
-  final Widget child;
-  const _FadeIn({required this.delayMs, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final total = 320 + delayMs;
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: total),
-      curve: Interval(delayMs / total, 1, curve: Curves.easeOut),
-      builder: (context, t, child) => Opacity(
-        opacity: t,
-        child: Transform.scale(scale: 0.94 + 0.06 * t, child: child),
-      ),
-      child: child,
-    );
-  }
-}
-
-class _VideoThumb extends StatelessWidget {
-  final VideoFeedItem video;
-  const _VideoThumb({required this.video});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => AppRouter.router.pushNamed(
-        AppRoute.videoViewer.name,
-        pathParameters: {'id': video.id},
-        extra: video,
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: ProfileTheme.cardShadow(),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              if (video.thumbnailUrl != null)
-                CachedNetworkImage(
-                  imageUrl: video.thumbnailUrl!,
-                  fit: BoxFit.cover,
-                  placeholder: (_, _) => const _ThumbPlaceholder(),
-                  errorWidget: (_, _, _) => const _ThumbPlaceholder(play: true),
-                )
-              else
-                const _ThumbPlaceholder(play: true),
-              // Bottom scrim so the like count stays readable.
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: 44,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withValues(alpha: 0.55),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 8,
-                bottom: 6,
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.favorite_rounded,
-                      size: 13,
-                      color: Colors.white,
-                    ),
-                    const Gap(4),
-                    Text(
-                      '${video.likesCount}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.play_arrow_rounded,
-                    size: 20,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ThumbPlaceholder extends StatelessWidget {
-  final bool play;
-  const _ThumbPlaceholder({this.play = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(gradient: ProfileTheme.coverFallback),
-      child: play
-          ? const Center(
-              child: Icon(
-                Icons.play_circle_outline_rounded,
-                color: Colors.white,
-                size: 30,
-              ),
-            )
-          : null,
-    );
-  }
-}
-
-class _GridSkeleton extends HookWidget {
-  const _GridSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    final ctrl = useAnimationController(
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-    final t = useAnimation(
-      CurvedAnimation(parent: ctrl, curve: Curves.easeInOut),
-    );
-    final color = ProfileTheme.purple.withValues(alpha: 0.07 + 0.08 * t);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GridView.builder(
-        shrinkWrap: true,
-        padding: EdgeInsets.zero,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          childAspectRatio: 0.78,
-        ),
-        itemCount: 6,
-        itemBuilder: (_, _) => Container(
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
       ),
     );
   }

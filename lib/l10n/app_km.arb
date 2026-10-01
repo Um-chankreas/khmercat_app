@@ -93,5 +93,9 @@
   "accountDeactivated": "គណនីរបស់អ្នកត្រូវបានបិទ។ ជួបគ្នាឆាប់ៗ!",
   "accountDeleted": "គណនីរបស់អ្នកត្រូវបានលុប។",
   "accountReactivated": "សូមស្វាគមន៍ការត្រឡប់មកវិញ! គណនីរបស់អ្នកដំណើរការវិញហើយ។",
-  "accountActionFailed": "មានបញ្ហាកើតឡើង។ សូមព្យាយាមម្ដងទៀត។"
+  "accountActionFailed": "មានបញ្ហាកើតឡើង។ សូមព្យាយាមម្ដងទៀត។",
+  "navHome": "ទំព័រដើម",
+  "navSearch": "ស្វែងរក",
+  "navNotifications": "ការជូនដំណឹង",
+  "navProfile": "ប្រវត្តិរូប"
 }

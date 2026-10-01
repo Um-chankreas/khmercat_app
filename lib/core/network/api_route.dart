@@ -41,6 +41,10 @@ abstract class ApiRoute {
   static String restaurantMenu(String id) => '/restaurants/$id/menu';
   static String restaurantMenuPage(String id, String pageId) =>
       '/restaurants/$id/menu/$pageId';
+  static String restaurantVideo(String id, String videoId) =>
+      '/restaurants/$id/videos/$videoId';
+  static String restaurantDeletedVideos(String id) =>
+      '/restaurants/$id/videos/deleted';
 
   // uploads
   static const String uploadReviewVideo = '/reviews/upload';

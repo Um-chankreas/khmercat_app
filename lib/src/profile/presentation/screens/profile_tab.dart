@@ -22,7 +22,6 @@ import 'package:khmer_cat_app/src/profile/domain/my_profile_summary.dart';
 import 'package:khmer_cat_app/src/profile/presentation/viewmodel/my_profile_summary_controller.dart';
 import 'package:khmer_cat_app/src/profile/presentation/widgets/profile_image_flow.dart';
 import 'package:khmer_cat_app/src/profile/presentation/widgets/profile_posts_grid.dart';
-import 'package:khmer_cat_app/src/profile/presentation/widgets/share_profile.dart';
 
 class ProfileTab extends HookConsumerWidget {
   const ProfileTab({super.key});
@@ -215,15 +214,8 @@ class ProfileTab extends HookConsumerWidget {
                 ),
                 title: _PinnedHeaderTitle(user: user, opacity: opacity),
                 actions: [
-                  ProfileCircleButton(
-                    iconAsset: AssetsName.share,
-                    dark: true,
-                    onTap: () => shareProfile(user),
-                  ),
-                  const Gap(8),
-                  ProfileCircleButton(
-                    iconAsset: AssetsName.settings,
-                    dark: true,
+                  _SettingsButton(
+                    collapsed: opacity,
                     onTap: () =>
                         AppRouter.router.pushNamed(AppRoute.settings.name),
                   ),
@@ -449,83 +441,67 @@ class _AboutPanel extends StatelessWidget {
   final User user;
   const _AboutPanel({required this.user});
 
-  /// Hairline rule between tiles, split evenly so the *total* space between
-  /// two tiles — not just the padding around the rule — comes out to a
-  /// consistent 16px.
-  static Widget _divider(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 7.5),
-    child: Divider(height: 1, thickness: 1, color: ProfileTheme.hairline),
-  );
-
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final hasBio = user.bio?.isNotEmpty == true;
+    final line = ProfileTheme.hairlineColor(context);
+    final bio = user.bio?.trim();
+    final rows = [
+      ProfileInfoTile(
+        icon: Icons.person_outline_rounded,
+        label: l.aboutName,
+        value: user.name,
+      ),
+      ProfileInfoTile(
+        icon: Icons.alternate_email_rounded,
+        label: l.aboutUsername,
+        value: '@${user.username}',
+      ),
+      ProfileInfoTile(
+        icon: Icons.mail_outline_rounded,
+        label: l.aboutEmail,
+        value: user.email,
+      ),
+      if (bio != null && bio.isNotEmpty)
+        ProfileInfoTile(
+          icon: Icons.notes_rounded,
+          label: l.aboutBio,
+          value: bio,
+        ),
+    ];
+
+    // Same pattern as the Settings screen: a small grey section label over
+    // one flat group with thin dividers — no gradients, glows or shadows.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 30,
-                height: 30,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  gradient: ProfileTheme.gradient,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.badge_rounded,
-                  size: 16,
-                  color: Colors.white,
-                ),
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Text(
+              l.aboutSectionTitle.toUpperCase(),
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+                color: ProfileTheme.textSecondary(context),
               ),
-              const Gap(10),
-              Text(
-                l.aboutSectionTitle,
-                style: TextStyle(
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w800,
-                  color: ProfileTheme.textPrimary(context),
-                ),
-              ),
-            ],
+            ),
           ),
-          const Gap(16),
-          ProfileCard(
-            padding: const EdgeInsets.all(16),
+          const Gap(10),
+          Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: line),
+            ),
             child: Column(
               children: [
-                ProfileInfoTile(
-                  icon: Icons.person_rounded,
-                  label: l.aboutName,
-                  value: user.name,
-                  gradient: ProfileTheme.pinkPurple,
-                ),
-                _divider(context),
-                ProfileInfoTile(
-                  icon: Icons.alternate_email_rounded,
-                  label: l.aboutUsername,
-                  value: '@${user.username}',
-                  gradient: ProfileTheme.purpleBlue,
-                ),
-                _divider(context),
-                ProfileInfoTile(
-                  icon: Icons.mail_rounded,
-                  label: l.aboutEmail,
-                  value: user.email,
-                  gradient: ProfileTheme.pinkBlueGradient,
-                ),
-                if (hasBio) ...[
-                  _divider(context),
-                  ProfileInfoTile(
-                    icon: Icons.info_rounded,
-                    label: l.aboutBio,
-                    value: user.bio!,
-                    gradient: ProfileTheme.pinkPurple,
-                  ),
+                for (var i = 0; i < rows.length; i++) ...[
+                  if (i > 0)
+                    Divider(height: 1, thickness: 1, indent: 50, color: line),
+                  rows[i],
                 ],
               ],
             ),
@@ -566,6 +542,45 @@ class _GuestProfilePrompt extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Top-right settings button. Frosted white glass over the gradient cover,
+/// shifting to a soft purple tint as the bar solidifies to the page colour
+/// on scroll ([collapsed] 0 → 1), where white would disappear.
+class _SettingsButton extends StatelessWidget {
+  final double collapsed;
+  final VoidCallback onTap;
+  const _SettingsButton({required this.collapsed, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = collapsed.clamp(0.0, 1.0);
+    final fill = Color.lerp(
+      Colors.white.withValues(alpha: 0.18),
+      ProfileTheme.purple.withValues(alpha: 0.12),
+      t,
+    )!;
+    final rim = Color.lerp(
+      Colors.white.withValues(alpha: 0.45),
+      ProfileTheme.purple.withValues(alpha: 0.35),
+      t,
+    )!;
+    final tint = Color.lerp(Colors.white, ProfileTheme.purple, t)!;
+
+    return Material(
+      color: fill,
+      shape: CircleBorder(side: BorderSide(color: rim)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: tint.withValues(alpha: 0.2),
+        child: Padding(
+          padding: const EdgeInsets.all(9),
+          child: Icon(Icons.settings_outlined, size: 22, color: tint),
         ),
       ),
     );

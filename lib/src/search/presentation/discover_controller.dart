@@ -83,7 +83,7 @@ final discoverProvider = FutureProvider.autoDispose<DiscoverData>((ref) async {
         type: type,
         lat: position?.latitude,
         lng: position?.longitude,
-        limit: 30,
+        limit: 20, // the feed API caps `limit` at 20 (422 above that)
       );
       return page.items;
     } catch (_) {

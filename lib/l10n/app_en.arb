@@ -109,5 +109,9 @@
   "accountDeactivated": "Your account is deactivated. See you soon!",
   "accountDeleted": "Your account has been deleted.",
   "accountReactivated": "Welcome back! Your account is active again.",
-  "accountActionFailed": "Something went wrong. Please try again."
+  "accountActionFailed": "Something went wrong. Please try again.",
+  "navHome": "Home",
+  "navSearch": "Search",
+  "navNotifications": "Notification",
+  "navProfile": "Profile"
 }

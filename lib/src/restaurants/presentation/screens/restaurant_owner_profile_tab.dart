@@ -40,12 +40,14 @@ class RestaurantOwnerProfileTab extends HookConsumerWidget {
   static final _icons = [
     AssetsName.feeds,
     AssetsName.review,
+    AssetsName.delete,
     AssetsName.profileinfo,
   ];
-  static const _labels = ['Videos', 'Reviews', 'Info'];
+  static const _labels = ['Videos', 'Reviews', 'Delete', 'Info'];
   static const _videos = 0;
   static const _reviews = 1;
-  static const _info = 2;
+  static const _deleted = 2;
+  static const _info = 3;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -54,6 +56,8 @@ class RestaurantOwnerProfileTab extends HookConsumerWidget {
     final selected = useState(_videos);
     // Grids stay alive once opened, so switching tabs doesn't refetch.
     final visited = useState<Set<int>>({_videos});
+    // Bumped on every delete so the (kept-alive) Delete tab reloads.
+    final deletedVersion = useState(0);
     final scrollController = useScrollController();
     final pageBackground = Theme.of(context).scaffoldBackgroundColor;
 
@@ -235,6 +239,12 @@ class RestaurantOwnerProfileTab extends HookConsumerWidget {
                     _videos,
                     RestaurantVideosGrid(
                       restaurantId: restaurantId,
+                      canManage: true,
+                      onDeleted: () {
+                        deletedVersion.value++;
+                        // Refresh the posts count in the stats card.
+                        ref.read(provider.notifier).load();
+                      },
                       emptyTitle: 'No videos yet',
                       emptyMessage:
                           'Tap + to post your first video as this restaurant.',
@@ -248,6 +258,19 @@ class RestaurantOwnerProfileTab extends HookConsumerWidget {
                         type: 'review',
                         emptyTitle: 'No reviews yet',
                         emptyMessage: 'Customer reviews will show up here.',
+                      ),
+                    ),
+                  if (visited.value.contains(_deleted))
+                    pane(
+                      _deleted,
+                      RestaurantVideosGrid(
+                        key: ValueKey(deletedVersion.value),
+                        restaurantId: restaurantId,
+                        deleted: true,
+                        emptyTitle: 'Nothing deleted',
+                        emptyMessage:
+                            'Deleted videos stay here for 30 days, then '
+                            'they\'re removed for good.',
                       ),
                     ),
                   if (selected.value == _info)

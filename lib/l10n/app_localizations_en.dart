@@ -272,4 +272,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get accountActionFailed => 'Something went wrong. Please try again.';
+
+  @override
+  String get navHome => 'Home';
+
+  @override
+  String get navSearch => 'Search';
+
+  @override
+  String get navNotifications => 'Notification';
+
+  @override
+  String get navProfile => 'Profile';
 }

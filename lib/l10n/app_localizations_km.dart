@@ -273,4 +273,16 @@ class AppLocalizationsKm extends AppLocalizations {
 
   @override
   String get accountActionFailed => 'មានបញ្ហាកើតឡើង។ សូមព្យាយាមម្ដងទៀត។';
+
+  @override
+  String get navHome => 'ទំព័រដើម';
+
+  @override
+  String get navSearch => 'ស្វែងរក';
+
+  @override
+  String get navNotifications => 'ការជូនដំណឹង';
+
+  @override
+  String get navProfile => 'ប្រវត្តិរូប';
 }
