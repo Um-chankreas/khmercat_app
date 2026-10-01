@@ -581,14 +581,16 @@ class _TargetCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
+            color: Colors.white,
+            gradient: RadialGradient(
+              center: Alignment.topLeft,
+              radius: 1.6,
               colors: [
-                _Brand.pink.withValues(alpha: 0.08),
-                _Brand.purple.withValues(alpha: 0.08),
-                _Brand.blue.withValues(alpha: 0.12),
+                _Brand.pink.withValues(alpha: 0.22),
+                _Brand.purple.withValues(alpha: 0.12),
+                _Brand.blue.withValues(alpha: 0.06),
               ],
+              stops: const [0, 0.55, 1],
             ),
             border: Border.all(
               color: _Brand.purple.withValues(alpha: sel == null ? 0.18 : 0.28),
