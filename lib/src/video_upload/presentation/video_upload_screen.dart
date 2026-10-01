@@ -305,6 +305,27 @@ class VideoUploadScreen extends HookConsumerWidget {
                                 },
                                 decoration: InputDecoration(
                                   hintText: 'Add hashtags to get discovered',
+                                  filled: true,
+                                  fillColor: const Color(0xffF6F5FB),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(
+                                      color: _Brand.purple.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  prefixIconConstraints: const BoxConstraints(
+                                    minWidth: 40,
+                                  ),
                                   prefixIcon: const Icon(
                                     Icons.tag_rounded,
                                     size: 18,
@@ -351,11 +372,13 @@ class VideoUploadScreen extends HookConsumerWidget {
                                   }
                                   return Padding(
                                     padding: const EdgeInsets.only(top: 12),
-                                    child: Row(
+                                    child: Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
                                       crossAxisAlignment:
-                                          CrossAxisAlignment.center,
+                                          WrapCrossAlignment.center,
                                       children: [
-                                        Text(
+                                        const Text(
                                           'Suggested',
                                           style: TextStyle(
                                             fontSize: 12,
@@ -363,29 +386,11 @@ class VideoUploadScreen extends HookConsumerWidget {
                                             color: _Brand.muted,
                                           ),
                                         ),
-                                        const Gap(8),
-                                        Expanded(
-                                          child: SingleChildScrollView(
-                                            scrollDirection: Axis.horizontal,
-                                            child: Row(
-                                              children: suggestions
-                                                  .map(
-                                                    (tag) => Padding(
-                                                      padding:
-                                                          const EdgeInsets.only(
-                                                            right: 8,
-                                                          ),
-                                                      child: _SuggestedChip(
-                                                        label: tag,
-                                                        onTap: () =>
-                                                            addTag(tag),
-                                                      ),
-                                                    ),
-                                                  )
-                                                  .toList(),
-                                            ),
+                                        for (final tag in suggestions)
+                                          _SuggestedChip(
+                                            label: tag,
+                                            onTap: () => addTag(tag),
                                           ),
-                                        ),
                                       ],
                                     ),
                                   );
@@ -402,6 +407,23 @@ class VideoUploadScreen extends HookConsumerWidget {
                           selection: selectedTarget.value,
                           onTap: pickTarget,
                         ),
+
+                        if (!canPost && !isProcessing) ...[
+                          const Gap(12),
+                          Center(
+                            child: Text(
+                              state.originalPath == null
+                                  ? 'Choose a video to continue'
+                                  : selectedTarget.value == null
+                                  ? 'Select a restaurant to enable Post'
+                                  : 'Add a star rating to enable Post',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                color: _Brand.muted,
+                              ),
+                            ),
+                          ),
+                        ],
 
                         // ---- Rating (reviews only) -------------------------
                         if (selectedTarget.value != null &&
@@ -510,32 +532,24 @@ class _BackButton extends StatelessWidget {
 class _Card extends StatelessWidget {
   final Widget child;
 
-  /// Draws a soft pink→purple→blue outline (used for a completed step).
+  /// Draws a soft purple outline (used for a completed step).
   final bool highlight;
   const _Card({required this.child, this.highlight = false});
 
   @override
   Widget build(BuildContext context) {
-    final inner = Container(
+    return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(highlight ? 22.5 : 24),
-        border: highlight
-            ? null
-            : null,
-      ),
-      child: child,
-    );
-    return Container(
-      padding: highlight ? const EdgeInsets.all(1.5) : EdgeInsets.zero,
-      decoration: BoxDecoration(
-        gradient: highlight ? _Brand.gradient : null,
         borderRadius: BorderRadius.circular(24),
+        border: highlight
+            ? Border.all(color: _Brand.purple.withValues(alpha: 0.35), width: 1.5)
+            : null,
         boxShadow: _Brand.cardShadow(),
       ),
-      child: inner,
+      child: child,
     );
   }
 }
