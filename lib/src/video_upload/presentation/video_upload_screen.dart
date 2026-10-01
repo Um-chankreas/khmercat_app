@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -86,8 +87,6 @@ class VideoUploadScreen extends HookConsumerWidget {
 
     final hashtags = useState<List<String>>([]);
     final tagInputCtr = useTextEditingController();
-    final tagInputFocus = useFocusNode();
-    final isAddingTag = useState(false);
 
     // When the user is acting as a restaurant, post as it by default.
     final activeRestaurant = ref.watch(activeRestaurantProvider);
@@ -198,12 +197,20 @@ class VideoUploadScreen extends HookConsumerWidget {
                 },
               ),
             ),
+            actions: [
+              if (!isProcessing && state.stage != UploadStage.success)
+                _PostAction(
+                  enabled: canPost,
+                  retry: state.stage == UploadStage.error,
+                  onTap: handleUpload,
+                ),
+            ],
             title: const Text(
               'New Post',
               style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 22,
-                letterSpacing: -0.3,
+                fontWeight: FontWeight.w700,
+                fontSize: 17,
+                letterSpacing: -0.2,
                 color: _Brand.ink,
               ),
             ),
@@ -278,52 +285,52 @@ class VideoUploadScreen extends HookConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Row(
-                                children: [
-                                  const Expanded(
-                                    child: _SectionHeader(
-                                      icon: Icons.tag_rounded,
-                                      gradient: _Brand.purpleBlue,
-                                      title: 'Hashtags',
-                                      subtitle:
-                                          'Help people discover your post',
-                                    ),
-                                  ),
-                                  _CircleIconButton(
-                                    icon: Icons.add,
-                                    onTap: () {
-                                      isAddingTag.value = true;
-                                      tagInputFocus.requestFocus();
-                                    },
+                              const _SectionHeader(
+                                icon: Icons.tag_rounded,
+                                gradient: _Brand.purpleBlue,
+                                title: 'Hashtags',
+                                subtitle: 'Help people discover your post',
+                              ),
+                              const Gap(12),
+                              TextField(
+                                controller: tagInputCtr,
+                                textInputAction: TextInputAction.done,
+                                autocorrect: false,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.deny(
+                                    RegExp(r'[#]'),
                                   ),
                                 ],
-                              ),
-                              if (isAddingTag.value) ...[
-                                const Gap(12),
-                                TextField(
-                                  controller: tagInputCtr,
-                                  focusNode: tagInputFocus,
-                                  autofocus: true,
-                                  textInputAction: TextInputAction.done,
-                                  onSubmitted: addTag,
-                                  decoration: InputDecoration(
-                                    hintText: 'Add a hashtag...',
-                                    prefixIcon: const Icon(
-                                      Icons.tag_rounded,
-                                      size: 18,
-                                      color: _Brand.purple,
-                                    ),
-                                    suffixIcon: IconButton(
-                                      icon: const Icon(
-                                        Icons.check_circle_rounded,
-                                        color: _Brand.purple,
-                                      ),
-                                      onPressed: () => addTag(tagInputCtr.text),
-                                    ),
-                                    isDense: true,
+                                onSubmitted: addTag,
+                                // Space or comma commits the tag.
+                                onChanged: (v) {
+                                  if (v.endsWith(' ') || v.endsWith(',')) {
+                                    addTag(v.replaceAll(',', ''));
+                                  }
+                                },
+                                decoration: InputDecoration(
+                                  hintText: 'Type a hashtag, then space',
+                                  prefixIcon: const Icon(
+                                    Icons.tag_rounded,
+                                    size: 18,
+                                    color: _Brand.purple,
                                   ),
+                                  suffixIcon: ValueListenableBuilder(
+                                    valueListenable: tagInputCtr,
+                                    builder: (_, v, _) => v.text.trim().isEmpty
+                                        ? const SizedBox.shrink()
+                                        : IconButton(
+                                            icon: const Icon(
+                                              Icons.add_circle_rounded,
+                                              color: _Brand.purple,
+                                            ),
+                                            onPressed: () =>
+                                                addTag(tagInputCtr.text),
+                                          ),
+                                  ),
+                                  isDense: true,
                                 ),
-                              ],
+                              ),
                               if (hashtags.value.isNotEmpty) ...[
                                 const Gap(12),
                                 Wrap(
@@ -1272,12 +1279,51 @@ class _BottomAction extends StatelessWidget {
       );
     }
 
-    final label = state.stage == UploadStage.error ? 'Try Again' : 'Post';
-    return _BottomBar(
-      child: _GradientButton(
-        onTap: canPost ? onUpload : null,
-        text: label,
-        icon: Icons.send_rounded,
+    // The Post action lives in the app bar.
+    return const SizedBox.shrink();
+  }
+}
+
+/// Gradient send icon in the app bar; muted when the form isn't ready.
+class _PostAction extends StatelessWidget {
+  final bool enabled;
+  final bool retry;
+  final VoidCallback onTap;
+  const _PostAction({
+    required this.enabled,
+    required this.onTap,
+    this.retry = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 16),
+      child: Center(
+        child: Tooltip(
+          message: retry ? 'Try again' : 'Post',
+          child: GestureDetector(
+            onTap: enabled ? onTap : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: enabled ? _Brand.gradient : null,
+                color: enabled ? null : Colors.grey.shade300,
+                boxShadow: enabled
+                    ? _Brand.softShadow(_Brand.pink, alpha: 0.3)
+                    : const [],
+              ),
+              child: Icon(
+                retry ? Icons.refresh_rounded : Icons.send_rounded,
+                size: 19,
+                color: enabled ? Colors.white : Colors.grey.shade500,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
