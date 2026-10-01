@@ -7,6 +7,7 @@ import 'package:khmer_cat_app/core/components/profile/cover_avatar_header.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_action_tiles.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_collapsing_header.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_empty_tab_body.dart';
+import 'package:khmer_cat_app/core/components/profile/profile_pinned_header.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_social_widgets.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
@@ -33,6 +34,17 @@ class RestaurantProfileScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scrollController = useScrollController();
     final tab = useState(0);
+    final showTop = useState(false);
+    useEffect(() {
+      void onScroll() {
+        final show =
+            scrollController.hasClients && scrollController.offset > 700;
+        if (show != showTop.value) showTop.value = show;
+      }
+
+      scrollController.addListener(onScroll);
+      return () => scrollController.removeListener(onScroll);
+    }, [scrollController]);
     final visitedTabs = useState<Set<int>>({0});
     final state = ref.watch(restaurantProfileControllerProvider(restaurantId));
     final myRestaurants = ref.watch(myRestaurantsControllerProvider);
@@ -116,8 +128,19 @@ class RestaurantProfileScreen extends HookConsumerWidget {
     );
 
     return Scaffold(
+      floatingActionButton: _BackToTop(
+        visible: showTop.value,
+        onTap: () => scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeOutCubic,
+        ),
+      ),
       body: CustomScrollView(
         controller: scrollController,
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
         slivers: [
           ProfileCollapsingHeader(
             scrollController: scrollController,
@@ -125,8 +148,8 @@ class RestaurantProfileScreen extends HookConsumerWidget {
             avatarUrl: restaurant.profilePicture,
             name: restaurant.name,
             subtitle: restaurant.category?.name,
-            // 16:9, the same as your own profile's cover.
-            coverHeight: MediaQuery.sizeOf(context).width * 9 / 16,
+            // Slightly shorter than 16:9 so content starts higher.
+            coverHeight: MediaQuery.sizeOf(context).width * 0.5,
             avatarSize: 86,
             coverRadius: 0,
             // Storefront badge on the logo: marks this as a restaurant at a
@@ -154,7 +177,8 @@ class RestaurantProfileScreen extends HookConsumerWidget {
             ],
           ),
           SliverToBoxAdapter(
-            child: Padding(
+            child: _FadeSlideIn(
+             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,11 +328,21 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                   ],
                 ],
               ),
+             ),
             ),
           ),
-          const SliverToBoxAdapter(child: Gap(16)),
-          SliverToBoxAdapter(
-            child: ProfileSegmentTabs(
+          const SliverToBoxAdapter(child: Gap(8)),
+          // Pinned under the app bar so the tabs stay reachable while
+          // scrolling through a long grid.
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: FixedSliverHeaderDelegate(
+              height: 62,
+              child: ColoredBox(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: ProfileSegmentTabs(
               // The app's own icons, same as the owner's Profile tab.
               tabs: [
                 ProfileSegmentTab(asset: AssetsName.feeds, label: 'Videos'),
@@ -324,8 +358,11 @@ class RestaurantProfileScreen extends HookConsumerWidget {
               },
               compact: true,
             ),
+                ),
+              ),
+            ),
           ),
-          const SliverToBoxAdapter(child: Gap(16)),
+          const SliverToBoxAdapter(child: Gap(6)),
           SliverToBoxAdapter(
             // Both grids stay alive once opened and are only shown/hidden,
             // so switching tabs doesn't refetch, flash a skeleton, or
@@ -486,8 +523,9 @@ class _TabPane extends StatelessWidget {
       // grid is never rebuilt from scratch; opacity eases 0 -> 1 on show.
       child: AnimatedOpacity(
         opacity: visible ? 1 : 0,
-        duration: const Duration(milliseconds: 180),
-        child: child,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        child: RepaintBoundary(child: child),
       ),
     );
   }
@@ -514,6 +552,71 @@ class _StorefrontBadge extends StatelessWidget {
         Icons.storefront_rounded,
         size: 14,
         color: Colors.white,
+      ),
+    );
+  }
+}
+
+/// One-time fade + slight upward slide for the header content.
+class _FadeSlideIn extends StatelessWidget {
+  final Widget child;
+  const _FadeSlideIn({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+      builder: (context, v, child) => Opacity(
+        opacity: v,
+        child: Transform.translate(offset: Offset(0, 14 * (1 - v)), child: child),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Small round button that appears after scrolling down.
+class _BackToTop extends StatelessWidget {
+  final bool visible;
+  final VoidCallback onTap;
+  const _BackToTop({required this.visible, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedScale(
+      scale: visible ? 1 : 0,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutBack,
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: const Duration(milliseconds: 150),
+        child: IgnorePointer(
+          ignoring: !visible,
+          child: GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                gradient: ProfileTheme.pinkPurple,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: ProfileTheme.purple.withValues(alpha: 0.35),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.keyboard_arrow_up_rounded,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
