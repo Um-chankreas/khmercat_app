@@ -559,8 +559,7 @@ class _Card extends StatelessWidget {
   }
 }
 
-/// Where the post is tagged: a soft gradient-washed tile showing the chosen
-/// restaurant (with its role) or an inviting empty state.
+/// Where the post is tagged: a bold dark tile with a gradient-ringed logo.
 class _TargetCard extends StatelessWidget {
   final UploadTargetSelection? selection;
   final VoidCallback onTap;
@@ -570,7 +569,6 @@ class _TargetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final sel = selection;
     final isPost = sel?.mode == UploadMode.restaurantPost;
-    final accent = isPost ? _Brand.pink : const Color(0xff3E8FE0);
 
     return Material(
       color: Colors.transparent,
@@ -580,84 +578,54 @@ class _TargetCard extends StatelessWidget {
         child: Ink(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
+            color: _Brand.ink,
             borderRadius: BorderRadius.circular(12),
-            color: Colors.white,
-            gradient: RadialGradient(
-              center: Alignment.topLeft,
-              radius: 1.6,
-              colors: [
-                _Brand.pink.withValues(alpha: 0.22),
-                _Brand.purple.withValues(alpha: 0.12),
-                _Brand.blue.withValues(alpha: 0.06),
-              ],
-              stops: const [0, 0.55, 1],
-            ),
-            border: Border.all(
-              color: _Brand.purple.withValues(alpha: sel == null ? 0.18 : 0.28),
-            ),
+            boxShadow: _Brand.softShadow(_Brand.ink, alpha: 0.25),
           ),
           child: Row(
             children: [
-              if (sel != null)
-                Container(
-                  padding: const EdgeInsets.all(2.5),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: _Brand.cardShadow(),
-                  ),
-                  child: RestaurantLogo(
-                    restaurant: sel.restaurant,
-                    size: 46,
-                    borderRadius: 23,
-                  ),
-                )
-              else
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: _Brand.cardShadow(),
-                  ),
-                  child: ShaderMask(
-                    shaderCallback: (r) => _Brand.gradient.createShader(r),
-                    child: const Icon(
-                      Icons.add_location_alt_rounded,
-                      size: 26,
-                      color: Colors.white,
-                    ),
-                  ),
+              // Gradient ring around the logo / empty-state icon.
+              Container(
+                padding: const EdgeInsets.all(2.5),
+                decoration: const BoxDecoration(
+                  gradient: _Brand.gradient,
+                  shape: BoxShape.circle,
                 ),
+                child: sel != null
+                    ? RestaurantLogo(
+                        restaurant: sel.restaurant,
+                        size: 46,
+                        borderRadius: 23,
+                      )
+                    : Container(
+                        width: 46,
+                        height: 46,
+                        decoration: const BoxDecoration(
+                          color: _Brand.ink,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.add_location_alt_rounded,
+                          size: 24,
+                          color: Colors.white,
+                        ),
+                      ),
+              ),
               const Gap(14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: sel == null ? _Brand.muted : accent,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const Gap(6),
-                        Text(
-                          sel == null
-                              ? 'LOCATION'
-                              : (isPost ? 'POSTING AS' : 'REVIEWING'),
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                            color: sel == null ? _Brand.muted : accent,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      sel == null
+                          ? 'LOCATION'
+                          : (isPost ? 'POSTING AS' : 'REVIEWING'),
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.9,
+                        color: Colors.white.withValues(alpha: 0.55),
+                      ),
                     ),
                     const Gap(3),
                     Text(
@@ -668,14 +636,17 @@ class _TargetCard extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                         fontSize: 17,
                         letterSpacing: -0.2,
-                        color: _Brand.ink,
+                        color: Colors.white,
                       ),
                     ),
                     if (sel == null) ...[
                       const Gap(1),
-                      const Text(
+                      Text(
                         'Tag where this was taken or created',
-                        style: TextStyle(fontSize: 12.5, color: _Brand.muted),
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: Colors.white.withValues(alpha: 0.65),
+                        ),
                       ),
                     ],
                   ],
@@ -683,18 +654,21 @@ class _TargetCard extends StatelessWidget {
               ),
               const Gap(8),
               Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  gradient: _Brand.pinkPurple,
-                  shape: BoxShape.circle,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
                 ),
-                child: Icon(
-                  sel == null
-                      ? Icons.arrow_forward_rounded
-                      : Icons.swap_horiz_rounded,
-                  size: 19,
-                  color: Colors.white,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  sel == null ? 'Select' : 'Change',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],
