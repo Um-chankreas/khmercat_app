@@ -11,8 +11,8 @@ import 'package:khmer_cat_app/core/utils/size_responsive.dart';
 import 'package:khmer_cat_app/src/auth/presentation/viewmodel/register_viewmodel.dart';
 import 'package:khmer_cat_app/src/auth/presentation/widgets/auth_widgets.dart';
 
-/// Name, email and password, the Get Started button and the login link, on
-/// the same animated auth card as the login screen.
+/// "Join khmercat", name, email and password, the Get Started button and the
+/// login link, on the same glass auth card as the login screen.
 class RegisterScreen extends HookConsumerWidget {
   final String userType;
   const RegisterScreen({super.key, required this.userType});
@@ -67,8 +67,11 @@ class RegisterScreen extends HookConsumerWidget {
 
     return AuthScaffold(
       formKey: formKey,
-      title: 'Create account',
-      subtitle: "Let's create your account together",
+      title: 'Join khmercat',
+      titleWidget: const AuthBrandTitle(lead: 'Join'),
+      showBrand: false,
+      // Below center, so the cat's face shows above the card.
+      cardAlignment: const Alignment(0, 0.45),
       children: [
         TextFormField(
           controller: userNameCtr,

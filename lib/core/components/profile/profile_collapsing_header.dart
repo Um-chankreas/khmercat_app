@@ -70,84 +70,117 @@ class ProfileCollapsingHeader extends StatelessWidget {
     final titleFadeDistance =
         expandedHeaderHeight - statusBarHeight - pinnedHeaderHeight;
 
-    return ListenableBuilder(
-      listenable: scrollController,
-      builder: (context, _) {
-        final opacity = _pinnedTitleOpacity(
-          scrollController,
-          titleFadeDistance,
-        );
-        // This header's backdrop should blend into the page itself, not
-        // read as a raised card — so it uses the scaffold's background
-        // color, not ProfileTheme.surface (which is deliberately a
-        // slightly lighter tone, reserved for actual cards like
-        // ProfileCard/ProfileTabBar).
-        final pageBackground = Theme.of(context).scaffoldBackgroundColor;
+    // This header's backdrop should blend into the page itself, not read
+    // as a raised card — so it uses the scaffold's background color, not
+    // ProfileTheme.surface (which is deliberately a slightly lighter tone,
+    // reserved for actual cards like ProfileCard/ProfileTabBar).
+    final pageBackground = Theme.of(context).scaffoldBackgroundColor;
 
-        return SliverAppBar(
-          pinned: true,
-          automaticallyImplyLeading: false,
-          expandedHeight: expandedHeaderHeight - statusBarHeight,
-          toolbarHeight: pinnedHeaderHeight,
-          // Solid page color underneath at all times: the cover + avatar
-          // fade out over it as you scroll (see below), so nothing grey or
-          // half-transparent ever shows through mid-collapse.
-          backgroundColor: pageBackground,
-          surfaceTintColor: Colors.transparent,
-          scrolledUnderElevation: 0,
-          elevation: 0,
-          centerTitle: false,
-          titleSpacing: 4,
-          leading: onBack == null
-              ? null
-              : Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 14),
-                    child: ProfileCircleButton(
-                      icon: Icons.arrow_back_rounded,
-                      dark: true,
-                      onTap: onBack!,
-                    ),
-                  ),
+    // The bar, cover and avatar are built once; only the two _ScrollFade
+    // wrappers listen to the scroll controller, so scrolling repaints an
+    // opacity instead of rebuilding the whole header every frame.
+    return SliverAppBar(
+      pinned: true,
+      automaticallyImplyLeading: false,
+      expandedHeight: expandedHeaderHeight - statusBarHeight,
+      toolbarHeight: pinnedHeaderHeight,
+      // Solid page color underneath at all times: the cover + avatar fade
+      // out over it as you scroll (see below), so nothing grey or
+      // half-transparent ever shows through mid-collapse.
+      backgroundColor: pageBackground,
+      surfaceTintColor: Colors.transparent,
+      scrolledUnderElevation: 0,
+      elevation: 0,
+      centerTitle: false,
+      titleSpacing: 4,
+      leading: onBack == null
+          ? null
+          : Center(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 14),
+                child: ProfileCircleButton(
+                  icon: Icons.arrow_back_rounded,
+                  dark: true,
+                  onTap: onBack!,
                 ),
-          // Our own flexible space (not FlexibleSpaceBar, whose built-in
-          // fade let the bar's color bleed through as a grey band): the
-          // full header, clipped to the bar's current height and faded out
-          // in step with the pinned title fading in — so the big avatar
-          // never slides over the title.
-          flexibleSpace: ClipRect(
-            child: OverflowBox(
-              alignment: Alignment.topCenter,
-              minHeight: expandedHeaderHeight,
-              maxHeight: expandedHeaderHeight,
-              child: IgnorePointer(
-                ignoring: opacity >= 1,
-                child: Opacity(
-                  opacity: (1 - opacity * 1.15).clamp(0.0, 1.0),
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: CoverAvatarHeader(
-                      coverUrl: coverUrl,
-                      avatarUrl: avatarUrl,
-                      name: name,
-                      coverHeight: coverHeight,
-                      avatarSize: avatarSize,
-                      coverRadius: coverRadius,
-                      coverTint: coverTint,
-                      avatarBadge: avatarBadge,
-                    ),
-                  ),
+              ),
+            ),
+      // Our own flexible space (not FlexibleSpaceBar, whose built-in fade
+      // let the bar's color bleed through as a grey band): the full header,
+      // clipped to the bar's current height and faded out in step with the
+      // pinned title fading in — so the big avatar never slides over the
+      // title.
+      flexibleSpace: ClipRect(
+        child: OverflowBox(
+          alignment: Alignment.topCenter,
+          minHeight: expandedHeaderHeight,
+          maxHeight: expandedHeaderHeight,
+          child: _ScrollFade(
+            controller: scrollController,
+            distance: titleFadeDistance,
+            fadeOut: true,
+            child: RepaintBoundary(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: CoverAvatarHeader(
+                  coverUrl: coverUrl,
+                  avatarUrl: avatarUrl,
+                  name: name,
+                  coverHeight: coverHeight,
+                  avatarSize: avatarSize,
+                  coverRadius: coverRadius,
+                  coverTint: coverTint,
+                  avatarBadge: avatarBadge,
                 ),
               ),
             ),
           ),
-          title: _PinnedTitle(
-            avatarUrl: avatarUrl,
-            name: name,
-            subtitle: subtitle,
-            opacity: opacity,
-          ),
-          actions: actions,
+        ),
+      ),
+      title: _ScrollFade(
+        controller: scrollController,
+        distance: titleFadeDistance,
+        fadeOut: false,
+        child: _PinnedTitle(
+          avatarUrl: avatarUrl,
+          name: name,
+          subtitle: subtitle,
+        ),
+      ),
+      actions: actions,
+    );
+  }
+}
+
+/// Fades [child] with the scroll: out ([fadeOut]) as the header collapses,
+/// or in for the pinned title. Only this rebuilds on scroll; [child] is
+/// passed through untouched. Taps are ignored while mostly invisible.
+class _ScrollFade extends StatelessWidget {
+  final ScrollController controller;
+  final double distance;
+  final bool fadeOut;
+  final Widget child;
+  const _ScrollFade({
+    required this.controller,
+    required this.distance,
+    required this.fadeOut,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      child: child,
+      builder: (context, child) {
+        final t = ProfileCollapsingHeader._pinnedTitleOpacity(
+          controller,
+          distance,
+        );
+        final opacity = fadeOut ? (1 - t * 1.15).clamp(0.0, 1.0) : t;
+        return IgnorePointer(
+          ignoring: fadeOut ? t >= 1 : t < 0.5,
+          child: Opacity(opacity: opacity, child: child),
         );
       },
     );
@@ -158,65 +191,57 @@ class _PinnedTitle extends StatelessWidget {
   final String? avatarUrl;
   final String name;
   final String? subtitle;
-  final double opacity;
 
   const _PinnedTitle({
     required this.avatarUrl,
     required this.name,
     required this.subtitle,
-    required this.opacity,
   });
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      ignoring: opacity < 0.5,
-      child: Opacity(
-        opacity: opacity,
-        child: Row(
-          children: [
-            ClipOval(
-              child: ImageUserCircleProfile(
-                imageUrl: avatarUrl,
-                name: name,
-                size: 32,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: ProfileTheme.textPrimary(context),
-                    ),
-                  ),
-                  if (subtitle != null && subtitle!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: ProfileTheme.textSecondary(context),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
+    return Row(
+      children: [
+        ClipOval(
+          child: ImageUserCircleProfile(
+            imageUrl: avatarUrl,
+            name: name,
+            size: 32,
+          ),
         ),
-      ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: ProfileTheme.textPrimary(context),
+                ),
+              ),
+              if (subtitle != null && subtitle!.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: ProfileTheme.textSecondary(context),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

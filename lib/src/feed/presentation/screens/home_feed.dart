@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:khmer_cat_app/core/components/navigationbar/app_bottom_nav_bar.dart';
 import 'package:khmer_cat_app/core/components/dialogs/sign_in_prompt.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart'
@@ -450,7 +451,9 @@ class _TabFeedView extends HookConsumerWidget {
 
                 Positioned(
                   right: 12,
-                  bottom: context.sc(50),
+                  // The video runs behind the glass nav bar; the overlays
+                  // stay above it.
+                  bottom: context.sc(50) + navBarInset(context),
                   child: IgnorePointer(
                     ignoring: item.isPending,
                     child: Opacity(
@@ -474,7 +477,7 @@ class _TabFeedView extends HookConsumerWidget {
                 Positioned(
                   left: context.sc(14),
                   right: 90,
-                  bottom: context.sc(14),
+                  bottom: context.sc(14) + navBarInset(context),
                   child: FeedInfoOverlay(
                     item: item,
                     onFollowTap: () => handleFollow(item.id),
@@ -533,7 +536,7 @@ class _TabFeedView extends HookConsumerWidget {
         Positioned(
           left: 0,
           right: 0,
-          bottom: 0,
+          bottom: navBarInset(context),
           height: context.sc(14),
           child: IgnorePointer(
             child: AnimatedSwitcher(

@@ -14,7 +14,7 @@ import 'package:khmer_cat_app/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
-  AppConfig.environment = Environment.staging;
+  AppConfig.environment = Environment.dev;
   WidgetsFlutterBinding.ensureInitialized();
 
   // Firebase (push notifications) reads android/app/google-services.json and

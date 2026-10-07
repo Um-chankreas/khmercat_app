@@ -11,8 +11,9 @@ import 'package:khmer_cat_app/l10n/app_localizations.dart';
 import 'package:khmer_cat_app/src/auth/presentation/viewmodel/login_viewmodel.dart';
 import 'package:khmer_cat_app/src/auth/presentation/widgets/auth_widgets.dart';
 
-/// Email + password, forgot password, Login button and the sign-up link,
-/// on the shared animated auth card.
+/// "Welcome to khmercat", email + password, forgot password, Login button
+/// and the sign-up link, on the shared glass auth card over the cat
+/// backdrop.
 class LoginScreen extends HookConsumerWidget {
   const LoginScreen({super.key});
 
@@ -61,8 +62,11 @@ class LoginScreen extends HookConsumerWidget {
 
     return AuthScaffold(
       formKey: formKey,
-      title: 'Welcome back',
-      subtitle: 'Login to your account to continue',
+      title: 'Welcome to khmercat',
+      titleWidget: const AuthBrandTitle(),
+      showBrand: false,
+      // Below center, so the cat's face shows above the card.
+      cardAlignment: const Alignment(0, 0.45),
       children: [
         TextFormField(
           controller: emailCtr,

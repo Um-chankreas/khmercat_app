@@ -3,7 +3,7 @@
 enum Environment { dev, staging, production }
 
 class AppConfig {
-  static Environment environment = Environment.staging;
+  static Environment environment = Environment.dev;
 
   /// Override at build/run time with:
   ///   --dart-define=API_BASE_URL=https://staging.khmercat.com/api
@@ -16,7 +16,7 @@ class AppConfig {
 
     switch (environment) {
       case Environment.dev:
-        return 'http://192.168.0.129:8000/api';
+        return 'http://192.168.19.74:8000/api';
       case Environment.staging:
         return 'http://159.223.43.180/api';
       case Environment.production:

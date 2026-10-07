@@ -147,9 +147,9 @@ final discoverProvider = FutureProvider.autoDispose<DiscoverData>((ref) async {
         ratingSum[a]! / ratingCount[a]!,
       ),
     );
-  final trending = ([
-    ...all,
-  ]..sort((a, b) => b.likesCount - a.likesCount)).take(6).toList();
+  // Everything the feed returned, most liked first; the screen shows the
+  // top few and "See all" the rest.
+  final trending = [...all]..sort((a, b) => b.likesCount - a.likesCount);
 
   // ---- nearby: needs coordinates, which only the restaurant record has
   var nearby = <NearbyRestaurant>[];

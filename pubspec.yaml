@@ -96,6 +96,8 @@ flutter:
     - assets/onboarding/
     - assets/messages/
     - assets/icons/
+    - assets/icons/lucide/
+    - assets/google_fonts/
 
   # Inter for Latin text; Hanuman is the fallback for anything Inter has no
   # glyph for (all Khmer). Wired up in lib/core/themes/app_themes_mode.dart.
@@ -126,6 +128,7 @@ flutter:
           weight: 800
         - asset: assets/google_fonts/Hanuman-Black.ttf
           weight: 900
+    
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

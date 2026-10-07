@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -55,11 +56,7 @@ class RestaurantProfileScreen extends HookConsumerWidget {
         false;
 
     if (state.isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: ProfileTheme.purple),
-        ),
-      );
+      return const Scaffold(body: _ProfileSkeleton());
     }
     if (state.restaurant == null) {
       return Scaffold(
@@ -151,7 +148,7 @@ class RestaurantProfileScreen extends HookConsumerWidget {
             // Slightly shorter than 16:9 so content starts higher.
             coverHeight: MediaQuery.sizeOf(context).width * 0.5,
             avatarSize: 86,
-            coverRadius: 0,
+            coverRadius: 28,
             // Storefront badge on the logo: marks this as a restaurant at a
             // glance (people's avatars never have it).
             avatarBadge: const _StorefrontBadge(),
@@ -177,192 +174,216 @@ class RestaurantProfileScreen extends HookConsumerWidget {
             ],
           ),
           SliverToBoxAdapter(
-            child: _FadeSlideIn(
-             child: Padding(
+            child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    r.name,
-                    style: TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                      color: ProfileTheme.textPrimary(context),
+                  _FadeSlideIn(
+                    index: 0,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          r.name,
+                          style: TextStyle(
+                            fontSize: 26,
+                            height: 1.15,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.7,
+                            color: ProfileTheme.textPrimary(context),
+                          ),
+                        ),
+                        const Gap(10),
+                        // Category, open status, and badges.
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            // Storefront chip = restaurant (people get a
+                            // person "Personal" chip instead).
+                            ProfileTypeChip(
+                              isRestaurant: true,
+                              label: r.category?.name,
+                            ),
+                            if (r.isOpen != null)
+                              OpenStatusPill(
+                                open: r.isOpen!,
+                                detail: r.isOpen!
+                                    ? (closes == null ? null : 'until $closes')
+                                    : (opens == null ? null : 'opens $opens'),
+                              ),
+                            if (isPopular)
+                              const _Pill(
+                                icon: Icons.local_fire_department_rounded,
+                                label: 'Popular',
+                                color: _orange,
+                              ),
+                            if (isOwner)
+                              const _Pill(
+                                icon: Icons.verified_user_rounded,
+                                label: 'Your restaurant',
+                                color: ProfileTheme.deepPurple,
+                              ),
+                          ],
+                        ),
+                        if (description != null && description.isNotEmpty) ...[
+                          const Gap(12),
+                          Text(
+                            description,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              height: 1.5,
+                              color: ProfileTheme.textSecondary(context),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                  const Gap(8),
-                  // Category, open status, and badges.
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      // Storefront chip = restaurant (people get a
-                      // person "Personal" chip instead).
-                      ProfileTypeChip(
-                        isRestaurant: true,
-                        label: r.category?.name,
-                      ),
-                      if (r.isOpen != null)
-                        OpenStatusPill(
-                          open: r.isOpen!,
-                          detail: r.isOpen!
-                              ? (closes == null ? null : 'until $closes')
-                              : (opens == null ? null : 'opens $opens'),
-                        ),
-                      if (isPopular)
-                        const _Pill(
-                          icon: Icons.local_fire_department_rounded,
-                          label: 'Popular',
-                          color: _orange,
-                        ),
-                      if (isOwner)
-                        const _Pill(
-                          icon: Icons.verified_user_rounded,
-                          label: 'Your restaurant',
-                          color: ProfileTheme.deepPurple,
-                        ),
-                    ],
-                  ),
-                  const Gap(10),
-                  _StatsLine(restaurant: r),
-                  if (description != null && description.isNotEmpty) ...[
-                    const Gap(10),
-                    Text(
-                      description,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        height: 1.45,
-                        color: ProfileTheme.textSecondary(context),
-                      ),
-                    ),
-                  ],
-                  const Gap(16),
-
+                  const Gap(18),
+                  _FadeSlideIn(index: 1, child: _StatsRow(restaurant: r)),
                   if (isOwner && !r.isPublished) ...[
-                    const Gap(14),
+                    const Gap(18),
                     UnpublishedBanner(restaurant: r),
                   ],
+                  const Gap(18),
                   // ---- Action tiles: equal width, icon over label.
-                  const Gap(16),
-                  Row(
-                    children: [
-                      for (final (i, tile)
-                          in (isOwner
-                                  ? [
-                                      ProfileActionTile(
-                                        icon: Icons.videocam_rounded,
-                                        label: 'Post video',
-                                        primary: true,
-                                        onTap: () => AppRouter.router.pushNamed(
-                                          AppRoute.cameraRecord.name,
-                                        ),
-                                      ),
-                                      ProfileActionTile(
-                                        icon: Icons.edit_rounded,
-                                        label: 'Edit',
-                                        onTap: () => AppRouter.router.pushNamed(
-                                          AppRoute.editRestaurant.name,
-                                          pathParameters: {'id': restaurantId},
-                                        ),
-                                      ),
-                                      ProfileActionTile(
-                                        icon: Icons.menu_book_rounded,
-                                        label: 'Menu',
-                                        onTap: openMenu,
-                                      ),
-                                      ProfileActionTile(
-                                        icon: Icons.swap_horiz_rounded,
-                                        label: 'Switch',
-                                        onTap: () =>
-                                            showRestaurantSwitcherSheet(
-                                              context,
-                                            ),
-                                      ),
-                                    ]
-                                  : [
-                                      ProfileActionTile(
-                                        icon: state.isFollowingLocally
-                                            ? Icons.check_rounded
-                                            : Icons.person_add_alt_1_rounded,
-                                        label: state.isFollowingLocally
-                                            ? 'Following'
-                                            : 'Follow',
-                                        primary: !state.isFollowingLocally,
-                                        onTap: onFollow,
-                                      ),
-                                      ProfileActionTile(
-                                        icon: Icons.menu_book_rounded,
-                                        label: 'Menu',
-                                        onTap: openMenu,
-                                      ),
-                                      if (directions != null)
+                  _FadeSlideIn(
+                    index: 2,
+                    child: Row(
+                      children: [
+                        for (final (i, tile)
+                            in (isOwner
+                                    ? [
                                         ProfileActionTile(
-                                          icon: Icons.directions_rounded,
-                                          label: 'Directions',
+                                          icon: Icons.videocam_rounded,
+                                          label: 'Post video',
+                                          primary: true,
                                           onTap: () =>
-                                              SocialLinks.open(directions),
+                                              AppRouter.router.pushNamed(
+                                                AppRoute.cameraRecord.name,
+                                              ),
                                         ),
-                                      if (call != null)
                                         ProfileActionTile(
-                                          icon: Icons.call_rounded,
-                                          label: 'Call',
-                                          onTap: () => SocialLinks.open(call),
+                                          icon: Icons.edit_rounded,
+                                          label: 'Edit',
+                                          onTap: () =>
+                                              AppRouter.router.pushNamed(
+                                                AppRoute.editRestaurant.name,
+                                                pathParameters: {
+                                                  'id': restaurantId,
+                                                },
+                                              ),
                                         ),
-                                    ])
-                              .indexed) ...[
-                        if (i > 0) const Gap(8),
-                        Expanded(child: tile),
+                                        ProfileActionTile(
+                                          icon: Icons.menu_book_rounded,
+                                          label: 'Menu',
+                                          onTap: openMenu,
+                                        ),
+                                        ProfileActionTile(
+                                          icon: Icons.swap_horiz_rounded,
+                                          label: 'Switch',
+                                          onTap: () =>
+                                              showRestaurantSwitcherSheet(
+                                                context,
+                                              ),
+                                        ),
+                                      ]
+                                    : [
+                                        ProfileActionTile(
+                                          icon: state.isFollowingLocally
+                                              ? Icons.check_rounded
+                                              : Icons.person_add_alt_1_rounded,
+                                          label: state.isFollowingLocally
+                                              ? 'Following'
+                                              : 'Follow',
+                                          primary: !state.isFollowingLocally,
+                                          onTap: onFollow,
+                                        ),
+                                        ProfileActionTile(
+                                          icon: Icons.menu_book_rounded,
+                                          label: 'Menu',
+                                          onTap: openMenu,
+                                        ),
+                                        if (directions != null)
+                                          ProfileActionTile(
+                                            icon: Icons.directions_rounded,
+                                            label: 'Directions',
+                                            onTap: () =>
+                                                SocialLinks.open(directions),
+                                          ),
+                                        if (call != null)
+                                          ProfileActionTile(
+                                            icon: Icons.call_rounded,
+                                            label: 'Call',
+                                            onTap: () => SocialLinks.open(call),
+                                          ),
+                                      ])
+                                .indexed) ...[
+                          if (i > 0) const Gap(8),
+                          Expanded(child: tile),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
 
-                  // ---- Social strip
+                  // ---- Social row
                   if (socialLinks.isNotEmpty) ...[
-                    const Gap(12),
-                    ProfileSocialStrip(links: socialLinks),
+                    const Gap(16),
+                    _FadeSlideIn(
+                      index: 3,
+                      child: ProfileSocialStrip(links: socialLinks),
+                    ),
                   ],
                 ],
               ),
-             ),
             ),
           ),
-          const SliverToBoxAdapter(child: Gap(8)),
+          const SliverToBoxAdapter(child: Gap(14)),
           // Pinned under the app bar so the tabs stay reachable while
           // scrolling through a long grid.
           SliverPersistentHeader(
             pinned: true,
             delegate: FixedSliverHeaderDelegate(
-              height: 62,
+              height: 64,
               child: ColoredBox(
                 color: Theme.of(context).scaffoldBackgroundColor,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: ProfileSegmentTabs(
-              // The app's own icons, same as the owner's Profile tab.
-              tabs: [
-                ProfileSegmentTab(asset: AssetsName.feeds, label: 'Videos'),
-                ProfileSegmentTab(asset: AssetsName.review, label: 'Reviews'),
-                ProfileSegmentTab(asset: AssetsName.profileinfo, label: 'Info'),
-              ],
-              selected: tab.value,
-              onChanged: (i) {
-                tab.value = i;
-                if (!visitedTabs.value.contains(i)) {
-                  visitedTabs.value = {...visitedTabs.value, i};
-                }
-              },
-              compact: true,
-            ),
+                    // The app's own icons, same as the owner's Profile tab.
+                    tabs: [
+                      ProfileSegmentTab(
+                        asset: AssetsName.feeds,
+                        label: 'Videos',
+                      ),
+                      ProfileSegmentTab(
+                        asset: AssetsName.review,
+                        label: 'Reviews',
+                      ),
+                      ProfileSegmentTab(
+                        asset: AssetsName.profileinfo,
+                        label: 'Info',
+                      ),
+                    ],
+                    selected: tab.value,
+                    onChanged: (i) {
+                      tab.value = i;
+                      if (!visitedTabs.value.contains(i)) {
+                        visitedTabs.value = {...visitedTabs.value, i};
+                      }
+                    },
+                    compact: true,
+                  ),
                 ),
               ),
             ),
           ),
-          const SliverToBoxAdapter(child: Gap(6)),
+          const SliverToBoxAdapter(child: Gap(8)),
           SliverToBoxAdapter(
             // Both grids stay alive once opened and are only shown/hidden,
             // so switching tabs doesn't refetch, flash a skeleton, or
@@ -407,7 +428,10 @@ class RestaurantProfileScreen extends HookConsumerWidget {
               ],
             ),
           ),
-          const SliverToBoxAdapter(child: Gap(16)),
+          // Room for the back-to-top button and the gesture bar.
+          SliverToBoxAdapter(
+            child: Gap(24 + MediaQuery.paddingOf(context).bottom),
+          ),
         ],
       ),
     );
@@ -431,8 +455,8 @@ class _Pill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(10),
+        color: color.withValues(alpha: 0.11),
+        borderRadius: BorderRadius.circular(100),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -453,56 +477,115 @@ class _Pill extends StatelessWidget {
   }
 }
 
-/// ★ 3.5 (4 reviews) · 1 follower · 2 posts — one quiet line.
-class _StatsLine extends StatelessWidget {
+/// Rating · Followers · Posts as three centered columns split by hairlines.
+/// Numbers count up on first show and glide to new values (e.g. after
+/// following).
+class _StatsRow extends StatelessWidget {
   final Restaurant restaurant;
-  const _StatsLine({required this.restaurant});
+  const _StatsRow({required this.restaurant});
 
   @override
   Widget build(BuildContext context) {
     final r = restaurant;
-    final primary = ProfileTheme.textPrimary(context);
-    final muted = ProfileTheme.textSecondary(context);
-    final strong = TextStyle(
-      fontSize: 13.5,
-      fontWeight: FontWeight.w800,
-      color: primary,
-    );
-    final soft = TextStyle(fontSize: 13.5, color: muted);
     final followers = r.followersCount ?? 0;
-    String plural(int n, String word) =>
-        '${_compact(n)} $word${n == 1 ? '' : 's'}';
+    final rating = r.avgRating;
+    final divider = Container(
+      width: 1,
+      height: 30,
+      color: ProfileTheme.hairlineColor(context),
+    );
 
-    return Text.rich(
-      TextSpan(
-        children: [
-          WidgetSpan(
-            alignment: PlaceholderAlignment.middle,
-            // Filled gold once rated; an empty grey star until then.
-            child: r.avgRating != null
-                ? const Icon(Icons.star_rounded, size: 17, color: _gold)
-                : Icon(Icons.star_border_rounded, size: 17, color: muted),
-          ),
-          const TextSpan(text: ' '),
-          if (r.avgRating != null) ...[
-            TextSpan(text: r.avgRating!.toStringAsFixed(1), style: strong),
-            TextSpan(
-              text: ' (${plural(r.reviewsCount, 'review')})',
-              style: soft,
+    return Row(
+      children: [
+        Expanded(
+          child: _Stat(
+            value: rating?.toDouble() ?? 0,
+            format: (v) => rating == null ? '–' : v.toStringAsFixed(1),
+            leading: Icon(
+              rating != null ? Icons.star_rounded : Icons.star_border_rounded,
+              size: 19,
+              color: rating != null
+                  ? _gold
+                  : ProfileTheme.textSecondary(context),
             ),
-          ] else
-            TextSpan(text: 'No reviews yet', style: soft),
-          TextSpan(text: '  ·  ', style: soft),
-          TextSpan(text: _compact(followers), style: strong),
-          TextSpan(
-            text: followers == 1 ? ' follower' : ' followers',
-            style: soft,
+            label: rating == null
+                ? 'No reviews'
+                : '${_compact(r.reviewsCount)} '
+                      '${r.reviewsCount == 1 ? 'review' : 'reviews'}',
           ),
-          TextSpan(text: '  ·  ', style: soft),
-          TextSpan(text: _compact(r.videosCount), style: strong),
-          TextSpan(text: r.videosCount == 1 ? ' post' : ' posts', style: soft),
-        ],
-      ),
+        ),
+        divider,
+        Expanded(
+          child: _Stat(
+            value: followers.toDouble(),
+            format: (v) => _compact(v.round()),
+            label: followers == 1 ? 'Follower' : 'Followers',
+          ),
+        ),
+        divider,
+        Expanded(
+          child: _Stat(
+            value: r.videosCount.toDouble(),
+            format: (v) => _compact(v.round()),
+            label: r.videosCount == 1 ? 'Post' : 'Posts',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  final double value;
+  final String Function(double) format;
+  final String label;
+  final Widget? leading;
+  const _Stat({
+    required this.value,
+    required this.format,
+    required this.label,
+    this.leading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (leading != null) ...[leading!, const Gap(3)],
+            TweenAnimationBuilder<double>(
+              // begin: 0 counts up once; later changes glide from the
+              // current value.
+              tween: Tween(begin: 0, end: value),
+              duration: const Duration(milliseconds: 900),
+              curve: Curves.easeOutCubic,
+              builder: (context, v, _) => Text(
+                format(v),
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  color: ProfileTheme.textPrimary(context),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const Gap(2),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+            color: ProfileTheme.textSecondary(context),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -557,22 +640,120 @@ class _StorefrontBadge extends StatelessWidget {
   }
 }
 
-/// One-time fade + slight upward slide for the header content.
+/// One-time fade + slight upward slide for the header content; [index]
+/// staggers blocks so they cascade in top to bottom.
 class _FadeSlideIn extends StatelessWidget {
+  final int index;
   final Widget child;
-  const _FadeSlideIn({required this.child});
+  const _FadeSlideIn({required this.child, this.index = 0});
 
   @override
   Widget build(BuildContext context) {
+    final delay = index * 70;
+    final total = 460 + delay;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 420),
-      curve: Curves.easeOutCubic,
+      duration: Duration(milliseconds: total),
+      curve: Interval(delay / total, 1, curve: Curves.easeOutCubic),
       builder: (context, v, child) => Opacity(
         opacity: v,
-        child: Transform.translate(offset: Offset(0, 14 * (1 - v)), child: child),
+        child: Transform.translate(
+          offset: Offset(0, 16 * (1 - v)),
+          child: child,
+        ),
       ),
       child: child,
+    );
+  }
+}
+
+/// Placeholder layout while the restaurant loads: cover, avatar and a few
+/// bars in the page's real positions, gently pulsing.
+class _ProfileSkeleton extends HookWidget {
+  const _ProfileSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final ctrl = useAnimationController(
+      duration: const Duration(milliseconds: 900),
+    );
+    useEffect(() {
+      ctrl.repeat(reverse: true);
+      return null;
+    }, [ctrl]);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final width = MediaQuery.sizeOf(context).width;
+
+    Widget bar(double w, double h, {double r = 10}) => Container(
+      width: w,
+      height: h,
+      decoration: BoxDecoration(
+        color: ProfileTheme.purple.withValues(alpha: isDark ? 0.22 : 0.12),
+        borderRadius: BorderRadius.circular(r),
+      ),
+    );
+
+    return FadeTransition(
+      opacity: Tween(
+        begin: 0.55,
+        end: 1.0,
+      ).animate(CurvedAnimation(parent: ctrl, curve: Curves.easeInOut)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              bar(width, width * 0.5, r: 28),
+              Positioned(
+                left: 20,
+                bottom: -46,
+                child: Container(
+                  width: 98,
+                  height: 98,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                  ),
+                  padding: const EdgeInsets.all(5),
+                  child: bar(88, 88, r: 44),
+                ),
+              ),
+            ],
+          ),
+          const Gap(64),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                bar(width * 0.55, 26),
+                const Gap(12),
+                Row(
+                  children: [
+                    bar(96, 28, r: 100),
+                    const Gap(8),
+                    bar(80, 28, r: 100),
+                  ],
+                ),
+                const Gap(22),
+                bar(width - 32, 40),
+                const Gap(22),
+                Row(
+                  children: [
+                    for (var i = 0; i < 3; i++) ...[
+                      if (i > 0) const Gap(8),
+                      Expanded(child: bar(double.infinity, 60, r: 18)),
+                    ],
+                  ],
+                ),
+                const Gap(22),
+                bar(width - 32, 44, r: 16),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -595,10 +776,13 @@ class _BackToTop extends StatelessWidget {
         child: IgnorePointer(
           ignoring: !visible,
           child: GestureDetector(
-            onTap: onTap,
+            onTap: () {
+              HapticFeedback.selectionClick();
+              onTap();
+            },
             child: Container(
-              width: 44,
-              height: 44,
+              width: 46,
+              height: 46,
               decoration: BoxDecoration(
                 gradient: ProfileTheme.pinkPurple,
                 shape: BoxShape.circle,

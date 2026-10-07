@@ -31,4 +31,17 @@ class AssetsName {
   static final facebook = '${iconsPath}facebook.png';
   static final tiktok = '${iconsPath}tik-tok.png';
   static final telegram = '${iconsPath}telegram.png';
+
+  // Lucide icons (ISC license) — black glyphs, tint with Image.color.
+  static const lucidePath = 'assets/icons/lucide/';
+  static const lcMenu = '${lucidePath}book-open.png';
+  static const lcCategory = '${lucidePath}utensils.png';
+  static const lcClock = '${lucidePath}clock.png';
+  static const lcService = '${lucidePath}bike.png';
+  static const lcPhone = '${lucidePath}phone.png';
+  static const lcPin = '${lucidePath}map-pin.png';
+  static const lcNavigate = '${lucidePath}navigation.png';
+  static const lcExternal = '${lucidePath}external-link.png';
+  static const lcQr = '${lucidePath}qr-code.png';
+  static const lcInfo = '${lucidePath}info.png';
 }

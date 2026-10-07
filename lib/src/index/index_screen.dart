@@ -69,21 +69,28 @@ class IndexScreen extends HookConsumerWidget {
       }
     });
 
+    // The glass bar floats over the body (extendBody). The feed and search
+    // draw behind it themselves; the other tabs just stop above it.
     final pages = [
       HomeFeed(isTabActive: selectedIndex.value == 0),
       const SearchScreen(),
-      const NotificationsScreen(),
-      _ActiveProfileTab(activeRestaurant: activeRestaurant),
+      const _AboveNavBar(child: NotificationsScreen()),
+      _AboveNavBar(
+        child: _ActiveProfileTab(activeRestaurant: activeRestaurant),
+      ),
     ];
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
-        systemNavigationBarColor: Theme.of(context).colorScheme.surface,
+      // The bar floats, so the page shows under the system gesture area.
+      value: const SystemUiOverlayStyle(
+        systemNavigationBarColor: Colors.transparent,
       ),
       child: Scaffold(
+        extendBody: true,
         body: IndexedStack(index: selectedIndex.value, children: pages),
         bottomNavigationBar: AppBottomNavBar(
           currentIndex: selectedIndex.value,
+          overMedia: selectedIndex.value == 0,
           onTap: (i) => selectedIndex.value = i,
           uploadBusy: uploadBusy,
           uploadProgress: upload.stage == UploadStage.uploading
@@ -113,6 +120,27 @@ class IndexScreen extends HookConsumerWidget {
               : currentUser?.profilePicture,
           avatarIsRestaurant: activeRestaurant != null,
         ),
+      ),
+    );
+  }
+}
+
+/// Ends [child] at the top of the bar's flat part instead of letting it run
+/// underneath: pads by the body's bottom inset (the bar, under extendBody)
+/// less the center bump, and clears that inset for the subtree so nothing
+/// inside pads for it a second time.
+class _AboveNavBar extends StatelessWidget {
+  final Widget child;
+  const _AboveNavBar({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: navBarInset(context)),
+      child: MediaQuery.removePadding(
+        context: context,
+        removeBottom: true,
+        child: child,
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -201,6 +202,11 @@ class RestaurantVideosGrid extends HookConsumerWidget {
   }
 }
 
+/// Asks for the next page once it comes within [_preload] px of the
+/// bottom of the viewport. The grid sits in a non-lazy Column, so this
+/// widget is built as soon as a page lands; firing on build would chain-load
+/// every page up front. It also stays quiet while its tab is hidden
+/// (Visibility turns tickers off for hidden panes).
 class _LoadMoreSentinel extends StatefulWidget {
   final VoidCallback onVisible;
   const _LoadMoreSentinel({required this.onVisible, super.key});
@@ -210,12 +216,51 @@ class _LoadMoreSentinel extends StatefulWidget {
 }
 
 class _LoadMoreSentinelState extends State<_LoadMoreSentinel> {
+  static const _preload = 600.0;
+
+  ScrollPosition? _position;
+  bool _active = true;
+  bool _fired = false;
+
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) widget.onVisible();
-    });
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _active = TickerMode.valuesOf(context).enabled;
+    final position = Scrollable.maybeOf(context)?.position;
+    if (position != _position) {
+      _position?.removeListener(_check);
+      _position = position?..addListener(_check);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _check());
+  }
+
+  void _check() {
+    if (_fired || !_active || !mounted) return;
+    final box = context.findRenderObject();
+    final position = _position;
+    if (box is! RenderBox || !box.attached || !box.hasSize) return;
+    if (position == null) {
+      // Not in a scrollable: nothing to wait for.
+      _fire();
+      return;
+    }
+    final viewport = RenderAbstractViewport.maybeOf(box);
+    if (viewport == null) return;
+    // Scroll offset at which this widget's bottom meets the viewport's.
+    final reveal = viewport.getOffsetToReveal(box, 1).offset;
+    if (position.pixels + _preload >= reveal) _fire();
+  }
+
+  void _fire() {
+    _fired = true;
+    _position?.removeListener(_check);
+    widget.onVisible();
+  }
+
+  @override
+  void dispose() {
+    _position?.removeListener(_check);
+    super.dispose();
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -59,8 +60,13 @@ class SearchScreen extends HookConsumerWidget {
 
     final pills = <FilterPill>[
       FilterPill(
+        label: 'All',
+        selected: state.cuisine == null,
+        onTap: () => vm.setCuisine(null),
+      ),
+      FilterPill(
         label: 'Nearest',
-        icon: Icons.location_on_rounded,
+        icon: Icons.location_on_outlined,
         selected: state.nearest && position != null,
         onTap: () {
           if (position == null) {
@@ -70,15 +76,9 @@ class SearchScreen extends HookConsumerWidget {
           vm.setNearest(!state.nearest);
         },
       ),
-      FilterPill(
-        label: 'All',
-        selected: state.cuisine == null,
-        onTap: () => vm.setCuisine(null),
-      ),
       for (final c in cuisineOptions)
         FilterPill(
           label: c,
-          icon: cuisineIcons[c],
           selected: state.cuisine == c,
           onTap: () => vm.setCuisine(state.cuisine == c ? null : c),
         ),
@@ -154,50 +154,68 @@ class SearchScreen extends HookConsumerWidget {
       );
     }
 
-    return SafeArea(
-      bottom: false,
-      child: Column(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Black status-bar icons over the light backdrop (white in dark mode).
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      ),
+      child: Stack(
         children: [
-          // ---- Sticky header: search bar, filter chips, tabs
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-            child: SearchInputBar(
-              controller: inputCtr,
-              focusNode: focus,
-              isLoading: state.isLoading,
-              onChanged: vm.onQueryChanged,
-              onSubmitted: vm.submit,
-              onClear: () {
-                inputCtr.clear();
-                vm.onQueryChanged('');
-              },
-            ),
-          ),
-          FilterChipsRow(pills: pills),
-          const Gap(10),
-          if (state.hasSearched)
-            SearchTabs(
-              tabs: [
-                (label: 'All', count: null),
-                (label: 'Restaurants', count: state.restaurantsTotal),
-                (label: 'Videos', count: state.videosTotal),
-                (label: 'Users', count: state.usersTotal),
+          // The backdrop runs behind the glass nav bar; the content stops
+          // above it.
+          const Positioned.fill(child: SearchBackdrop()),
+          // No bottom inset here: the lists scroll behind the glass nav
+          // bar and pad their own content to clear it.
+          SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                // ---- Sticky header: search bar, filter chips, tabs
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: SearchInputBar(
+                    controller: inputCtr,
+                    focusNode: focus,
+                    isLoading: state.isLoading,
+                    onChanged: vm.onQueryChanged,
+                    onSubmitted: vm.submit,
+                    onClear: () {
+                      inputCtr.clear();
+                      vm.onQueryChanged('');
+                    },
+                  ),
+                ),
+                FilterChipsRow(pills: pills),
+
+                if (state.hasSearched)
+                  SearchTabs(
+                    tabs: [
+                      (label: 'All', count: null),
+                      (label: 'Restaurants', count: state.restaurantsTotal),
+                      (label: 'Videos', count: state.videosTotal),
+                      (label: 'Users', count: state.usersTotal),
+                    ],
+                    selected: tab.value,
+                    onChanged: (i) => tab.value = i,
+                  ),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    // The default builder keys each transition by its child's key,
+                    // so switching quickly (e.g. a filter tap: results -> loading ->
+                    // results) can put two same-keyed children — like two unkeyed
+                    // skeletons — in the switcher's Stack at once, which throws
+                    // "Duplicate keys found". Unkeyed here, AnimatedSwitcher falls
+                    // back to its own per-transition counter, always unique.
+                    transitionBuilder: (child, animation) =>
+                        FadeTransition(opacity: animation, child: child),
+                    child: body,
+                  ),
+                ),
               ],
-              selected: tab.value,
-              onChanged: (i) => tab.value = i,
-            ),
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              // The default builder keys each transition by its child's key,
-              // so switching quickly (e.g. a filter tap: results -> loading ->
-              // results) can put two same-keyed children — like two unkeyed
-              // skeletons — in the switcher's Stack at once, which throws
-              // "Duplicate keys found". Unkeyed here, AnimatedSwitcher falls
-              // back to its own per-transition counter, always unique.
-              transitionBuilder: (child, animation) =>
-                  FadeTransition(opacity: animation, child: child),
-              child: body,
             ),
           ),
         ],
@@ -231,7 +249,12 @@ class _AllTab extends StatelessWidget {
     final hasDistances = nearby.any((r) => r.distanceKm != null);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        18,
+        16,
+        16 + MediaQuery.paddingOf(context).bottom,
+      ),
       children: [
         if (nearby.isNotEmpty) ...[
           SearchSectionHeader(
@@ -244,7 +267,7 @@ class _AllTab extends StatelessWidget {
           ),
           for (final r in nearby)
             NearbyRestaurantCard(restaurant: r, onOpened: onOpened),
-          const Gap(12),
+          const Gap(14),
         ],
         if (recommended.isNotEmpty) ...[
           SearchSectionHeader(
@@ -269,7 +292,7 @@ class _AllTab extends StatelessWidget {
               ),
             ),
           ),
-          const Gap(24),
+          const Gap(14),
         ],
         if (state.videos.isNotEmpty) ...[
           SearchSectionHeader(
@@ -282,7 +305,7 @@ class _AllTab extends StatelessWidget {
             videos: state.videos.take(_allVideos).toList(),
             onOpened: onOpened,
           ),
-          const Gap(24),
+          const Gap(14),
         ],
         if (state.users.isNotEmpty) ...[
           SearchSectionHeader(
@@ -322,7 +345,12 @@ class _RestaurantsTab extends HookWidget {
     final total = state.restaurantsTotal;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        28 + MediaQuery.paddingOf(context).bottom,
+      ),
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 14),
@@ -385,7 +413,12 @@ class _VideosTab extends StatelessWidget {
       );
     }
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        28 + MediaQuery.paddingOf(context).bottom,
+      ),
       children: [VideoReviewGrid(videos: state.videos, onOpened: onOpened)],
     );
   }
@@ -413,7 +446,12 @@ class _UsersTab extends StatelessWidget {
       );
     }
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        28 + MediaQuery.paddingOf(context).bottom,
+      ),
       children: [
         ReviewerList(
           users: state.users,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 
@@ -64,14 +65,15 @@ class ProfileSegmentTab {
   }) : assert((icon == null) != (asset == null));
 }
 
-/// Segmented tab switcher with a gradient pill behind the selected segment,
-/// icon + label side by side, and an optional count badge per tab.
+/// Segmented tab switcher: a soft tonal track with a gradient pill that
+/// slides to the selected segment, icon + label side by side, and an
+/// optional count badge per tab.
 class ProfileSegmentTabs extends StatelessWidget {
   final List<ProfileSegmentTab> tabs;
   final int selected;
   final ValueChanged<int> onChanged;
 
-  /// Smaller and flat: shorter bar, smaller text, no glow on the selected tab.
+  /// Smaller and flat: shorter bar, smaller text, a lighter glow.
   final bool compact;
   const ProfileSegmentTabs({
     required this.tabs,
@@ -81,32 +83,74 @@ class ProfileSegmentTabs extends StatelessWidget {
     super.key,
   });
 
+  static const _slide = Duration(milliseconds: 320);
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final outer = compact ? 16.0 : 18.0;
+    final inset = compact ? 4.0 : 5.0;
+    final n = tabs.length;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      height: compact ? 42 : 54,
-      padding: EdgeInsets.all(compact ? 3 : 4),
+      height: compact ? 44 : 54,
+      padding: EdgeInsets.all(inset),
       decoration: BoxDecoration(
-        color: ProfileTheme.surface(context),
-        borderRadius: BorderRadius.circular(compact ? 14 : 18),
-        border: Border.all(color: ProfileTheme.hairlineColor(context)),
+        color: ProfileTheme.purple.withValues(alpha: isDark ? 0.14 : 0.07),
+        borderRadius: BorderRadius.circular(outer),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
         children: [
-          for (var i = 0; i < tabs.length; i++)
-            Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => onChanged(i),
-                child: _Segment(
-                  tab: tabs[i],
-                  selected: selected == i,
-                  compact: compact,
+          // The pill moves; the segments on top only change color.
+          AnimatedAlign(
+            duration: _slide,
+            curve: Curves.easeOutCubic,
+            alignment: Alignment(n == 1 ? 0 : -1 + 2 * selected / (n - 1), 0),
+            child: FractionallySizedBox(
+              widthFactor: 1 / n,
+              heightFactor: 1,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: ProfileTheme.pinkPurple,
+                  borderRadius: BorderRadius.circular(outer - inset),
+                  boxShadow: [
+                    BoxShadow(
+                      color: ProfileTheme.pink.withValues(
+                        alpha: compact ? 0.22 : 0.32,
+                      ),
+                      blurRadius: compact ? 10 : 14,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
               ),
             ),
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < n; i++)
+                Expanded(
+                  child: Semantics(
+                    button: true,
+                    selected: selected == i,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        if (i == selected) return;
+                        HapticFeedback.selectionClick();
+                        onChanged(i);
+                      },
+                      child: _Segment(
+                        tab: tabs[i],
+                        selected: selected == i,
+                        compact: compact,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -125,24 +169,14 @@ class _Segment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? Colors.white : ProfileTheme.textSecondary(context);
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
+    final target = selected
+        ? Colors.white
+        : ProfileTheme.textSecondary(context);
+    return TweenAnimationBuilder<Color?>(
+      tween: ColorTween(end: target),
+      duration: ProfileSegmentTabs._slide,
       curve: Curves.easeOut,
-      decoration: BoxDecoration(
-        gradient: selected ? ProfileTheme.pinkPurple : null,
-        borderRadius: BorderRadius.circular(compact ? 11 : 14),
-        boxShadow: selected && !compact
-            ? [
-                BoxShadow(
-                  color: ProfileTheme.pink.withValues(alpha: 0.35),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
-      ),
-      child: Row(
+      builder: (context, color, _) => Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (tab.asset != null)
@@ -161,8 +195,9 @@ class _Segment extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: compact ? 13 : 14,
+                fontSize: compact ? 13.5 : 14,
                 fontWeight: FontWeight.w700,
+                letterSpacing: -0.1,
                 color: color,
               ),
             ),
@@ -173,7 +208,7 @@ class _Segment extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
                 color: selected
-                    ? Colors.black.withValues(alpha: 0.2)
+                    ? Colors.white.withValues(alpha: 0.22)
                     : ProfileTheme.textSecondary(
                         context,
                       ).withValues(alpha: 0.15),

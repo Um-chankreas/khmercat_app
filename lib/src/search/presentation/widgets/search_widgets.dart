@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,11 +8,104 @@ import 'package:gap/gap.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
+import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
 
 // =============================================================================
 // Search bar + filter chips + tabs (the sticky header)
 // =============================================================================
+
+/// Deep pink used for links and accents on the search screen ("See all",
+/// focus).
+const searchAccent = Color(0xffB0125A);
+
+/// Pink → periwinkle wash behind the selected chip.
+const searchSoftGradient = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [Color(0xffF5B5DC), Color(0xffA9C1F5)],
+);
+
+/// Soft shadow under the white search bar, chips and cards.
+List<BoxShadow> searchShadow() => [
+  BoxShadow(
+    color: const Color(0xff5B3FA8).withValues(alpha: 0.07),
+    blurRadius: 14,
+    offset: const Offset(0, 4),
+  ),
+];
+
+/// The search tab's backdrop: a pale pink → lavender → blue wash with the
+/// logo's cat head faded into the top-right corner. Dark mode keeps the
+/// plain page color and only a faint cat.
+class SearchBackdrop extends StatelessWidget {
+  const SearchBackdrop({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final width = MediaQuery.sizeOf(context).width;
+    final cat = (width * 0.92).clamp(280.0, 480.0);
+    // Each is painted once; the boundary keeps it out of scroll repaints
+    // (and caches the blur).
+    Widget logo({required double opacity, double blur = 0}) {
+      final image = Image.asset(
+        AssetsName.appLogoTrsm,
+        opacity: AlwaysStoppedAnimation(opacity),
+        // Decoded at on-screen size, not the 1198px source.
+        cacheWidth: (cat * MediaQuery.devicePixelRatioOf(context)).round(),
+      );
+      return RepaintBoundary(
+        child: blur == 0
+            ? image
+            : ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                child: image,
+              ),
+      );
+    }
+
+    return IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: isDark
+              ? null
+              : const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  // Nearly white at the top so the header doesn't look
+                  // tinted; the color builds gently toward the bottom.
+                  colors: [
+                    Color(0xffFFF8FB),
+                    Color(0xffF9F5FD),
+                    Color(0xffECF0FE),
+                  ],
+                ),
+        ),
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            // Top-right and bottom-left, each hanging off its corner.
+            Positioned(
+              right: -cat * 0.16,
+              top: -cat * 0.04,
+              width: cat,
+              // Behind the search bar, chips and heading, so it's fainter
+              // and blurred to stay out of their way.
+              child: logo(opacity: isDark ? 0.05 : 0.09, blur: 1.5),
+            ),
+            Positioned(
+              left: -cat * 0.16,
+              bottom: -cat * 0.10,
+              width: cat,
+              child: logo(opacity: isDark ? 0.06 : 0.13),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class SearchInputBar extends StatelessWidget {
   final TextEditingController controller;
@@ -33,46 +128,31 @@ class SearchInputBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final focused = focusNode.hasFocus;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      height: 58,
+      height: 50,
       decoration: BoxDecoration(
+        // White field floating on the backdrop; the outline turns pink
+        // while typing.
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: focused
-              ? ProfileTheme.purple
-              : ProfileTheme.purple.withValues(alpha: 0.14),
-          width: focused ? 1.8 : 1.2,
+              ? searchAccent.withValues(alpha: 0.55)
+              : onSurface.withValues(alpha: 0.07),
+          width: 1.2,
         ),
-        boxShadow: focused
-            ? [
-                BoxShadow(
-                  color: ProfileTheme.purple.withValues(alpha: 0.16),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
-                ),
-              ]
-            : ProfileTheme.cardShadow(),
+        boxShadow: searchShadow(),
       ),
       child: Row(
         children: [
-          const Gap(8),
-          // Gradient badge behind the search icon.
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              gradient: ProfileTheme.gradient,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: const Icon(
-              Icons.search_rounded,
-              color: Colors.white,
-              size: 23,
-            ),
+          const Gap(16),
+          Icon(
+            Icons.search_rounded,
+            size: 22,
+            color: ProfileTheme.textPrimary(context),
           ),
-          const Gap(4),
           Expanded(
             child: TextField(
               controller: controller,
@@ -84,21 +164,22 @@ class SearchInputBar extends StatelessWidget {
               onTapOutside: (_) => focusNode.unfocus(),
               textInputAction: TextInputAction.search,
               style: const TextStyle(
-                fontSize: 16.5,
-                fontWeight: FontWeight.w600,
+                fontSize: 15.5,
+                fontWeight: FontWeight.w500,
               ),
               decoration: InputDecoration(
-                hintText: 'Search restaurants, dishes or people',
+                hintText: 'Search restaurants or dishes',
                 hintStyle: TextStyle(
-                  fontSize: 15.5,
-                  color: ProfileTheme.muted.withValues(alpha: 0.7),
-                  fontWeight: FontWeight.w500,
+                  fontSize: 15,
+                  color: ProfileTheme.textSecondary(context),
+                  fontWeight: FontWeight.w400,
                 ),
                 filled: false,
+                isDense: true,
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               ),
             ),
           ),
@@ -106,17 +187,21 @@ class SearchInputBar extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.only(right: 16),
               child: SizedBox(
-                width: 20,
-                height: 20,
+                width: 18,
+                height: 18,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2.4,
-                  color: ProfileTheme.purple,
+                  strokeWidth: 2.2,
+                  color: searchAccent,
                 ),
               ),
             )
           else if (controller.text.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.cancel_rounded, color: ProfileTheme.muted),
+              icon: Icon(
+                Icons.cancel_rounded,
+                size: 20,
+                color: ProfileTheme.textSecondary(context),
+              ),
               onPressed: onClear,
             )
           else
@@ -137,10 +222,12 @@ class FilterChipsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 42,
+      height: 36,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        // Room for the chips' soft shadows.
+        clipBehavior: Clip.none,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         itemCount: pills.length,
         separatorBuilder: (_, i) => pills[i].divider
             ? Padding(
@@ -191,6 +278,8 @@ class _PillState extends State<_Pill> {
   Widget build(BuildContext context) {
     final pill = widget.pill;
     final selected = pill.selected;
+    // The wash is light in both themes, so selected text is always dark.
+    final fg = selected ? ProfileTheme.ink : ProfileTheme.textPrimary(context);
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) => setState(() => _pressed = false),
@@ -204,43 +293,34 @@ class _PillState extends State<_Pill> {
         duration: const Duration(milliseconds: 110),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 15),
           decoration: BoxDecoration(
-            gradient: selected ? ProfileTheme.pinkPurple : null,
+            // Selected: gradient wash. Idle: white with a thin outline.
+            gradient: selected ? searchSoftGradient : null,
             color: selected ? null : Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(21),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(
               color: selected
                   ? Colors.transparent
-                  : ProfileTheme.purple.withValues(alpha: 0.2),
+                  : Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.09),
             ),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: ProfileTheme.purple.withValues(alpha: 0.24),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
+            boxShadow: selected ? null : searchShadow(),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (pill.icon != null) ...[
-                Icon(
-                  pill.icon,
-                  size: 17,
-                  color: selected ? Colors.white : ProfileTheme.deepPurple,
-                ),
+                Icon(pill.icon, size: 16, color: fg),
                 const Gap(6),
               ],
               Text(
                 pill.label,
                 style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                  color: selected ? Colors.white : ProfileTheme.deepPurple,
+                  fontSize: 13.5,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: fg,
                 ),
               ),
             ],
@@ -391,18 +471,13 @@ class _TabItem extends StatelessWidget {
 // Section chrome
 // =============================================================================
 
+/// Bold section heading with an optional pink text action ("See all").
 class SectionTitle extends StatelessWidget {
-  final IconData icon;
-  final Gradient gradient;
   final String title;
-  final String? subtitle;
   final String? actionText;
   final VoidCallback? onAction;
   const SectionTitle({
-    required this.icon,
-    required this.gradient,
     required this.title,
-    this.subtitle,
     this.actionText,
     this.onAction,
     super.key,
@@ -411,38 +486,17 @@ class SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            gradient: gradient,
-            borderRadius: BorderRadius.circular(11),
-          ),
-          child: Icon(icon, size: 18, color: Colors.white),
-        ),
-        const Gap(12),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
-                ),
-              ),
-              if (subtitle != null)
-                Text(
-                  subtitle!,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: ProfileTheme.muted,
-                  ),
-                ),
-            ],
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 16.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+              color: ProfileTheme.textPrimary(context),
+            ),
           ),
         ),
         if (actionText != null)
@@ -450,24 +504,14 @@ class SectionTitle extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             onTap: onAction,
             child: Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    actionText!,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: ProfileTheme.deepPurple,
-                    ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    size: 18,
-                    color: ProfileTheme.deepPurple,
-                  ),
-                ],
+              padding: const EdgeInsets.only(left: 12, top: 4, bottom: 4),
+              child: Text(
+                actionText!,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: searchAccent,
+                ),
               ),
             ),
           ),
@@ -503,7 +547,12 @@ class SearchMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(28, 24, 28, 40),
+        padding: EdgeInsets.fromLTRB(
+          28,
+          24,
+          28,
+          40 + MediaQuery.paddingOf(context).bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -833,9 +882,14 @@ class EnableLocationCard extends StatelessWidget {
 class NetImage extends StatelessWidget {
   final String? url;
   final IconData fallback;
+
+  /// Logical width it's shown at; the image is decoded at that size (times
+  /// the screen density) instead of full resolution.
+  final double? cacheWidth;
   const NetImage({
     required this.url,
     this.fallback = Icons.storefront_rounded,
+    this.cacheWidth,
     super.key,
   });
 
@@ -845,6 +899,9 @@ class NetImage extends StatelessWidget {
       return CachedNetworkImage(
         imageUrl: url!,
         fit: BoxFit.cover,
+        memCacheWidth: cacheWidth == null
+            ? null
+            : (cacheWidth! * MediaQuery.devicePixelRatioOf(context)).round(),
         placeholder: (_, _) => const _Placeholder(),
         errorWidget: (_, _, _) => _Placeholder(icon: fallback),
       );
@@ -880,6 +937,7 @@ class VideoResultTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final likes = video.likesCount;
     return GestureDetector(
       onTap: () {
         onOpened?.call();
@@ -889,78 +947,48 @@ class VideoResultTile extends StatelessWidget {
           extra: video,
         );
       },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: ProfileTheme.cardShadow(),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              NetImage(
-                url: video.thumbnailUrl,
-                fallback: Icons.play_circle_outline_rounded,
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: 44,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withValues(alpha: 0.55),
-                      ],
-                    ),
-                  ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            NetImage(
+              url: video.thumbnailUrl,
+              fallback: Icons.play_circle_outline_rounded,
+              cacheWidth: MediaQuery.sizeOf(context).width / 3,
+            ),
+            // "▶ 2 likes" pill, bottom-left.
+            Positioned(
+              left: 6,
+              bottom: 6,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(6, 3, 9, 3),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(100),
                 ),
-              ),
-              Positioned(
-                left: 8,
-                bottom: 6,
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(
-                      Icons.favorite_rounded,
-                      size: 13,
+                      Icons.play_arrow_rounded,
+                      size: 15,
                       color: Colors.white,
                     ),
-                    const Gap(4),
+                    const Gap(2),
                     Text(
-                      formatCount(video.likesCount),
+                      '${formatCount(likes)} like${likes == 1 ? '' : 's'}',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
               ),
-              Positioned(
-                right: 6,
-                top: 6,
-                child: Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.play_arrow_rounded,
-                    size: 15,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -976,12 +1004,14 @@ class VideoGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return GridView.builder(
       shrinkWrap: true,
+      // Explicit: an unset padding can add hidden extra space.
+      padding: EdgeInsets.zero,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 9 / 16,
+        crossAxisSpacing: 6,
+        mainAxisSpacing: 6,
+        childAspectRatio: 0.8,
       ),
       itemCount: videos.length,
       itemBuilder: (context, i) =>

@@ -85,32 +85,49 @@ class RestaurantInfoPanel extends StatelessWidget {
       required String? value,
       required String addText,
       IconData? icon,
+      String? iconAsset,
       String? asset,
       Color color = ProfileTheme.purple,
       Widget? trailing,
       IconData? actionIcon,
+      String? actionAsset,
       VoidCallback? onTap,
     }) {
       if (value == null && !editable) return null;
       return InfoRow(
         icon: icon,
+        iconAsset: iconAsset,
         asset: asset,
         color: color,
         label: label,
         value: value,
         trailing: trailing,
         actionIcon: actionIcon,
+        actionAsset: actionAsset,
         onTap: onTap,
         addText: addText,
         onAdd: onEdit,
       );
     }
 
-    /// Heading + group, or nothing when every row is empty.
+    /// Heading + group, or nothing when every row is empty. Each section
+    /// slides in a beat after the one above it.
+    var shownSections = 0;
     List<Widget> section(String title, List<Widget?> rows) {
       final shown = rows.whereType<Widget>().toList();
       if (shown.isEmpty) return const [];
-      return [InfoLabel(title), InfoGroup(children: shown)];
+      return [
+        _StaggerIn(
+          index: shownSections++,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              InfoLabel(title),
+              InfoGroup(children: shown),
+            ],
+          ),
+        ),
+      ];
     }
 
     final pages = r.menuPagesCount;
@@ -119,13 +136,13 @@ class RestaurantInfoPanel extends StatelessWidget {
         ...section('Menu', [
           if (pages > 0 || editable)
             InfoRow(
-              icon: Icons.menu_book_rounded,
+              iconAsset: AssetsName.lcMenu,
               color: ProfileTheme.deepPurple,
               label: 'Menu',
               value: pages == 0
                   ? null
                   : '$pages page${pages == 1 ? '' : 's'} · QR code',
-              actionIcon: Icons.qr_code_2_rounded,
+              actionAsset: AssetsName.lcQr,
               onTap: onOpenMenu,
               addText: 'Add your menu',
               onAdd: onOpenMenu,
@@ -133,13 +150,13 @@ class RestaurantInfoPanel extends StatelessWidget {
         ]),
       ...section('Details', [
         row(
-          icon: Icons.restaurant_menu_rounded,
+          iconAsset: AssetsName.lcCategory,
           label: 'Category',
           value: r.category?.name,
           addText: 'Add category',
         ),
         row(
-          icon: Icons.schedule_rounded,
+          iconAsset: AssetsName.lcClock,
           color: ProfileTheme.blue,
           label: 'Opening hours',
           value: opens != null && closes != null ? '$opens – $closes' : null,
@@ -147,7 +164,7 @@ class RestaurantInfoPanel extends StatelessWidget {
           addText: 'Add opening hours',
         ),
         row(
-          icon: Icons.delivery_dining_rounded,
+          iconAsset: AssetsName.lcService,
           color: ProfileTheme.pink,
           label: 'Service',
           value: r.serviceTypeLabel,
@@ -156,11 +173,11 @@ class RestaurantInfoPanel extends StatelessWidget {
       ]),
       ...section('Contact', [
         row(
-          icon: Icons.phone_rounded,
+          iconAsset: AssetsName.lcPhone,
           color: _green,
           label: 'Phone',
           value: phone,
-          actionIcon: Icons.call_rounded,
+          actionAsset: AssetsName.lcPhone,
           onTap: phone == null
               ? null
               : () => SocialLinks.open(
@@ -169,11 +186,11 @@ class RestaurantInfoPanel extends StatelessWidget {
           addText: 'Add phone number',
         ),
         row(
-          icon: Icons.location_on_rounded,
+          iconAsset: AssetsName.lcPin,
           color: _red,
           label: 'Address',
           value: address,
-          actionIcon: Icons.directions_rounded,
+          actionAsset: AssetsName.lcNavigate,
           onTap: mapQuery == null
               ? null
               : () => SocialLinks.open(
@@ -263,13 +280,13 @@ class InfoLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 10),
       child: Text(
         text.toUpperCase(),
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 11.5,
           fontWeight: FontWeight.w800,
-          letterSpacing: 0.8,
+          letterSpacing: 1.1,
           color: ProfileTheme.textSecondary(context),
         ),
       ),
@@ -277,8 +294,9 @@ class InfoLabel extends StatelessWidget {
   }
 }
 
-/// Flat rounded card: surface color, hairline border, no shadow, thin
-/// dividers between rows. 16px below it before the next heading.
+/// Soft rounded card: surface color, hairline border, a barely-there
+/// shadow, thin inset dividers between rows. 20px below it before the next
+/// heading.
 class InfoGroup extends StatelessWidget {
   final List<Widget> children;
   const InfoGroup({required this.children, super.key});
@@ -287,19 +305,32 @@ class InfoGroup extends StatelessWidget {
   Widget build(BuildContext context) {
     final line = ProfileTheme.hairlineColor(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 20),
       child: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(color: line),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xff3B1C7A).withValues(alpha: 0.04),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
             for (var i = 0; i < children.length; i++) ...[
               if (i > 0)
-                Divider(height: 1, thickness: 1, indent: 62, color: line),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  indent: 70,
+                  endIndent: 16,
+                  color: line,
+                ),
               children[i],
             ],
           ],
@@ -313,12 +344,18 @@ class InfoGroup extends StatelessWidget {
 /// an optional action icon. Unset values become a purple "Add …" link.
 class InfoRow extends StatelessWidget {
   final IconData? icon;
+
+  /// Tinted line icon (PNG, black glyph recolored with [color]).
+  final String? iconAsset;
+
+  /// Brand logo, drawn as-is.
   final String? asset;
   final Color color;
   final String label;
   final String? value;
   final Widget? trailing;
   final IconData? actionIcon;
+  final String? actionAsset;
   final VoidCallback? onTap;
 
   /// Shown (as a purple link to [onAdd]) when [value] is null. Read-only
@@ -333,10 +370,12 @@ class InfoRow extends StatelessWidget {
     this.onAdd,
     super.key,
     this.icon,
+    this.iconAsset,
     this.asset,
     this.color = ProfileTheme.purple,
     this.trailing,
     this.actionIcon,
+    this.actionAsset,
     this.onTap,
   });
 
@@ -349,36 +388,53 @@ class InfoRow extends StatelessWidget {
       splashColor: color.withValues(alpha: 0.10),
       highlightColor: color.withValues(alpha: 0.05),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+        padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 40,
+              height: 40,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: asset != null
                     ? muted.withValues(alpha: 0.08)
                     : color.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(13),
               ),
               child: asset != null
-                  ? Image.asset(asset!, width: 20, height: 20)
+                  ? Image.asset(
+                      asset!,
+                      width: 20,
+                      height: 20,
+                      cacheWidth: (20 * MediaQuery.devicePixelRatioOf(context))
+                          .round(),
+                    )
+                  : iconAsset != null
+                  ? Image.asset(iconAsset!, width: 19, height: 19, color: color)
                   : Icon(icon, size: 19, color: color),
             ),
-            const Gap(12),
+            const Gap(14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: TextStyle(fontSize: 12, color: muted)),
-                  const Gap(2),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: muted,
+                    ),
+                  ),
+                  const Gap(3),
                   Text(
                     value ?? addText,
-                    maxLines: 2,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 15,
+                      height: 1.35,
+                      letterSpacing: -0.1,
                       fontWeight: isSet ? FontWeight.w600 : FontWeight.w700,
                       color: isSet
                           ? ProfileTheme.textPrimary(context)
@@ -389,9 +445,28 @@ class InfoRow extends StatelessWidget {
               ),
             ),
             if (isSet && trailing != null) ...[const Gap(8), trailing!],
-            if (isSet && actionIcon != null && onTap != null) ...[
-              const Gap(8),
-              Icon(actionIcon, size: 18, color: muted),
+            if (isSet &&
+                (actionIcon != null || actionAsset != null) &&
+                onTap != null) ...[
+              const Gap(10),
+              // Reads as a button: what tapping the row does.
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.10),
+                  shape: BoxShape.circle,
+                ),
+                child: actionAsset != null
+                    ? Image.asset(
+                        actionAsset!,
+                        width: 16,
+                        height: 16,
+                        color: color,
+                      )
+                    : Icon(actionIcon, size: 16, color: color),
+              ),
             ],
             if (!isSet)
               const Icon(
@@ -452,19 +527,56 @@ class OpenStatusPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = open ? _green : _red;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(100),
       ),
-      child: Text(
-        [open ? 'Open now' : 'Closed', ?detail].join(' · '),
-        style: TextStyle(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w700,
-          color: color,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const Gap(6),
+          Text(
+            [open ? 'Open now' : 'Closed', ?detail].join(' · '),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Fade + short rise, delayed by [index] so sections cascade in.
+class _StaggerIn extends StatelessWidget {
+  final int index;
+  final Widget child;
+  const _StaggerIn({required this.index, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final delay = index * 60;
+    final total = 360 + delay;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: total),
+      curve: Interval(delay / total, 1, curve: Curves.easeOutCubic),
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, 12 * (1 - t)),
+          child: child,
         ),
       ),
+      child: child,
     );
   }
 }

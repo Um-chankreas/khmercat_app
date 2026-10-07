@@ -55,6 +55,13 @@ class VideoGridTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final thumb = thumbnailUrl;
+    // Decode at the tile's on-screen width (3 columns), not the source
+    // resolution — keeps memory and decode time down on long grids.
+    final cacheWidth =
+        (MediaQuery.sizeOf(context).width /
+                3 *
+                MediaQuery.devicePixelRatioOf(context))
+            .round();
     return _FadeIn(
       delayMs: fadeDelayMs,
       child: GestureDetector(
@@ -65,90 +72,79 @@ class VideoGridTile extends StatelessWidget {
                 HapticFeedback.mediumImpact();
                 onLongPress!();
               },
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(VideoGrid.radius),
-            boxShadow: ProfileTheme.cardShadow(),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(VideoGrid.radius),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (thumb != null)
-                  CachedNetworkImage(
-                    imageUrl: thumb,
-                    fit: BoxFit.cover,
-                    placeholder: (_, _) => const _ThumbPlaceholder(),
-                    errorWidget: (_, _, _) => const _ThumbPlaceholder(),
-                  )
-                else
-                  const _ThumbPlaceholder(),
-                if (trashed)
-                  ColoredBox(color: Colors.black.withValues(alpha: 0.45)),
-                // Bottom scrim so the counts stay readable.
-                const Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: 44,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Color(0x8C000000)],
-                      ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(VideoGrid.radius),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (thumb != null)
+                CachedNetworkImage(
+                  imageUrl: thumb,
+                  fit: BoxFit.cover,
+                  memCacheWidth: cacheWidth,
+                  fadeInDuration: const Duration(milliseconds: 200),
+                  placeholder: (_, _) => const _ThumbPlaceholder(),
+                  errorWidget: (_, _, _) =>
+                      const _ThumbPlaceholder(broken: true),
+                )
+              else
+                const _ThumbPlaceholder(broken: true),
+              if (trashed)
+                ColoredBox(color: Colors.black.withValues(alpha: 0.45)),
+              // Bottom scrim so the counts stay readable.
+              const Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 48,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Color(0x99000000)],
                     ),
                   ),
                 ),
+              ),
+              Positioned(
+                left: 8,
+                bottom: 6,
+                child: _Stat(
+                  icon: Icons.favorite_rounded,
+                  text: formatCount(likesCount),
+                ),
+              ),
+              if (rating != null)
                 Positioned(
-                  left: 8,
+                  right: 8,
                   bottom: 6,
                   child: _Stat(
-                    icon: Icons.favorite_rounded,
-                    text: formatCount(likesCount),
+                    icon: Icons.star_rounded,
+                    iconColor: const Color(0xffFFC83D),
+                    text: '$rating',
                   ),
                 ),
-                if (rating != null)
-                  Positioned(
-                    right: 8,
-                    bottom: 6,
-                    child: _Stat(
-                      icon: Icons.star_rounded,
-                      iconColor: const Color(0xffFFC83D),
-                      text: '$rating',
-                    ),
-                  ),
-                if (isFavorite && !trashed)
-                  const Positioned(
-                    top: 6,
-                    right: 6,
-                    child: Icon(
-                      Icons.favorite_rounded,
-                      size: 16,
-                      color: ProfileTheme.pink,
-                      shadows: [Shadow(color: Colors.black38, blurRadius: 6)],
-                    ),
-                  ),
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.45),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      trashed
-                          ? Icons.delete_outline_rounded
-                          : Icons.play_arrow_rounded,
-                      size: 20,
-                      color: Colors.white,
-                    ),
+              if (isFavorite && !trashed)
+                const Positioned(
+                  top: 6,
+                  right: 6,
+                  child: Icon(
+                    Icons.favorite_rounded,
+                    size: 16,
+                    color: ProfileTheme.pink,
+                    shadows: [Shadow(color: Colors.black38, blurRadius: 6)],
                   ),
                 ),
-              ],
-            ),
+              if (trashed)
+                const Center(
+                  child: Icon(
+                    Icons.delete_outline_rounded,
+                    size: 24,
+                    color: Colors.white,
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -288,13 +284,24 @@ class _Stat extends StatelessWidget {
   }
 }
 
+/// Soft tonal fill while a thumbnail loads; a muted video icon when there
+/// is none (or it failed).
 class _ThumbPlaceholder extends StatelessWidget {
-  const _ThumbPlaceholder();
+  final bool broken;
+  const _ThumbPlaceholder({this.broken = false});
 
   @override
   Widget build(BuildContext context) {
-    return const DecoratedBox(
-      decoration: BoxDecoration(gradient: ProfileTheme.coverFallback),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ColoredBox(
+      color: ProfileTheme.purple.withValues(alpha: isDark ? 0.18 : 0.10),
+      child: broken
+          ? Icon(
+              Icons.videocam_off_rounded,
+              size: 22,
+              color: ProfileTheme.purple.withValues(alpha: 0.5),
+            )
+          : null,
     );
   }
 }

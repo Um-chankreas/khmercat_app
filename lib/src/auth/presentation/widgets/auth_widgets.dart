@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,9 +13,9 @@ import 'package:khmer_cat_app/core/themes/app_colors.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import 'package:khmer_cat_app/core/utils/size_responsive.dart';
 
-// Shared look for the login and register screens: gradient backdrop, a
-// floating animated card with the giggling cat logo, rounded icon fields
-// and a gradient pill button.
+// Shared look for the login and register screens: gradient backdrop with a
+// large soft cat-head watermark, a frosted-glass animated card, rounded icon
+// fields and a gradient pill button.
 
 /// Brand pink → blue, same as the app's gradient buttons.
 const _buttonGradient = [Color(0xffFF54AB), Color(0xff74BFFF)];
@@ -28,20 +29,33 @@ Color authMuted(BuildContext context) =>
     ? Colors.white.withValues(alpha: 0.55)
     : AppColors.lightGrey.withValues(alpha: 0.6);
 
-/// The whole auth page: gradient background, back button, and a centered
-/// [AuthCard] holding the logo header, [title] / [subtitle] and [children].
+/// The whole auth page: gradient background with the cat watermark, back
+/// button, and a glass [AuthCard] holding the heading and [children].
 /// Tapping outside a field hides the keyboard; the page scrolls when the
 /// keyboard is open.
 class AuthScaffold extends StatelessWidget {
   final GlobalKey<FormState> formKey;
   final String title;
-  final String subtitle;
+  final String? subtitle;
+
+  /// Replaces the plain [title] text (e.g. a title with a gradient word).
+  final Widget? titleWidget;
+
+  /// Giggling logo, wordmark and tagline above the title.
+  final bool showBrand;
+
+  /// Where the card sits when the page is taller than it. Slightly below
+  /// center leaves the cat's face showing above the card.
+  final Alignment cardAlignment;
   final List<Widget> children;
   const AuthScaffold({
     required this.formKey,
     required this.title,
-    required this.subtitle,
     required this.children,
+    this.subtitle,
+    this.titleWidget,
+    this.showBrand = true,
+    this.cardAlignment = Alignment.center,
     super.key,
   });
 
@@ -66,6 +80,7 @@ class AuthScaffold extends StatelessWidget {
             child: SafeArea(
               child: Stack(
                 children: [
+                  const Positioned.fill(child: AuthCatBackdrop()),
                   LayoutBuilder(
                     builder: (context, constraints) => SingleChildScrollView(
                       physics: const ClampingScrollPhysics(),
@@ -78,40 +93,40 @@ class AuthScaffold extends StatelessWidget {
                           minHeight: (constraints.maxHeight - context.sc(144))
                               .clamp(0, double.infinity),
                         ),
-                        child: Center(
+                        child: Align(
+                          alignment: cardAlignment,
                           child: Form(
                             key: formKey,
                             child: AuthCard(
                               children: [
-                                const AuthLogo(),
-                                Gap(context.sc(12)),
-                                const AuthWordmark(),
-                                Gap(context.sc(4)),
-                                Text(
-                                  'FOOD & LIFESTYLE EXPRESS',
-                                  style: theme.textTheme.labelSmall!.copyWith(
-                                    color: muted,
-                                    letterSpacing: 1.6,
-                                    fontWeight: FontWeight.w600,
+                                if (showBrand) ...[
+                                  const AuthLogo(),
+                                  Gap(context.sc(12)),
+                                  const AuthWordmark(),
+                                  Gap(context.sc(4)),
+                                  Text(
+                                    'FOOD & LIFESTYLE EXPRESS',
+                                    style: theme.textTheme.labelSmall!.copyWith(
+                                      color: muted,
+                                      letterSpacing: 1.6,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                ),
-                                Gap(context.sc(24)),
-                                Text(
-                                  title,
-                                  style: theme.textTheme.headlineSmall!
-                                      .copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        color: theme.colorScheme.onSurface,
-                                      ),
-                                ),
-                                Gap(context.sc(4)),
-                                Text(
-                                  subtitle,
-                                  textAlign: TextAlign.center,
-                                  style: theme.textTheme.bodySmall!.copyWith(
-                                    color: muted,
+                                  Gap(context.sc(24)),
+                                ] else
+                                  Gap(context.sc(8)),
+                                titleWidget ??
+                                    Text(title, style: authTitleStyle(context)),
+                                if (subtitle != null) ...[
+                                  Gap(context.sc(4)),
+                                  Text(
+                                    subtitle!,
+                                    textAlign: TextAlign.center,
+                                    style: theme.textTheme.bodySmall!.copyWith(
+                                      color: muted,
+                                    ),
                                   ),
-                                ),
+                                ],
                                 Gap(context.sc(24)),
                                 ...children,
                               ],
@@ -131,6 +146,114 @@ class AuthScaffold extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Card heading style, shared with custom [AuthScaffold.titleWidget]s.
+TextStyle authTitleStyle(BuildContext context) {
+  final theme = Theme.of(context);
+  return theme.textTheme.headlineSmall!.copyWith(
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.4,
+    color: theme.colorScheme.onSurface,
+  );
+}
+
+/// "Welcome to khmercat" — the last word in the brand gradient. Shrinks to
+/// fit on narrow phones instead of wrapping.
+class AuthBrandTitle extends StatelessWidget {
+  final String lead;
+  final String brand;
+  const AuthBrandTitle({
+    this.lead = 'Welcome to',
+    this.brand = 'khmercat',
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final style = authTitleStyle(context);
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('$lead ', style: style),
+          GradientText(brand, style: style),
+        ],
+      ),
+    );
+  }
+}
+
+/// The app logo's cat head, big and soft, behind the card: anchored to the
+/// left edge (partly off-screen), fading in and bobbing slowly.
+class AuthCatBackdrop extends StatelessWidget {
+  const AuthCatBackdrop({super.key});
+
+  // Pixel size of assets/company/app_logo_small.png.
+  static const _logoAspect = 1198 / 952;
+  static const _logoOpacity = 0.10;
+  static const _logoBlur = 0.5;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: LayoutBuilder(
+        builder: (context, c) {
+          // Most of the screen's width, hanging a little off the left edge.
+          final width = math.min(c.maxWidth * 0.92, 480.0);
+          return Stack(
+            clipBehavior: Clip.hardEdge,
+            children: [
+              Positioned(
+                left: -width * 0.16,
+                top: c.maxHeight * 0.09,
+                width: width,
+                height: width / _logoAspect,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 900),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, t, child) => Opacity(
+                    opacity: t,
+                    child: Transform.scale(
+                      scale: 0.94 + 0.06 * t,
+                      child: child,
+                    ),
+                  ),
+                  child: _Float(
+                    distance: 7,
+                    duration: const Duration(milliseconds: 3600),
+                    // The real logo (head only, transparent), faded and
+                    // slightly blurred so it sits behind the card as a soft
+                    // watermark. The boundary caches the blurred result, so
+                    // the bob doesn't re-run the filter.
+                    child: RepaintBoundary(
+                      child: ImageFiltered(
+                        imageFilter: ImageFilter.blur(
+                          sigmaX: _logoBlur,
+                          sigmaY: _logoBlur,
+                        ),
+                        child: Image.asset(
+                          AssetsName.appLogoTrsm,
+                          fit: BoxFit.contain,
+                          opacity: const AlwaysStoppedAnimation(_logoOpacity),
+                          // Decoded at on-screen size, not the 1198px source.
+                          cacheWidth:
+                              (width * MediaQuery.devicePixelRatioOf(context))
+                                  .round(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -202,9 +325,7 @@ InputDecoration authFieldDecoration(
   Widget? suffix,
 }) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  final idle = isDark
-      ? Colors.white.withValues(alpha: 0.10)
-      : AppColors.lightGrey.withValues(alpha: 0.10);
+  final idle = Colors.white.withValues(alpha: isDark ? 0.12 : 0.75);
   OutlineInputBorder border(Color color, [double width = 1]) =>
       OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
@@ -215,9 +336,8 @@ InputDecoration authFieldDecoration(
     hintText: hint,
     errorText: errorText,
     filled: true,
-    fillColor: isDark
-        ? Colors.white.withValues(alpha: 0.05)
-        : AppColors.lightBackground,
+    // Translucent so the fields sit in the glass card, not on top of it.
+    fillColor: Colors.white.withValues(alpha: isDark ? 0.07 : 0.55),
     contentPadding: const EdgeInsets.symmetric(vertical: 16),
     prefixIcon: Icon(icon, size: 20, color: authAccentPink),
     suffixIcon: suffix,
@@ -229,8 +349,9 @@ InputDecoration authFieldDecoration(
   );
 }
 
-/// Entrance animation: the card fades in and rises, then its contents
-/// follow one after another, each fading in and sliding up a little.
+/// Frosted-glass card. Entrance animation: the glass frosts over as the
+/// card rises, then its contents follow one after another, each fading in
+/// and sliding up a little.
 class AuthCard extends HookWidget {
   final List<Widget> children;
   const AuthCard({required this.children, super.key});
@@ -283,44 +404,78 @@ class AuthCard extends HookWidget {
       );
     }
 
-    return FadeTransition(
-      opacity: card,
-      child: SlideTransition(
-        position: Tween(
-          begin: const Offset(0, 0.08),
-          end: Offset.zero,
-        ).animate(card),
-        child: ScaleTransition(
-          scale: Tween(begin: 0.96, end: 1.0).animate(card),
-          child: _cardBody(context, [
-            for (var i = 0; i < children.length; i++) stagger(i, children[i]),
-          ]),
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < children.length; i++) stagger(i, children[i]),
+      ],
+    );
+
+    return SlideTransition(
+      position: Tween(
+        begin: const Offset(0, 0.08),
+        end: Offset.zero,
+      ).animate(card),
+      child: ScaleTransition(
+        scale: Tween(begin: 0.96, end: 1.0).animate(card),
+        // The glass itself fades by animating its blur and tint, not with
+        // an opacity layer: a BackdropFilter under partial opacity can't
+        // see the page behind it, so the frost would pop in at the end.
+        child: AnimatedBuilder(
+          animation: card,
+          builder: (context, child) => _glass(context, card.value, child!),
+          child: content,
         ),
       ),
     );
   }
 
-  Widget _cardBody(BuildContext context, List<Widget> children) {
-    return Container(
+  Widget _glass(BuildContext context, double t, Widget child) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const radius = BorderRadius.all(Radius.circular(30));
+    return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 420),
-      padding: EdgeInsets.fromLTRB(
-        context.sc(22),
-        context.sc(24),
-        context.sc(22),
-        context.sc(24),
-      ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 30,
-            offset: const Offset(0, 14),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18 * t, sigmaY: 18 * t),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              // Dark mode keeps a dark pane so the light text stays
+              // readable over the pastel background.
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDark
+                    ? [
+                        Colors.black.withValues(alpha: 0.50 * t),
+                        Colors.black.withValues(alpha: 0.38 * t),
+                      ]
+                    : [
+                        Colors.white.withValues(alpha: 0.50 * t),
+                        Colors.white.withValues(alpha: 0.28 * t),
+                      ],
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(
+                  alpha: (isDark ? 0.16 : 0.70) * t,
+                ),
+                width: 1.2,
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                context.sc(22),
+                context.sc(24),
+                context.sc(22),
+                context.sc(24),
+              ),
+              child: child,
+            ),
           ),
-        ],
+        ),
       ),
-      child: Column(mainAxisSize: MainAxisSize.min, children: children),
     );
   }
 }
@@ -510,13 +665,17 @@ class _SmilingCat extends StatelessWidget {
 /// Slow up-and-down bob, looping forever.
 class _Float extends HookWidget {
   final Widget child;
-  const _Float({required this.child});
+  final double distance;
+  final Duration duration;
+  const _Float({
+    required this.child,
+    this.distance = 4,
+    this.duration = const Duration(milliseconds: 2400),
+  });
 
   @override
   Widget build(BuildContext context) {
-    final ctrl = useAnimationController(
-      duration: const Duration(milliseconds: 2400),
-    );
+    final ctrl = useAnimationController(duration: duration);
     useEffect(() {
       ctrl.repeat(reverse: true);
       return null;
@@ -526,7 +685,7 @@ class _Float extends HookWidget {
       [ctrl],
     );
     final dy = useAnimation(curve);
-    return Transform.translate(offset: Offset(0, -4 * dy), child: child);
+    return Transform.translate(offset: Offset(0, -distance * dy), child: child);
   }
 }
 
