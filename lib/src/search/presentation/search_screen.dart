@@ -5,6 +5,8 @@ import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:khmer_cat_app/core/components/dialogs/sign_in_prompt.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
+import 'package:khmer_cat_app/core/go_router/app_route.dart';
+import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/core/location/location_provider.dart';
 import 'package:khmer_cat_app/src/auth/presentation/viewmodel/auth_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/cuisine_category_selector.dart';
@@ -176,16 +178,30 @@ class SearchScreen extends HookConsumerWidget {
                 // ---- Sticky header: search bar, filter chips, tabs
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: SearchInputBar(
-                    controller: inputCtr,
-                    focusNode: focus,
-                    isLoading: state.isLoading,
-                    onChanged: vm.onQueryChanged,
-                    onSubmitted: vm.submit,
-                    onClear: () {
-                      inputCtr.clear();
-                      vm.onQueryChanged('');
-                    },
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: SearchInputBar(
+                          controller: inputCtr,
+                          focusNode: focus,
+                          isLoading: state.isLoading,
+                          onChanged: vm.onQueryChanged,
+                          onSubmitted: vm.submit,
+                          onClear: () {
+                            inputCtr.clear();
+                            vm.onQueryChanged('');
+                          },
+                        ),
+                      ),
+                      const Gap(10),
+                      SearchActionButton(
+                        icon: Icons.map_outlined,
+                        tooltip: 'Map',
+                        onTap: () => AppRouter.router.pushNamed(
+                          AppRoute.restaurantMap.name,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 FilterChipsRow(pills: pills),

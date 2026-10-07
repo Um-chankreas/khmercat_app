@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
-import 'package:khmer_cat_app/core/components/image_network/image_user_circle_profile.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import 'package:khmer_cat_app/l10n/app_localizations.dart';
 
@@ -12,32 +11,30 @@ import 'nav_item.dart';
 
 /// How much room a page under an `extendBody` Scaffold should leave at the
 /// bottom so its content ends at the top of the bar's flat part (the center
-/// bump may overlap it). 0 when there is no bar.
+/// dome may overlap it). 0 when there is no bar.
 double navBarInset(BuildContext context) => math.max(
   0,
   MediaQuery.paddingOf(context).bottom - AppBottomNavBar.bumpHeight,
 );
 
-/// Floating frosted-glass bar with a raised bump in the middle for the cat
+/// Floating frosted-glass bar with a round dome in the middle over the cat
 /// "create" button. The bar itself has no outline; only the icons are
 /// glowing pink → blue lines, and there are no labels.
 ///
 /// The page is meant to show through it, so the Scaffold using it should
 /// set `extendBody: true`. Pages that shouldn't run under the bar can pad
-/// their bottom by the body's bottom inset minus [bumpHeight].
+/// their bottom by [navBarInset].
 class AppBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
   final VoidCallback onCreateTap;
-  final String? avatarUrl;
 
-  /// The user is acting as a restaurant: the avatar gets a small storefront
-  /// badge (or, with no photo, becomes a storefront icon) so the current
-  /// profile is always visible.
-  final bool avatarIsRestaurant;
+  /// The user is acting as a restaurant: the profile tab shows the shop
+  /// icon instead of the user icon.
+  final bool actingAsRestaurant;
 
-  /// The page behind is dark media (the video feed): use a faint light
-  /// frost instead of the theme's surface tint.
+  /// The page behind is media (the video feed): use a faint light frost
+  /// instead of the near-opaque grey used over flat pages.
   final bool overMedia;
 
   /// A background video upload is compressing/uploading.
@@ -58,8 +55,7 @@ class AppBottomNavBar extends StatelessWidget {
     required this.currentIndex,
     required this.onTap,
     required this.onCreateTap,
-    this.avatarUrl,
-    this.avatarIsRestaurant = false,
+    this.actingAsRestaurant = false,
     this.overMedia = false,
     this.uploadBusy = false,
     this.uploadProgress,
@@ -71,30 +67,29 @@ class AppBottomNavBar extends StatelessWidget {
   /// Height of the flat part of the bar.
   static const double barHeight = 50;
 
-  /// How far the center bump rises above the flat part.
-  static const double bumpHeight = 8;
+  /// How far the center dome rises above the flat part.
+  static const double bumpHeight = 12;
 
   static const double _sideMargin = 10;
   static const double _bottomMargin = 8;
   static const double _centerWidth = 76;
+  static const double _catBottomPadding = 8;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
     const clipper = _BarClipper();
 
-    // The same smoky grey pane on every tab. Over the dark feed a light
-    // frost is enough; over a light page the same frost would come out
-    // near-white, so there it is a darker, denser grey that lands on the
-    // color the bar has over video. The pane is always dark, so the icons
-    // always use the bright neon colors.
-    final lightPage = !overMedia && !isDark;
-    final tint = lightPage
-        ? const Color(0xff58534F).withValues(alpha: 0.84)
-        : const Color(0xffA39A92).withValues(alpha: 0.40);
+    // The same warm grey pane on every tab. Over the feed a light frost
+    // lets the video through and lands on that grey by itself. The other
+    // tabs have a flat white or near-black page behind the bar, where the
+    // same frost would come out near-white or near-black, so there the
+    // pane is that grey itself, nearly opaque. The pane is never light, so
+    // the icons always use the bright neon colors.
+    final tint = overMedia
+        ? const Color(0xffA39A92).withValues(alpha: 0.10)
+        : const Color(0xff8F867A).withValues(alpha: 0.20);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -143,16 +138,20 @@ class AppBottomNavBar extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Uses the full height, bump included.
+                // Uses the full height, dome included; the padding lifts
+                // the cat a little so its head sits up in the dome.
                 SizedBox(
                   width: _centerWidth,
-                  child: CatCreateButton(
-                    label: 'Create',
-                    onTap: onCreateTap,
-                    busy: uploadBusy,
-                    progress: uploadProgress,
-                    error: uploadError,
-                    success: uploadSuccess,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: _catBottomPadding),
+                    child: CatCreateButton(
+                      label: 'Create',
+                      onTap: onCreateTap,
+                      busy: uploadBusy,
+                      progress: uploadProgress,
+                      error: uploadError,
+                      success: uploadSuccess,
+                    ),
                   ),
                 ),
                 Expanded(
@@ -167,15 +166,13 @@ class AppBottomNavBar extends StatelessWidget {
                 ),
                 Expanded(
                   child: _Flat(
-                    child: NavSlot(
+                    child: NavItem(
+                      imagePath: actingAsRestaurant
+                          ? AssetsName.shop
+                          : AssetsName.user,
                       label: l.navProfile,
                       isActive: currentIndex == 3,
                       onTap: () => onTap(3),
-                      child: _ProfileIcon(
-                        avatarUrl: avatarUrl,
-                        isRestaurant: avatarIsRestaurant,
-                        isActive: currentIndex == 3,
-                      ),
                     ),
                   ),
                 ),
@@ -188,7 +185,7 @@ class AppBottomNavBar extends StatelessWidget {
   }
 }
 
-/// Keeps a side item inside the flat part of the bar (below the bump line).
+/// Keeps a side item inside the flat part of the bar (below the dome).
 class _Flat extends StatelessWidget {
   final Widget child;
   const _Flat({required this.child});
@@ -200,104 +197,19 @@ class _Flat extends StatelessWidget {
   );
 }
 
-/// The profile tab: the photo in a glowing gradient ring (with a storefront
-/// badge when acting as a restaurant). With no photo, a glowing storefront
-/// or person line icon instead.
-class _ProfileIcon extends StatelessWidget {
-  final String? avatarUrl;
-  final bool isRestaurant;
-  final bool isActive;
-  const _ProfileIcon({
-    required this.avatarUrl,
-    required this.isRestaurant,
-    required this.isActive,
-  });
-
-  static const double _size = 24;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasPhoto = avatarUrl != null && avatarUrl!.trim().isNotEmpty;
-    final Widget icon;
-    if (!hasPhoto) {
-      icon = NavGlow(
-        strength: isActive ? 1 : 0.65,
-        child: Icon(
-          isRestaurant
-              ? Icons.storefront_outlined
-              : Icons.person_outline_rounded,
-          size: NavItem.iconSize + 2,
-          color: Colors.white,
-        ),
-      );
-    } else {
-      icon = Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(1.8),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: navGlowGradient,
-              boxShadow: [
-                BoxShadow(
-                  color: navGlowColors.first.withValues(
-                    alpha: isActive ? 0.75 : 0.35,
-                  ),
-                  blurRadius: 8,
-                ),
-              ],
-            ),
-            child: ImageUserCircleProfile(imageUrl: avatarUrl, size: _size),
-          ),
-          if (isRestaurant)
-            Positioned(
-              right: -4,
-              bottom: -3,
-              child: Container(
-                padding: const EdgeInsets.all(2.5),
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: navGlowGradient,
-                ),
-                child: const Icon(
-                  Icons.storefront_rounded,
-                  size: 9,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-        ],
-      );
-    }
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 300),
-      child: KeyedSubtree(
-        key: ValueKey('$avatarUrl|$isRestaurant'),
-        child: icon,
-      ),
-    );
-  }
-}
-
 /// The bar's silhouette: a rounded rectangle whose top edge rises into a
-/// flat-topped bump in the middle, with smooth shoulders.
+/// round dome in the middle, over the cat button.
 Path _barPath(Size size) {
   const r = 22.0;
   const bump = AppBottomNavBar.bumpHeight;
-  const shoulder = 20.0;
-  // Flat top of the bump; narrower on very small phones.
-  final top = math.min(60.0, size.width * 0.26);
   final w = size.width, h = size.height, cx = w / 2;
-  final l0 = cx - top / 2 - shoulder, l1 = cx - top / 2;
-  final r0 = cx + top / 2, r1 = cx + top / 2 + shoulder;
 
   return Path()
     ..moveTo(r, bump)
-    ..lineTo(l0, bump)
-    ..cubicTo(l0 + shoulder * 0.55, bump, l1 - shoulder * 0.55, 0, l1, 0)
-    ..lineTo(r0, 0)
-    ..cubicTo(r0 + shoulder * 0.55, 0, r1 - shoulder * 0.55, bump, r1, bump)
+    ..lineTo(cx - 40, bump)
+    // One round dome over the cat button, eased into the flat edge.
+    ..cubicTo(cx - 27, bump, cx - 23, 0, cx, 0)
+    ..cubicTo(cx + 23, 0, cx + 27, bump, cx + 40, bump)
     ..lineTo(w - r, bump)
     ..arcToPoint(Offset(w, bump + r), radius: const Radius.circular(r))
     ..lineTo(w, h - r)

@@ -9,7 +9,10 @@ class AssetsName {
   static final String mail = "${iconsPath}mail.png";
   static final String back = "${iconsPath}left-arrow.png";
   static final navHome = '${iconsPath}home.png';
+  static final navHome01 = '${iconsPath}home01.png';
   static final navSearch = '${iconsPath}search.png';
+  static final user = '${iconsPath}user.png';
+  static final shop = '${iconsPath}shop.png';
   static final navNotification = '${iconsPath}notification.png';
   static final navAdd = '${iconsPath}plus.png';
   static const info = 'assets/messages/info.png';

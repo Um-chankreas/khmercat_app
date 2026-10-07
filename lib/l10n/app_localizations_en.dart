@@ -284,4 +284,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get navProfile => 'Profile';
+
+  @override
+  String get yourAccount => 'Your account';
+
+  @override
+  String get seeAll => 'See all';
+
+  @override
+  String get showLess => 'Show less';
+
+  @override
+  String get addressSection => 'Address';
+
+  @override
+  String get savedAddresses => 'Saved addresses';
+
+  @override
+  String reviewsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count reviews',
+      one: '1 review',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get restaurantHidden => 'Hidden';
 }

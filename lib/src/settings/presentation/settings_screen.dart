@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -7,12 +6,14 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:khmer_cat_app/core/components/dialogs/app_dialog.dart';
 import 'package:khmer_cat_app/core/components/image_network/image_user_circle_profile.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
+import 'package:khmer_cat_app/core/components/rating/rating_badge.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/core/settings/app_settings_controller.dart';
+import 'package:khmer_cat_app/core/themes/app_colors.dart';
+import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import 'package:khmer_cat_app/l10n/app_localizations.dart';
-import 'package:khmer_cat_app/src/auth/domain/entities/user.dart';
 import 'package:khmer_cat_app/src/auth/presentation/viewmodel/auth_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/my_restaurants_controller.dart';
@@ -20,9 +21,14 @@ import 'package:khmer_cat_app/src/restaurants/presentation/widgets/switch_passwo
 import 'package:khmer_cat_app/src/settings/presentation/widgets/account_action_sheet.dart';
 
 const _danger = Color(0xffE5484D);
+const _accent = Color(0xffB0125A);
 
-/// The "Menu" / settings screen reached from the profile header. Holds the
-/// owner's pages (restaurants), the language picker and the theme switch.
+// Restaurants listed before "See all".
+const _restaurantsShown = 5;
+
+/// The "Menu" / settings screen reached from the profile header: the
+/// profile in use, the personal account and the owner's restaurants to
+/// switch between, then address, preferences, terms and account rows.
 class SettingsScreen extends HookConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -73,259 +79,314 @@ class SettingsScreen extends HookConsumerWidget {
         themeMode == ThemeMode.dark ||
         (themeMode == ThemeMode.system &&
             MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+    // "See all" on the restaurants card.
+    final showAll = useState(false);
+    final followers =
+        '${_compact(activeRestaurant?.followersCount ?? 0)} ${l.statFollowers.toLowerCase()}';
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          l.menuTitle,
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 17,
-            letterSpacing: -0.3,
-          ),
-        ),
-        centerTitle: true,
-        surfaceTintColor: Colors.transparent,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      body: Stack(
         children: [
-          // ---- Current profile ----------------------------------------
-          const Gap(4),
-          _CurrentProfileHeader(
-            label: l.currentlyViewing,
-            name: activeRestaurant?.name ?? user?.name ?? '',
-            imageUrl: activeRestaurant?.profilePicture ?? user?.profilePicture,
-            isRestaurant: activeRestaurant != null,
-            typeLabel: activeRestaurant != null
-                ? l.profileTypeRestaurant
-                : l.profileTypePersonal,
-          ),
-          const Gap(20),
-
-          // ---- Switch account -----------------------------------------
-          Builder(
-            builder: (context) {
-              final restaurants =
-                  myRestaurants.valueOrNull?.restaurants ??
-                  const <Restaurant>[];
-              final muted = ProfileTheme.textSecondary(context);
-              return Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      l.switchAccount.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
-                        color: muted,
-                      ),
-                    ),
-                  ),
-                  if (!myRestaurants.isLoading)
-                    Text(
-                      l.profilesCount(1 + restaurants.length),
-                      style: TextStyle(fontSize: 12.5, color: muted),
-                    ),
-                ],
-              );
-            },
-          ),
-          const Gap(10),
-          myRestaurants.when(
-            loading: () => const SizedBox(
-              height: _ProfileCarousel.height,
-              child: Center(
-                child: CircularProgressIndicator(color: ProfileTheme.purple),
-              ),
-            ),
-            error: (_, _) => _ProfileCarousel(
-              cards: [
-                _personalCard(
-                  context,
-                  l,
-                  user,
-                  activeRestaurant,
-                  switching.value,
-                  switchTo,
-                ),
-              ],
-            ),
-            data: (data) => Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          const Positioned.fill(child: _MenuBackdrop()),
+          SafeArea(
+            bottom: false,
+            child: Column(
               children: [
-                _ProfileCarousel(
-                  cards: [
-                    _personalCard(
-                      context,
-                      l,
-                      user,
-                      activeRestaurant,
-                      switching.value,
-                      switchTo,
+                _MenuBar(title: l.menuTitle),
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.fromLTRB(
+                      12,
+                      4,
+                      12,
+                      MediaQuery.paddingOf(context).bottom + 20,
                     ),
-                    for (final r in data.restaurants)
-                      _ProfileSwitchCard(
-                        name: r.name,
-                        imageUrl: r.profilePicture,
-                        coverUrl: r.coverPicture,
-                        isRestaurant: true,
-                        typeLabel: l.profileTypeRestaurant,
-                        detail: r.isPublished
-                            ? '${_compact(r.followersCount ?? 0)} ${l.statFollowers}'
-                            : 'Hidden · ${_compact(r.followersCount ?? 0)} ${l.statFollowers}',
-                        isActive: r.id == activeRestaurant?.id,
-                        isSwitching: switching.value == r.id,
-                        activeLabel: l.profileStatusActive,
-                        inactiveLabel: l.profileStatusInactive,
-                        onTap: () => switchTo(r, r.name),
+                    children: [
+                      // ---- Current profile ----------------------------
+                      _CurrentProfileHeader(
+                        label: l.currentlyViewing,
+                        name: activeRestaurant?.name ?? user?.name ?? '',
+                        imageUrl:
+                            activeRestaurant?.profilePicture ??
+                            user?.profilePicture,
+                        isRestaurant: activeRestaurant != null,
+                        detail: activeRestaurant != null
+                            ? '${l.profileTypeRestaurant} · $followers'
+                            : [
+                                l.profileTypePersonal,
+                                if (user != null) '@${user.username}',
+                              ].join(' · '),
                       ),
-                  ],
-                ),
-                if (data.restaurants.isEmpty) ...[
-                  const Gap(10),
-                  Text(
-                    l.noRestaurantsYet,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: ProfileTheme.textSecondary(context),
-                    ),
+                      const Gap(16),
+
+                      // ---- Your account --------------------------------
+                      _MenuCard(
+                        title: l.yourAccount,
+                        children: [
+                          _MenuRow(
+                            leading: _ProfileAvatar(
+                              imageUrl: user?.profilePicture,
+                              name: user?.name ?? '',
+                              isRestaurant: false,
+                              size: _MenuRow.leadingSize,
+                            ),
+                            title: user?.name ?? '',
+                            subtitle: Text(
+                              [
+                                l.profileTypePersonal,
+                                if (user != null) '@${user.username}',
+                              ].join(' · '),
+                            ),
+                            trailing: activeRestaurant == null
+                                ? _ActivePill(label: l.profileStatusActive)
+                                : const SizedBox.shrink(),
+                            onTap: () => switchTo(null, user?.name ?? ''),
+                          ),
+                        ],
+                      ),
+                      const Gap(12),
+
+                      // ---- Your restaurants ----------------------------
+                      Builder(
+                        builder: (context) {
+                          final all =
+                              myRestaurants.valueOrNull?.restaurants ??
+                              const <Restaurant>[];
+                          final shown = showAll.value
+                              ? all
+                              : all.take(_restaurantsShown).toList();
+                          return _MenuCard(
+                            title: l.yourRestaurants,
+                            action: all.length > _restaurantsShown
+                                ? (
+                                    showAll.value ? l.showLess : l.seeAll,
+                                    () => showAll.value = !showAll.value,
+                                  )
+                                : null,
+                            children: [
+                              if (myRestaurants.isLoading && all.isEmpty)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 22),
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.4,
+                                        color: ProfileTheme.purple,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              else if (all.isEmpty && !myRestaurants.hasError)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    10,
+                                    16,
+                                    14,
+                                  ),
+                                  child: Text(
+                                    l.noRestaurantsYet,
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      color: ProfileTheme.textSecondary(
+                                        context,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              for (final r in shown)
+                                _MenuRow(
+                                  leading: _ProfileAvatar(
+                                    imageUrl: r.profilePicture,
+                                    name: r.name,
+                                    isRestaurant: true,
+                                    size: _MenuRow.leadingSize,
+                                  ),
+                                  title: r.name,
+                                  subtitle: _RestaurantMeta(
+                                    restaurant: r,
+                                    hiddenLabel: l.restaurantHidden,
+                                    reviews: l.reviewsCount(r.reviewsCount),
+                                    followers:
+                                        '${_compact(r.followersCount ?? 0)} ${l.statFollowers.toLowerCase()}',
+                                  ),
+                                  trailing: switching.value == r.id
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.2,
+                                            color: ProfileTheme.purple,
+                                          ),
+                                        )
+                                      : r.id == activeRestaurant?.id
+                                      ? _ActivePill(
+                                          label: l.profileStatusActive,
+                                        )
+                                      : const SizedBox.shrink(),
+                                  onTap: () => switchTo(r, r.name),
+                                ),
+                              _MenuRow(
+                                leading: Container(
+                                  width: _MenuRow.leadingSize,
+                                  height: _MenuRow.leadingSize,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: AppColors.backgroundGradientLR,
+                                  ),
+                                  child: const Icon(
+                                    Icons.add_rounded,
+                                    size: 22,
+                                    color: ProfileTheme.ink,
+                                  ),
+                                ),
+                                title: l.createRestaurant,
+                                trailing: const SizedBox.shrink(),
+                                onTap: () => AppRouter.router.pushNamed(
+                                  AppRoute.createRestaurant.name,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                      const Gap(12),
+
+                      // ---- Address -------------------------------------
+                      _MenuCard(
+                        title: l.addressSection,
+                        children: [
+                          _MenuRow.icon(
+                            icon: Icons.place_outlined,
+                            title: l.savedAddresses,
+                            // TODO: open the saved addresses screen once
+                            // that feature exists.
+                            onTap: () => AppService.showToast(l.comingSoon),
+                          ),
+                        ],
+                      ),
+                      const Gap(12),
+
+                      // ---- Preferences ---------------------------------
+                      _MenuCard(
+                        title: l.preferences,
+                        children: [
+                          _MenuRow.icon(
+                            icon: Icons.language_rounded,
+                            title: l.language,
+                            subtitle: _localeLabel(l, locale),
+                            onTap: () => _pickLanguage(context, ref, l, locale),
+                          ),
+                          _MenuRow.icon(
+                            icon: isDark
+                                ? Icons.dark_mode_outlined
+                                : Icons.light_mode_outlined,
+                            title: l.darkMode,
+                            subtitle: _themeLabel(l, themeMode),
+                            trailing: Switch(
+                              value: isDark,
+                              activeThumbColor: Colors.white,
+                              activeTrackColor: ProfileTheme.purple,
+                              onChanged: (v) => ref
+                                  .read(themeModeControllerProvider.notifier)
+                                  .set(v ? ThemeMode.dark : ThemeMode.light),
+                            ),
+                            onTap: () => ref
+                                .read(themeModeControllerProvider.notifier)
+                                .set(isDark ? ThemeMode.light : ThemeMode.dark),
+                          ),
+                        ],
+                      ),
+                      const Gap(12),
+
+                      // ---- Terms of Policy -----------------------------
+                      _MenuCard(
+                        title: l.termsOfPolicy,
+                        children: [
+                          _MenuRow.icon(
+                            icon: Icons.description_outlined,
+                            title: l.termsOfService,
+                            // TODO: point at the real Terms of Service page/URL once it exists.
+                            onTap: () => AppService.showToast(l.comingSoon),
+                          ),
+                          _MenuRow.icon(
+                            icon: Icons.shield_outlined,
+                            title: l.termsOfPrivacy,
+                            // TODO: point at the real Privacy Policy page/URL once it exists.
+                            onTap: () => AppService.showToast(l.comingSoon),
+                          ),
+                        ],
+                      ),
+
+                      // ---- Account (personal profile only) -------------
+                      // Hidden while switched into a restaurant, so these
+                      // can't be mistaken for actions on the restaurant.
+                      if (user != null && activeRestaurant == null) ...[
+                        const Gap(12),
+                        _MenuCard(
+                          title: l.accountSection,
+                          children: [
+                            _MenuRow.icon(
+                              icon: Icons.visibility_off_outlined,
+                              title: l.deactivateAccount,
+                              subtitle: l.deactivateAccountSubtitle,
+                              onTap: () async {
+                                if (!await confirmDeactivateAccount(context)) {
+                                  return;
+                                }
+                                if (!context.mounted) return;
+                                AppService.showToast(l.accountDeactivated);
+                                Navigator.of(context).maybePop();
+                              },
+                            ),
+                            _MenuRow.icon(
+                              icon: Icons.delete_outline_rounded,
+                              color: _danger,
+                              title: l.deleteAccount,
+                              subtitle: l.deleteAccountSubtitle,
+                              onTap: () async {
+                                if (!await confirmDeleteAccount(context)) {
+                                  return;
+                                }
+                                if (!context.mounted) return;
+                                AppService.showToast(l.accountDeleted);
+                                Navigator.of(context).maybePop();
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      // ---- Log out -------------------------------------
+                      const Gap(12),
+                      _MenuCard(
+                        children: [
+                          _MenuRow.icon(
+                            icon: Icons.logout_rounded,
+                            color: _danger,
+                            title: l.logOut,
+                            trailing: const SizedBox.shrink(),
+                            onTap: () => AppDialogs.showConfirm(
+                              context,
+                              title: l.logOutConfirmTitle,
+                              message: l.logOutConfirmMessage,
+                              confirmText: l.logOut,
+                              isDestructive: true,
+                              onConfirm: () => ref
+                                  .read(authControllerProvider.notifier)
+                                  .logout(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ],
             ),
           ),
-          const Gap(12),
-          _CreateRestaurantButton(
-            text: l.createRestaurant,
-            onTap: () =>
-                AppRouter.router.pushNamed(AppRoute.createRestaurant.name),
-          ),
-
-          // ---- Preferences -------------------------------------------
-          const Gap(28),
-          _SectionLabel(l.preferences),
-          const Gap(10),
-          _SettingsGroup(
-            children: [
-              _SettingsRow(
-                icon: Icons.language_rounded,
-                color: ProfileTheme.blue,
-                title: l.language,
-                subtitle: _localeLabel(l, locale),
-                onTap: () => _pickLanguage(context, ref, l, locale),
-              ),
-              _SettingsRow(
-                icon: isDark
-                    ? Icons.dark_mode_rounded
-                    : Icons.light_mode_rounded,
-                color: ProfileTheme.purple,
-                title: l.darkMode,
-                subtitle: _themeLabel(l, themeMode),
-                trailing: Transform.scale(
-                  scale: 0.8,
-                  child: Switch(
-                    value: isDark,
-                    activeThumbColor: Colors.white,
-                    activeTrackColor: ProfileTheme.purple,
-                    onChanged: (v) => ref
-                        .read(themeModeControllerProvider.notifier)
-                        .set(v ? ThemeMode.dark : ThemeMode.light),
-                  ),
-                ),
-                onTap: () => ref
-                    .read(themeModeControllerProvider.notifier)
-                    .set(isDark ? ThemeMode.light : ThemeMode.dark),
-              ),
-            ],
-          ),
-
-          // ---- Terms of Policy --------------------------------------
-          const Gap(28),
-          _SectionLabel(l.termsOfPolicy),
-          const Gap(10),
-          _SettingsGroup(
-            children: [
-              _SettingsRow(
-                icon: Icons.description_rounded,
-                color: ProfileTheme.pink,
-                title: l.termsOfService,
-                // TODO: point at the real Terms of Service page/URL once it exists.
-                onTap: () => AppService.showToast(l.comingSoon),
-              ),
-              _SettingsRow(
-                icon: Icons.shield_rounded,
-                color: ProfileTheme.blue,
-                title: l.termsOfPrivacy,
-                // TODO: point at the real Privacy Policy page/URL once it exists.
-                onTap: () => AppService.showToast(l.comingSoon),
-              ),
-            ],
-          ),
-
-          // ---- Account (personal profile only) ------------------------
-          // Hidden while switched into a restaurant, so these can't be
-          // mistaken for actions on the restaurant.
-          if (user != null && activeRestaurant == null) ...[
-            const Gap(28),
-            _SectionLabel(l.accountSection),
-            const Gap(10),
-            _SettingsGroup(
-              children: [
-                _SettingsRow(
-                  icon: Icons.visibility_off_rounded,
-                  color: const Color(0xffF59E0B),
-                  title: l.deactivateAccount,
-                  subtitle: l.deactivateAccountSubtitle,
-                  onTap: () async {
-                    if (!await confirmDeactivateAccount(context)) return;
-                    if (!context.mounted) return;
-                    AppService.showToast(l.accountDeactivated);
-                    Navigator.of(context).maybePop();
-                  },
-                ),
-                _SettingsRow(
-                  icon: Icons.delete_forever_rounded,
-                  color: _danger,
-                  title: l.deleteAccount,
-                  titleColor: _danger,
-                  subtitle: l.deleteAccountSubtitle,
-                  onTap: () async {
-                    if (!await confirmDeleteAccount(context)) return;
-                    if (!context.mounted) return;
-                    AppService.showToast(l.accountDeleted);
-                    Navigator.of(context).maybePop();
-                  },
-                ),
-              ],
-            ),
-          ],
-
-          // ---- Log out -----------------------------------------------
-          const Gap(28),
-          _SettingsGroup(
-            children: [
-              _SettingsRow(
-                icon: Icons.logout_rounded,
-                color: _danger,
-                title: l.logOut,
-                titleColor: _danger,
-                showChevron: false,
-                onTap: () => AppDialogs.showConfirm(
-                  context,
-                  title: l.logOutConfirmTitle,
-                  message: l.logOutConfirmMessage,
-                  confirmText: l.logOut,
-                  isDestructive: true,
-                  onConfirm: () =>
-                      ref.read(authControllerProvider.notifier).logout(),
-                ),
-              ),
-            ],
-          ),
-          const Gap(12),
         ],
       ),
     );
@@ -335,31 +396,6 @@ class SettingsScreen extends HookConsumerWidget {
     if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
     if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
     return '$n';
-  }
-
-  static Widget _personalCard(
-    BuildContext context,
-    AppLocalizations l,
-    User? user,
-    Restaurant? activeRestaurant,
-    String? switching,
-    Future<void> Function(Restaurant?, String) switchTo,
-  ) {
-    final name = user?.name ?? '';
-    return _ProfileSwitchCard(
-      name: name,
-      imageUrl: user?.profilePicture,
-      coverUrl: user?.coverPicture,
-      isRestaurant: false,
-      typeLabel: l.profileTypePersonal,
-      detail: user == null ? '' : '@${user.username}',
-      isActive: activeRestaurant == null,
-      // The password sheet shows its own loading state.
-      isSwitching: false,
-      activeLabel: l.profileStatusActive,
-      inactiveLabel: l.profileStatusInactive,
-      onTap: () => switchTo(null, name),
-    );
   }
 
   static String _localeLabel(AppLocalizations l, Locale? locale) {
@@ -430,46 +466,161 @@ class SettingsScreen extends HookConsumerWidget {
 // Layout pieces
 // =============================================================================
 
-/// Small grey uppercase section title (matches "SWITCH ACCOUNT").
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
+/// Pale pink → lavender → blue wash with the logo's cat head faded into the
+/// top-right corner. Dark mode keeps the plain page color and a faint cat.
+class _MenuBackdrop extends StatelessWidget {
+  const _MenuBackdrop();
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text.toUpperCase(),
-      style: TextStyle(
-        fontSize: 12.5,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.8,
-        color: ProfileTheme.textSecondary(context),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cat = (MediaQuery.sizeOf(context).width * 0.8).clamp(260.0, 420.0);
+    return IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: isDark
+              ? null
+              : const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xffFDE7F1),
+                    Color(0xffF6F1FC),
+                    Color(0xffEAF1FE),
+                  ],
+                ),
+        ),
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            Positioned(
+              right: -cat * 0.22,
+              top: -cat * 0.12,
+              width: cat,
+              child: RepaintBoundary(
+                child: Image.asset(
+                  AssetsName.appLogoTrsm,
+                  opacity: AlwaysStoppedAnimation(isDark ? 0.06 : 0.16),
+                  // Decoded at on-screen size, not the 1198px source.
+                  cacheWidth: (cat * MediaQuery.devicePixelRatioOf(context))
+                      .round(),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Flat rounded group of rows: surface color, hairline border, no shadow,
-/// thin dividers between rows.
-class _SettingsGroup extends StatelessWidget {
-  final List<Widget> children;
-  const _SettingsGroup({required this.children});
+/// Back arrow with the title centered on the screen.
+class _MenuBar extends StatelessWidget {
+  final String title;
+  const _MenuBar({required this.title});
 
   @override
   Widget build(BuildContext context) {
+    final primary = ProfileTheme.textPrimary(context);
+    return SizedBox(
+      height: 52,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 20,
+                color: primary,
+              ),
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
+          ),
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 17,
+              letterSpacing: -0.3,
+              color: primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Translucent rounded card: an optional small title (with an optional text
+/// action on the right) over rows separated by hairlines.
+class _MenuCard extends StatelessWidget {
+  final String? title;
+  final (String, VoidCallback)? action;
+  final List<Widget> children;
+  const _MenuCard({required this.children, this.title, this.action});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final line = ProfileTheme.hairlineColor(context);
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: line),
+        // Slightly see-through so the backdrop tints it.
+        color: Theme.of(
+          context,
+        ).colorScheme.surface.withValues(alpha: isDark ? 1 : 0.72),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? line : Colors.white.withValues(alpha: 0.9),
+        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (title != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: ProfileTheme.textSecondary(context),
+                      ),
+                    ),
+                  ),
+                  if (action != null)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: action!.$2,
+                      child: Text(
+                        action!.$1,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: _accent,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           for (var i = 0; i < children.length; i++) ...[
             if (i > 0)
-              Divider(height: 1, thickness: 1, indent: 62, color: line),
+              Divider(
+                height: 1,
+                thickness: 1,
+                indent: 16,
+                endIndent: 16,
+                color: line,
+              ),
             children[i],
           ],
         ],
@@ -478,159 +629,99 @@ class _SettingsGroup extends StatelessWidget {
   }
 }
 
-/// Icon (colored, on a soft round tint), title, optional subtitle, and a
-/// trailing widget — a chevron by default.
-class _SettingsRow extends StatelessWidget {
-  final IconData icon;
-  final Color color;
+/// Leading widget (an avatar, or a plain line icon), title, optional
+/// subtitle, and a trailing widget — a chevron by default.
+class _MenuRow extends StatelessWidget {
+  final Widget leading;
   final String title;
-  final String? subtitle;
+
+  /// Rendered in the muted subtitle style.
+  final Widget? subtitle;
   final Widget? trailing;
   final Color? titleColor;
-  final bool showChevron;
   final VoidCallback onTap;
-  const _SettingsRow({
-    required this.icon,
-    required this.color,
+  const _MenuRow({
+    required this.leading,
     required this.title,
     required this.onTap,
     this.subtitle,
     this.trailing,
     this.titleColor,
-    this.showChevron = true,
   });
+
+  /// A row led by a line icon; [color] also tints the title (destructive
+  /// rows).
+  factory _MenuRow.icon({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    String? subtitle,
+    Widget? trailing,
+    Color? color,
+  }) => _MenuRow(
+    leading: SizedBox(
+      width: leadingSize,
+      height: leadingSize,
+      child: Builder(
+        builder: (context) => Icon(
+          icon,
+          size: 23,
+          color: color ?? ProfileTheme.textPrimary(context),
+        ),
+      ),
+    ),
+    title: title,
+    subtitle: subtitle == null ? null : Text(subtitle),
+    trailing: trailing,
+    titleColor: color,
+    onTap: onTap,
+  );
+
+  static const double leadingSize = 40;
 
   @override
   Widget build(BuildContext context) {
     final muted = ProfileTheme.textSecondary(context);
     return InkWell(
       onTap: onTap,
-      splashColor: color.withValues(alpha: 0.10),
-      highlightColor: color.withValues(alpha: 0.05),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+        padding: const EdgeInsets.fromLTRB(16, 12, 14, 12),
         child: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 19, color: color),
-            ),
-            const Gap(12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: titleColor ?? ProfileTheme.textPrimary(context),
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const Gap(1),
-                    Text(
-                      subtitle!,
-                      style: TextStyle(fontSize: 12.5, color: muted),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (trailing != null)
-              trailing!
-            else if (showChevron)
-              Icon(Icons.chevron_right_rounded, color: muted),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// "Currently viewing" banner: avatar/logo, name and a Personal/Restaurant
-/// badge on a light, flat background.
-class _CurrentProfileHeader extends StatelessWidget {
-  final String label;
-  final String name;
-  final String? imageUrl;
-  final bool isRestaurant;
-  final String typeLabel;
-  const _CurrentProfileHeader({
-    required this.label,
-    required this.name,
-    required this.imageUrl,
-    required this.isRestaurant,
-    required this.typeLabel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 300),
-      child: Container(
-        key: ValueKey('$name|$isRestaurant'),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          // Brand pink → purple → blue, same as the app's main buttons.
-          gradient: ProfileTheme.gradient,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            // White ring so the avatar stands out on the gradient.
-            Container(
-              padding: const EdgeInsets.all(2.5),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: _ProfileAvatar(
-                imageUrl: imageUrl,
-                name: name,
-                isRestaurant: isRestaurant,
-                size: 52,
-              ),
-            ),
+            leading,
             const Gap(14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white.withValues(alpha: 0.85),
-                    ),
-                  ),
-                  const Gap(2),
-                  Text(
-                    name,
+                    title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                    style: TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                      color: titleColor ?? ProfileTheme.textPrimary(context),
                     ),
                   ),
-                  const Gap(6),
-                  _TypeBadge(
-                    label: typeLabel,
-                    isRestaurant: isRestaurant,
-                    onDark: true,
-                  ),
+                  if (subtitle != null) ...[
+                    const Gap(2),
+                    DefaultTextStyle.merge(
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, color: muted),
+                      child: subtitle!,
+                    ),
+                  ],
                 ],
               ),
             ),
+            const Gap(8),
+            trailing ??
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: ProfileTheme.textPrimary(context),
+                ),
           ],
         ),
       ),
@@ -638,355 +729,168 @@ class _CurrentProfileHeader extends StatelessWidget {
   }
 }
 
-/// Horizontally scrolling row of profile cards. It bleeds past the page's
-/// 16px side padding so cards scroll edge to edge, while the first and last
-/// card still sit 16px in. A subtle scrollbar hints there's more.
-class _ProfileCarousel extends StatefulWidget {
-  final List<Widget> cards;
-  const _ProfileCarousel({required this.cards});
-
-  /// Card height plus room for the scrollbar underneath.
-  static const double height = 200;
-
-  @override
-  State<_ProfileCarousel> createState() => _ProfileCarouselState();
-}
-
-class _ProfileCarouselState extends State<_ProfileCarousel> {
-  final _controller = ScrollController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Tablets get wider cards (160 vs 140).
-    final isTablet = MediaQuery.sizeOf(context).shortestSide >= 600;
-    final cardWidth = isTablet ? 160.0 : 140.0;
-    const pagePadding = 16.0;
-
-    return LayoutBuilder(
-      builder: (context, constraints) => SizedBox(
-        height: _ProfileCarousel.height,
-        child: OverflowBox(
-          maxWidth: constraints.maxWidth + pagePadding * 2,
-          minWidth: constraints.maxWidth + pagePadding * 2,
-          child: Scrollbar(
-            controller: _controller,
-            thickness: 3,
-            radius: const Radius.circular(2),
-            child: ListView.separated(
-              controller: _controller,
-              scrollDirection: Axis.horizontal,
-              // Momentum scrolling with only a subtle edge bounce.
-              physics: const BouncingScrollPhysics(
-                decelerationRate: ScrollDecelerationRate.fast,
-              ),
-              padding: const EdgeInsets.fromLTRB(
-                pagePadding,
-                4,
-                pagePadding,
-                14,
-              ),
-              itemCount: widget.cards.length,
-              separatorBuilder: (_, _) => const Gap(12),
-              itemBuilder: (_, i) =>
-                  SizedBox(width: cardWidth, child: widget.cards[i]),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// One profile you can switch to. The cover photo fills the card (with a
-/// dark fade so the text stays readable), or the default brand gradient when
-/// there's no cover. At the bottom: a small circular avatar/logo inline with
-/// the name, then the type badge and followers; status in the corners. Scales
-/// up slightly while pressed and shows a spinner while switching; the
-/// active one gets a gradient outline.
-class _ProfileSwitchCard extends StatefulWidget {
-  final String name;
-  final String? imageUrl;
-  final String? coverUrl;
-  final bool isRestaurant;
-  final String typeLabel;
-  final String detail;
-  final bool isActive;
-  final bool isSwitching;
-  final String activeLabel;
-  final String inactiveLabel;
-  final VoidCallback onTap;
-  const _ProfileSwitchCard({
-    required this.name,
-    required this.imageUrl,
-    required this.coverUrl,
-    required this.isRestaurant,
-    required this.typeLabel,
-    required this.detail,
-    required this.isActive,
-    required this.isSwitching,
-    required this.activeLabel,
-    required this.inactiveLabel,
-    required this.onTap,
-  });
-
-  @override
-  State<_ProfileSwitchCard> createState() => _ProfileSwitchCardState();
-}
-
-class _ProfileSwitchCardState extends State<_ProfileSwitchCard> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final w = widget;
-    const green = Color(0xff22C55E);
-    const avatarSize = 30.0;
-    final cover = w.coverUrl;
-    final hasCover = cover != null && cover.isNotEmpty;
-
-    const shadow = [Shadow(color: Color(0x66000000), blurRadius: 6)];
-
-    return AnimatedScale(
-      scale: _pressed ? 1.04 : 1,
-      duration: const Duration(milliseconds: 140),
-      curve: Curves.easeOut,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: EdgeInsets.all(w.isActive ? 2 : 0),
-        decoration: BoxDecoration(
-          gradient: w.isActive ? ProfileTheme.gradient : null,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(w.isActive ? 10 : 12),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // ---- Background: cover photo, or the default gradient.
-              if (hasCover)
-                CachedNetworkImage(
-                  imageUrl: cover,
-                  fit: BoxFit.cover,
-                  placeholder: (_, _) => const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: ProfileTheme.coverFallback,
-                    ),
-                  ),
-                  errorWidget: (_, _, _) => const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: ProfileTheme.coverFallback,
-                    ),
-                  ),
-                )
-              else
-                const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: ProfileTheme.coverFallback,
-                  ),
-                ),
-              // Dark fade toward the bottom so white text stays legible on
-              // any photo.
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: hasCover ? 0.15 : 0.0),
-                      Colors.black.withValues(alpha: hasCover ? 0.65 : 0.25),
-                    ],
-                  ),
-                ),
-              ),
-
-              // ---- Content + ripple.
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: w.isSwitching ? null : w.onTap,
-                  onHighlightChanged: (v) => setState(() => _pressed = v),
-                  splashColor: Colors.white.withValues(alpha: 0.18),
-                  highlightColor: Colors.white.withValues(alpha: 0.08),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    // Cover shows through at the top; details sit at the
-                    // bottom with a small avatar inline with the name.
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Spacer(),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(1.5),
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                              ),
-                              child: _ProfileAvatar(
-                                imageUrl: w.imageUrl,
-                                name: w.name,
-                                isRestaurant: w.isRestaurant,
-                                size: avatarSize,
-                              ),
-                            ),
-                            const Gap(8),
-                            Expanded(
-                              child: Text(
-                                w.name,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 13.5,
-                                  height: 1.2,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                  shadows: shadow,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const Gap(8),
-                        _TypeBadge(
-                          label: w.typeLabel,
-                          isRestaurant: w.isRestaurant,
-                          onDark: true,
-                        ),
-                        const Gap(6),
-                        Text(
-                          w.detail,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white.withValues(alpha: 0.85),
-                            shadows: shadow,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Switching: spinner over the whole card (the avatar is too
-              // small to carry it now).
-              if (w.isSwitching)
-                ColoredBox(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  child: const Center(
-                    child: SizedBox(
-                      width: 26,
-                      height: 26,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-
-              // ---- Status: "Active" pill top-left, dot top-right.
-              if (w.isActive)
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      w.activeLabel,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: green,
-                      ),
-                    ),
-                  ),
-                ),
-              Positioned(
-                top: 9,
-                right: 9,
-                child: Tooltip(
-                  message: w.isActive ? w.activeLabel : w.inactiveLabel,
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: w.isActive
-                          ? green
-                          : Colors.white.withValues(alpha: 0.5),
-                      border: Border.all(color: Colors.white, width: 1.5),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TypeBadge extends StatelessWidget {
+/// "✓ Active" on the brand pink → blue wash.
+class _ActivePill extends StatelessWidget {
   final String label;
-  final bool isRestaurant;
-
-  /// White-on-glass style for use over a photo or gradient.
-  final bool onDark;
-  const _TypeBadge({
-    required this.label,
-    required this.isRestaurant,
-    this.onDark = false,
-  });
+  const _ActivePill({required this.label});
 
   @override
   Widget build(BuildContext context) {
-    final color = onDark
-        ? Colors.white
-        : (isRestaurant ? ProfileTheme.pink : ProfileTheme.purple);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      padding: const EdgeInsets.fromLTRB(8, 5, 11, 5),
       decoration: BoxDecoration(
-        color: onDark
-            ? Colors.white.withValues(alpha: 0.22)
-            : color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
+        gradient: AppColors.backgroundGradientLR,
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            isRestaurant ? Icons.storefront_rounded : Icons.person_rounded,
-            size: 11,
-            color: color,
-          ),
-          const Gap(3),
+          const Icon(Icons.check_rounded, size: 15, color: ProfileTheme.ink),
+          const Gap(4),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 10.5,
+            style: const TextStyle(
+              fontSize: 12.5,
               fontWeight: FontWeight.w700,
-              color: color,
+              color: ProfileTheme.ink,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A restaurant row's subtitle: category · ★ rating (reviews), falling back
+/// to the review count, then the follower count, for whatever it's missing.
+class _RestaurantMeta extends StatelessWidget {
+  final Restaurant restaurant;
+  final String hiddenLabel;
+  final String reviews;
+  final String followers;
+  const _RestaurantMeta({
+    required this.restaurant,
+    required this.hiddenLabel,
+    required this.reviews,
+    required this.followers,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final r = restaurant;
+    final lead = [
+      if (!r.isPublished) hiddenLabel,
+      ?r.category?.name,
+    ].join(' · ');
+    final sep = lead.isEmpty ? '' : ' · ';
+    if (r.avgRating == null) {
+      return Text('$lead$sep${r.reviewsCount > 0 ? reviews : followers}');
+    }
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: '$lead$sep'),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: RatingBadge(rating: r.avgRating!, iconSize: 14),
+          ),
+          if (r.reviewsCount > 0) TextSpan(text: ' ($reviews)'),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Currently viewing": the active profile's avatar in a gradient ring,
+/// beside its name and a type · detail line.
+class _CurrentProfileHeader extends StatelessWidget {
+  final String label;
+  final String name;
+  final String? imageUrl;
+  final bool isRestaurant;
+  final String detail;
+  const _CurrentProfileHeader({
+    required this.label,
+    required this.name,
+    required this.imageUrl,
+    required this.isRestaurant,
+    required this.detail,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = ProfileTheme.textPrimary(context);
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      child: Padding(
+        key: ValueKey('$name|$isRestaurant'),
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(2.5),
+              decoration: const BoxDecoration(
+                gradient: ProfileTheme.gradient,
+                shape: BoxShape.circle,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  shape: BoxShape.circle,
+                ),
+                child: _ProfileAvatar(
+                  imageUrl: imageUrl,
+                  name: name,
+                  isRestaurant: isRestaurant,
+                  size: 60,
+                ),
+              ),
+            ),
+            const Gap(16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: TextStyle(fontSize: 12.5, color: primary)),
+                  const Gap(1),
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                      color: primary,
+                    ),
+                  ),
+                  const Gap(4),
+                  Row(
+                    children: [
+                      Icon(
+                        isRestaurant
+                            ? Icons.storefront_outlined
+                            : Icons.person_outline_rounded,
+                        size: 16,
+                        color: primary,
+                      ),
+                      const Gap(6),
+                      Expanded(
+                        child: Text(
+                          detail,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 13.5, color: primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1025,76 +929,5 @@ class _ProfileAvatar extends StatelessWidget {
             ),
           )
         : ImageUserCircleProfile(imageUrl: url, name: name, size: size);
-  }
-}
-
-// =============================================================================
-// Buttons
-// =============================================================================
-
-/// Light, flat "Create a restaurant" button: soft purple tint, thin
-/// border, gradient + icon. Scales down slightly while pressed.
-class _CreateRestaurantButton extends StatefulWidget {
-  final String text;
-  final VoidCallback onTap;
-  const _CreateRestaurantButton({required this.text, required this.onTap});
-
-  @override
-  State<_CreateRestaurantButton> createState() =>
-      _CreateRestaurantButtonState();
-}
-
-class _CreateRestaurantButtonState extends State<_CreateRestaurantButton> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: _pressed ? 0.98 : 1,
-      duration: const Duration(milliseconds: 120),
-      child: Material(
-        color: ProfileTheme.purple.withValues(alpha: 0.07),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: ProfileTheme.purple.withValues(alpha: 0.28)),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: widget.onTap,
-          onHighlightChanged: (v) => setState(() => _pressed = v),
-          splashColor: ProfileTheme.purple.withValues(alpha: 0.12),
-          child: SizedBox(
-            height: 46,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 22,
-                  height: 22,
-                  decoration: const BoxDecoration(
-                    gradient: ProfileTheme.pinkPurple,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.add_rounded,
-                    size: 16,
-                    color: Colors.white,
-                  ),
-                ),
-                const Gap(8),
-                Text(
-                  widget.text,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                    color: ProfileTheme.deepPurple,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }

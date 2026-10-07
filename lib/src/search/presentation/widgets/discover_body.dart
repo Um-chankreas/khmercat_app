@@ -4,6 +4,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
+import 'package:khmer_cat_app/core/components/rating/rating_badge.dart';
 import 'package:khmer_cat_app/core/location/location_provider.dart';
 import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
 import 'package:khmer_cat_app/src/search/presentation/discover_controller.dart';
@@ -317,14 +318,8 @@ class _NearbyCard extends StatelessWidget {
                 ),
                 if (r.avgRating != null) ...[
                   const Gap(8),
-                  Icon(
-                    Icons.star_rounded,
-                    size: 16,
-                    color: ProfileTheme.textPrimary(context),
-                  ),
-                  const Gap(3),
-                  Text(
-                    r.avgRating!.toStringAsFixed(1),
+                  RatingBadge(
+                    rating: r.avgRating!,
                     style: TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
@@ -379,8 +374,7 @@ void _showAllNearby(BuildContext context, List<NearbyRestaurant> items) {
             picture: r.profilePicture ?? r.coverPicture,
             name: r.name,
             subtitle: _nearbyMeta(item),
-            trailingIcon: r.avgRating == null ? null : Icons.star_rounded,
-            trailingText: r.avgRating?.toStringAsFixed(1),
+            trailingRating: r.avgRating,
             onTap: () {
               Navigator.pop(sheetContext);
               openRestaurant(r.id);
@@ -428,7 +422,8 @@ void _showAllTrending(BuildContext context, List<VideoFeedItem> videos) {
 typedef _Ranking = ({
   String label,
   List<RestaurantHighlight> items,
-  (IconData, String) Function(RestaurantHighlight) stat,
+  // Null when the tab's stat is the star rating itself.
+  (IconData, String) Function(RestaurantHighlight)? stat,
 });
 
 String _plural(int n, String word) =>
@@ -448,11 +443,7 @@ class _Rankings extends HookWidget {
         items: data.popular,
         stat: (h) => (Icons.favorite_border_rounded, _plural(h.likes, 'like')),
       ),
-      (
-        label: 'Top rated',
-        items: data.topRated,
-        stat: (h) => (Icons.star_rounded, h.avgRating!.toStringAsFixed(1)),
-      ),
+      (label: 'Top rated', items: data.topRated, stat: null),
       (
         label: 'Most reviewed',
         items: data.mostReviewed,
@@ -465,6 +456,7 @@ class _Rankings extends HookWidget {
     final index = selected.value.clamp(0, rankings.length - 1);
     final current = rankings[index];
     final rows = current.items.take(_rankRows).toList();
+    final stat = current.stat;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     // A soft white card, slightly see-through so the backdrop tints it.
@@ -513,18 +505,19 @@ class _Rankings extends HookWidget {
                     for (final (i, h) in rows.indexed) ...[
                       if (i > 0) const _RowDivider(),
                       _RestaurantRow(
-                        rank: i + 1,
                         picture: h.picture,
                         name: h.name,
+                        // The rating sits by the subtitle, or on the
+                        // right when it is what the tab ranks by.
+                        rating: stat == null ? null : h.avgRating,
                         subtitle: [
-                          if (h.avgRating != null)
-                            '${h.avgRating!.toStringAsFixed(1)} rating',
                           if (h.reviews > 0) _plural(h.reviews, 'review'),
                           if (h.avgRating == null && h.reviews == 0)
                             _plural(h.videos, 'video'),
                         ].join(' · '),
-                        trailingIcon: current.stat(h).$1,
-                        trailingText: current.stat(h).$2,
+                        trailingRating: stat == null ? h.avgRating : null,
+                        trailingIcon: stat?.call(h).$1,
+                        trailingText: stat?.call(h).$2,
                         onTap: () => openRestaurant(h.id),
                       ),
                     ],
@@ -634,12 +627,18 @@ class _RowDivider extends StatelessWidget {
   );
 }
 
-/// [rank] · square photo · name over a grey line · icon + stat on the right.
+/// Square photo · name over a grey line (optionally led by the star
+/// rating) · icon + stat, or the star rating, on the right.
 class _RestaurantRow extends StatelessWidget {
-  final int? rank;
   final String? picture;
   final String name;
   final String subtitle;
+
+  /// Shown as a [RatingBadge] in front of [subtitle].
+  final double? rating;
+
+  /// Shown as a [RatingBadge] on the right, in place of the icon + text.
+  final double? trailingRating;
   final IconData? trailingIcon;
   final String? trailingText;
   final VoidCallback onTap;
@@ -648,7 +647,8 @@ class _RestaurantRow extends StatelessWidget {
     required this.name,
     required this.subtitle,
     required this.onTap,
-    this.rank,
+    this.rating,
+    this.trailingRating,
     this.trailingIcon,
     this.trailingText,
   });
@@ -663,29 +663,6 @@ class _RestaurantRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            if (rank != null) ...[
-              // #1 sits in a solid dark circle; the rest are plain numbers.
-              Container(
-                width: 28,
-                height: 28,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: rank == 1 ? primary : null,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  '$rank',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: rank == 1
-                        ? Theme.of(context).colorScheme.surface
-                        : muted,
-                  ),
-                ),
-              ),
-              const Gap(14),
-            ],
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: SizedBox(
@@ -710,19 +687,51 @@ class _RestaurantRow extends StatelessWidget {
                       color: primary,
                     ),
                   ),
-                  if (subtitle.isNotEmpty) ...[
+                  if (rating != null || subtitle.isNotEmpty) ...[
                     const Gap(3),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13.5, color: muted),
+                    Row(
+                      children: [
+                        if (rating != null) ...[
+                          RatingBadge(
+                            rating: rating!,
+                            iconSize: 15,
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: primary,
+                            ),
+                          ),
+                          if (subtitle.isNotEmpty)
+                            Text(
+                              ' · ',
+                              style: TextStyle(fontSize: 13.5, color: muted),
+                            ),
+                        ],
+                        Flexible(
+                          child: Text(
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 13.5, color: muted),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ],
               ),
             ),
-            if (trailingText != null) ...[
+            if (trailingRating != null) ...[
+              const Gap(10),
+              RatingBadge(
+                rating: trailingRating!,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: primary,
+                ),
+              ),
+            ] else if (trailingText != null) ...[
               const Gap(10),
               if (trailingIcon != null) ...[
                 Icon(trailingIcon, size: 16, color: primary),

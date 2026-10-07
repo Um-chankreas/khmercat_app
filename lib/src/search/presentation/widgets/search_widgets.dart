@@ -1,5 +1,3 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -35,9 +33,9 @@ List<BoxShadow> searchShadow() => [
   ),
 ];
 
-/// The search tab's backdrop: a pale pink → lavender → blue wash with the
-/// logo's cat head faded into the top-right corner. Dark mode keeps the
-/// plain page color and only a faint cat.
+/// The search tab's backdrop: plain white with the logo's cat head faded
+/// into the top-right and bottom-left corners. Dark mode keeps the plain
+/// page color and only a faint cat.
 class SearchBackdrop extends StatelessWidget {
   const SearchBackdrop({super.key});
 
@@ -46,42 +44,21 @@ class SearchBackdrop extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final width = MediaQuery.sizeOf(context).width;
     final cat = (width * 0.92).clamp(280.0, 480.0);
-    // Each is painted once; the boundary keeps it out of scroll repaints
-    // (and caches the blur).
-    Widget logo({required double opacity, double blur = 0}) {
-      final image = Image.asset(
-        AssetsName.appLogoTrsm,
-        opacity: AlwaysStoppedAnimation(opacity),
-        // Decoded at on-screen size, not the 1198px source.
-        cacheWidth: (cat * MediaQuery.devicePixelRatioOf(context)).round(),
-      );
+    // Each is painted once; the boundary keeps it out of scroll repaints.
+    Widget logo({required double opacity}) {
       return RepaintBoundary(
-        child: blur == 0
-            ? image
-            : ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-                child: image,
-              ),
+        child: Image.asset(
+          AssetsName.appLogoTrsm,
+          opacity: AlwaysStoppedAnimation(opacity),
+          // Decoded at on-screen size, not the 1198px source.
+          cacheWidth: (cat * MediaQuery.devicePixelRatioOf(context)).round(),
+        ),
       );
     }
 
     return IgnorePointer(
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: isDark
-              ? null
-              : const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  // Nearly white at the top so the header doesn't look
-                  // tinted; the color builds gently toward the bottom.
-                  colors: [
-                    Color(0xffFFF8FB),
-                    Color(0xffF9F5FD),
-                    Color(0xffECF0FE),
-                  ],
-                ),
-        ),
+        decoration: BoxDecoration(color: isDark ? null : Colors.white),
         child: Stack(
           clipBehavior: Clip.hardEdge,
           children: [
@@ -91,8 +68,8 @@ class SearchBackdrop extends StatelessWidget {
               top: -cat * 0.04,
               width: cat,
               // Behind the search bar, chips and heading, so it's fainter
-              // and blurred to stay out of their way.
-              child: logo(opacity: isDark ? 0.05 : 0.09, blur: 1.5),
+              // to stay out of their way.
+              child: logo(opacity: isDark ? 0.05 : 0.09),
             ),
             Positioned(
               left: -cat * 0.16,
@@ -101,6 +78,50 @@ class SearchBackdrop extends StatelessWidget {
               child: logo(opacity: isDark ? 0.06 : 0.13),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Square icon button that sits beside the search bar and matches it: the
+/// same white field, corner radius, hairline border and shadow.
+class SearchActionButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const SearchActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: scheme.onSurface.withValues(alpha: 0.07),
+              width: 1.2,
+            ),
+            boxShadow: searchShadow(),
+          ),
+          child: Icon(icon, size: 22, color: ProfileTheme.textPrimary(context)),
         ),
       ),
     );

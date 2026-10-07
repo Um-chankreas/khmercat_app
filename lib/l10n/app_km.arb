@@ -97,5 +97,12 @@
   "navHome": "ទំព័រដើម",
   "navSearch": "ស្វែងរក",
   "navNotifications": "ការជូនដំណឹង",
-  "navProfile": "ប្រវត្តិរូប"
+  "navProfile": "ប្រវត្តិរូប",
+  "yourAccount": "គណនីរបស់អ្នក",
+  "seeAll": "មើលទាំងអស់",
+  "showLess": "បង្ហាញតិច",
+  "addressSection": "អាសយដ្ឋាន",
+  "savedAddresses": "អាសយដ្ឋានដែលបានរក្សាទុក",
+  "reviewsCount": "{count, plural, other{មតិវាយតម្លៃ {count}}}",
+  "restaurantHidden": "លាក់"
 }

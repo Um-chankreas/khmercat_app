@@ -113,5 +113,13 @@
   "navHome": "Home",
   "navSearch": "Search",
   "navNotifications": "Notification",
-  "navProfile": "Profile"
+  "navProfile": "Profile",
+  "yourAccount": "Your account",
+  "seeAll": "See all",
+  "showLess": "Show less",
+  "addressSection": "Address",
+  "savedAddresses": "Saved addresses",
+  "reviewsCount": "{count, plural, =1{1 review} other{{count} reviews}}",
+  "@reviewsCount": {"placeholders": {"count": {"type": "int"}}},
+  "restaurantHidden": "Hidden"
 }

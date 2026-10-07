@@ -7,7 +7,6 @@ import 'package:khmer_cat_app/core/components/dialogs/sign_in_prompt.dart';
 import 'package:khmer_cat_app/core/components/navigationbar/app_bottom_nav_bar.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
-import 'package:khmer_cat_app/src/auth/presentation/viewmodel/auth_controller.dart';
 import 'package:khmer_cat_app/src/feed/presentation/screens/home_feed.dart';
 import 'package:khmer_cat_app/src/notifications/presentation/screens/notifications_screen.dart';
 import 'package:khmer_cat_app/src/profile/presentation/screens/profile_tab.dart';
@@ -24,7 +23,6 @@ class IndexScreen extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedIndex = useState(0);
-    final currentUser = ref.watch(currentUserProvider);
     // The profile the user is acting as: a restaurant, or null = personal.
     final activeRestaurant = ref.watch(activeRestaurantProvider);
 
@@ -88,6 +86,7 @@ class IndexScreen extends HookConsumerWidget {
       child: Scaffold(
         extendBody: true,
         body: IndexedStack(index: selectedIndex.value, children: pages),
+
         bottomNavigationBar: AppBottomNavBar(
           currentIndex: selectedIndex.value,
           overMedia: selectedIndex.value == 0,
@@ -115,10 +114,7 @@ class IndexScreen extends HookConsumerWidget {
             }
             AppRouter.router.pushNamed(AppRoute.cameraRecord.name);
           },
-          avatarUrl: activeRestaurant != null
-              ? activeRestaurant.profilePicture
-              : currentUser?.profilePicture,
-          avatarIsRestaurant: activeRestaurant != null,
+          actingAsRestaurant: activeRestaurant != null,
         ),
       ),
     );
@@ -127,7 +123,7 @@ class IndexScreen extends HookConsumerWidget {
 
 /// Ends [child] at the top of the bar's flat part instead of letting it run
 /// underneath: pads by the body's bottom inset (the bar, under extendBody)
-/// less the center bump, and clears that inset for the subtree so nothing
+/// less the center dome, and clears that inset for the subtree so nothing
 /// inside pads for it a second time.
 class _AboveNavBar extends StatelessWidget {
   final Widget child;

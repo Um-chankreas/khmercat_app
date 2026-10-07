@@ -16,7 +16,7 @@ class AppConfig {
 
     switch (environment) {
       case Environment.dev:
-        return 'http://192.168.19.74:8000/api';
+        return 'http://192.168.8.41:8000/api';
       case Environment.staging:
         return 'http://159.223.43.180/api';
       case Environment.production:

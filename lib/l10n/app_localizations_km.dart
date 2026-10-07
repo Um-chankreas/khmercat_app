@@ -285,4 +285,32 @@ class AppLocalizationsKm extends AppLocalizations {
 
   @override
   String get navProfile => 'ប្រវត្តិរូប';
+
+  @override
+  String get yourAccount => 'គណនីរបស់អ្នក';
+
+  @override
+  String get seeAll => 'មើលទាំងអស់';
+
+  @override
+  String get showLess => 'បង្ហាញតិច';
+
+  @override
+  String get addressSection => 'អាសយដ្ឋាន';
+
+  @override
+  String get savedAddresses => 'អាសយដ្ឋានដែលបានរក្សាទុក';
+
+  @override
+  String reviewsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'មតិវាយតម្លៃ $count',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get restaurantHidden => 'លាក់';
 }

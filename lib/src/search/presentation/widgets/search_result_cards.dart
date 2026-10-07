@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:khmer_cat_app/core/components/image_network/image_user_circle_profile.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
+import 'package:khmer_cat_app/core/components/rating/rating_badge.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
@@ -13,7 +14,6 @@ import 'package:khmer_cat_app/src/users/domain/public_profile.dart';
 // Cards for the search results screen: nearby restaurant rows, recommended
 // restaurant tiles, food review video cards and popular reviewer rows.
 
-const _star = Color(0xffFFB020);
 const _openGreen = Color(0xff22C55E);
 const _closedRed = Color(0xffEF4444);
 
@@ -221,20 +221,14 @@ class NearbyRestaurantCard extends StatelessWidget {
 
     final meta = <Widget>[
       if (r.avgRating != null)
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.star_rounded, size: 15, color: _star),
-            const Gap(2),
-            Text(
-              r.avgRating!.toStringAsFixed(1),
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: ProfileTheme.textPrimary(context),
-              ),
-            ),
-          ],
+        RatingBadge(
+          rating: r.avgRating!,
+          iconSize: 15,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: ProfileTheme.textPrimary(context),
+          ),
         ),
       if (r.distanceKm != null)
         Text(
@@ -390,18 +384,7 @@ class RecommendedRestaurantCard extends StatelessWidget {
                       right: 8,
                       bottom: 8,
                       child: _OverlayPill(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.star_rounded,
-                              size: 14,
-                              color: _star,
-                            ),
-                            const Gap(2),
-                            Text(r.avgRating!.toStringAsFixed(1)),
-                          ],
-                        ),
+                        child: RatingBadge(rating: r.avgRating!, iconSize: 14),
                       ),
                     ),
                 ],

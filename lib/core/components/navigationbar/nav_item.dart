@@ -93,7 +93,7 @@ class NavItem extends StatelessWidget {
     super.key,
   });
 
-  static const double iconSize = 23;
+  static const double iconSize = 20;
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +106,7 @@ class NavItem extends StatelessWidget {
       onTap: onTap,
       child: NavGlow(
         onLight: onLight,
-        strength: isActive ? 1 : 0.65,
+        strength: 0.65,
         child: Image.asset(
           imagePath,
           width: iconSize,

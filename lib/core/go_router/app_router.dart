@@ -14,6 +14,7 @@ import 'package:khmer_cat_app/src/restaurants/presentation/screens/restaurant_pr
 import 'package:khmer_cat_app/src/restaurants/presentation/screens/edit_restaurant_screen.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/screens/restaurant_menu_screen.dart';
 import 'package:khmer_cat_app/src/profile/presentation/screens/edit_profile_screen.dart';
+import 'package:khmer_cat_app/src/search/presentation/restaurant_map_screen.dart';
 import 'package:khmer_cat_app/src/settings/presentation/settings_screen.dart';
 import 'package:khmer_cat_app/src/splash/splash_screen.dart';
 import 'package:khmer_cat_app/src/splash/welcome_screen.dart';
@@ -136,6 +137,12 @@ class AppRouter {
             restaurantId: state.pathParameters['id']!,
           ),
         ),
+      ),
+      GoRoute(
+        path: AppRoute.restaurantMap.path,
+        name: AppRoute.restaurantMap.name,
+        pageBuilder: (context, state) =>
+            const CupertinoPage(child: RestaurantMapScreen()),
       ),
       GoRoute(
         path: AppRoute.restaurantMenu.path,

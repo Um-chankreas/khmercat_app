@@ -69,6 +69,10 @@ class AppRoute {
     name: 'user-profile',
     path: '/users/:username',
   );
+  static AppRoute restaurantMap = AppRoute(
+    name: 'restaurant-map',
+    path: '/restaurant-map',
+  );
   static AppRoute videoViewer = AppRoute(
     name: 'video-viewer',
     path: '/videos/:id',
