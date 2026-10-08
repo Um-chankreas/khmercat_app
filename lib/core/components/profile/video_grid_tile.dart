@@ -28,6 +28,10 @@ class VideoGridTile extends StatelessWidget {
   /// A review's star rating, shown bottom-right.
   final num? rating;
 
+  /// When set, a dark "▶ label" pill (e.g. "2 likes", or a reviewer's name)
+  /// replaces the heart + count.
+  final String? pillLabel;
+
   /// Small pink heart top-right when it's in the viewer's favorites.
   final bool isFavorite;
 
@@ -44,6 +48,7 @@ class VideoGridTile extends StatelessWidget {
     required this.thumbnailUrl,
     required this.likesCount,
     this.rating,
+    this.pillLabel,
     this.isFavorite = false,
     this.trashed = false,
     this.onTap,
@@ -107,14 +112,25 @@ class VideoGridTile extends StatelessWidget {
                   ),
                 ),
               ),
-              Positioned(
-                left: 8,
-                bottom: 6,
-                child: _Stat(
-                  icon: Icons.favorite_rounded,
-                  text: formatCount(likesCount),
+              if (pillLabel != null)
+                Positioned(
+                  left: 6,
+                  right: 6,
+                  bottom: 6,
+                  child: Align(
+                    alignment: Alignment.bottomLeft,
+                    child: _PlayPill(label: pillLabel!),
+                  ),
+                )
+              else
+                Positioned(
+                  left: 8,
+                  bottom: 6,
+                  child: _Stat(
+                    icon: Icons.favorite_rounded,
+                    text: formatCount(likesCount),
+                  ),
                 ),
-              ),
               if (rating != null)
                 Positioned(
                   right: 8,
@@ -147,6 +163,42 @@ class VideoGridTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// "▶ label" on a translucent dark pill.
+class _PlayPill extends StatelessWidget {
+  final String label;
+  const _PlayPill({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(7, 3, 10, 3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(100),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.play_arrow_rounded, size: 14, color: Colors.white),
+          const Gap(3),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

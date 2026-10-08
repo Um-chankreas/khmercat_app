@@ -552,7 +552,10 @@ class _Card extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: highlight
-            ? Border.all(color: _Brand.purple.withValues(alpha: 0.35), width: 1.5)
+            ? Border.all(
+                color: _Brand.purple.withValues(alpha: 0.35),
+                width: 1.5,
+              )
             : null,
         boxShadow: _Brand.cardShadow(),
       ),
@@ -578,93 +581,87 @@ class _TargetCard extends StatelessWidget {
       child: _Card(
         child: Row(
           children: [
-              // Gradient ring around the logo / empty-state icon.
-              Container(
-                padding: const EdgeInsets.all(2.5),
-                decoration: const BoxDecoration(
-                  gradient: _Brand.gradient,
-                  shape: BoxShape.circle,
-                ),
-                child: sel != null
-                    ? RestaurantLogo(
-                        restaurant: sel.restaurant,
-                        size: 46,
-                        borderRadius: 23,
-                      )
-                    : Container(
-                        width: 46,
-                        height: 46,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.add_location_alt_rounded,
-                          size: 24,
-                          color: _Brand.purple,
-                        ),
-                      ),
+            // Gradient ring around the logo / empty-state icon.
+            Container(
+              padding: const EdgeInsets.all(2.5),
+              decoration: const BoxDecoration(
+                gradient: _Brand.gradient,
+                shape: BoxShape.circle,
               ),
-              const Gap(14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      sel == null
-                          ? 'LOCATION'
-                          : (isPost ? 'POSTING AS' : 'REVIEWING'),
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.9,
-                        color: _Brand.muted,
+              child: sel != null
+                  ? RestaurantLogo(
+                      restaurant: sel.restaurant,
+                      size: 46,
+                      borderRadius: 23,
+                    )
+                  : Container(
+                      width: 46,
+                      height: 46,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.add_location_alt_rounded,
+                        size: 24,
+                        color: _Brand.purple,
                       ),
                     ),
-                    const Gap(3),
-                    Text(
-                      sel?.restaurant.name ?? 'Choose a restaurant',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 17,
-                        letterSpacing: -0.2,
-                        color: _Brand.ink,
-                      ),
+            ),
+            const Gap(14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    sel == null
+                        ? 'LOCATION'
+                        : (isPost ? 'POSTING AS' : 'REVIEWING'),
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.9,
+                      color: _Brand.muted,
                     ),
-                    if (sel == null) ...[
-                      const Gap(1),
-                      Text(
-                        'Tag where this was taken or created',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: _Brand.muted,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const Gap(8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: _Brand.purple.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  sel == null ? 'Select' : 'Change',
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: _Brand.purple,
                   ),
+                  const Gap(3),
+                  Text(
+                    sel?.restaurant.name ?? 'Choose a restaurant',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 17,
+                      letterSpacing: -0.2,
+                      color: _Brand.ink,
+                    ),
+                  ),
+                  if (sel == null) ...[
+                    const Gap(1),
+                    Text(
+                      'Tag where this was taken or created',
+                      style: TextStyle(fontSize: 12.5, color: _Brand.muted),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const Gap(8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: _Brand.purple.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                sel == null ? 'Select' : 'Change',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: _Brand.purple,
                 ),
               ),
+            ),
           ],
         ),
       ),

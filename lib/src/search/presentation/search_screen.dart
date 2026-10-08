@@ -8,6 +8,7 @@ import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/core/location/location_provider.dart';
+import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import 'package:khmer_cat_app/src/auth/presentation/viewmodel/auth_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/cuisine_category_selector.dart';
 import 'package:khmer_cat_app/src/search/presentation/search_controller.dart';
@@ -22,7 +23,7 @@ const _allVideos = 4;
 const _allUsers = 3;
 
 /// Layout, top to bottom: sticky search bar → Nearest / cuisine chips →
-/// (once searching) All | Restaurants | Videos | Users tabs → the body, which
+/// (once searching) All | Restaurants | Users tabs → the body, which
 /// is discovery content (recent, nearby, recommended) until something is
 /// typed or a cuisine is picked, then the results.
 ///
@@ -104,21 +105,14 @@ class SearchScreen extends HookConsumerWidget {
       );
     } else if (state.isEmpty && !state.isLoading) {
       body = SearchMessage(
-        icon: Icons.search_off_rounded,
-        title: 'No results found',
-        message: state.cuisine != null && state.query != state.cuisine
-            ? 'We couldn\'t find anything for "${state.query}" in ${state.cuisine}.'
-            : 'We couldn\'t find anything for "${state.query}".',
-        tips: [
-          'Check the spelling',
-          'Try fewer or different words',
-          if (state.cuisine != null) 'Clear the cuisine filter',
-        ],
+        imageAsset: AssetsName.appLogoTrsm,
+        title: 'No results for "${state.query}"',
+        message: state.cuisine != null
+            ? 'Check the spelling, try other words, or clear the cuisine '
+                  'filter.'
+            : 'Check the spelling or try other words.',
         suggestionsLabel: 'Browse by cuisine',
-        suggestions: cuisineOptions
-            .where((c) => c != state.cuisine)
-            .take(4)
-            .toList(),
+        suggestions: cuisineOptions.where((c) => c != state.cuisine).toList(),
         onSuggestion: (c) {
           inputCtr.clear();
           vm.onQueryChanged('');
@@ -127,7 +121,7 @@ class SearchScreen extends HookConsumerWidget {
         action: state.cuisine != null
             ? GradientTextButton(
                 text: 'Clear filter',
-                icon: Icons.filter_alt_off_rounded,
+                icon: Icons.close_rounded,
                 onTap: () => vm.setCuisine(null),
               )
             : null,
@@ -138,8 +132,7 @@ class SearchScreen extends HookConsumerWidget {
         key: ValueKey('${state.query}|${state.cuisine}|${tab.value}'),
         child: switch (tab.value) {
           1 => _RestaurantsTab(state: state, onOpened: vm.commitSearch),
-          2 => _VideosTab(state: state, onOpened: vm.commitSearch),
-          3 => _UsersTab(
+          2 => _UsersTab(
             state: state,
             onOpened: vm.commitSearch,
             onToggleFollow: toggleFollow,
@@ -211,7 +204,6 @@ class SearchScreen extends HookConsumerWidget {
                     tabs: [
                       (label: 'All', count: null),
                       (label: 'Restaurants', count: state.restaurantsTotal),
-                      (label: 'Videos', count: state.videosTotal),
                       (label: 'Users', count: state.usersTotal),
                     ],
                     selected: tab.value,
@@ -274,7 +266,6 @@ class _AllTab extends StatelessWidget {
       children: [
         if (nearby.isNotEmpty) ...[
           SearchSectionHeader(
-            emoji: '📍',
             title: hasDistances ? 'Nearby restaurants' : 'Restaurants',
             actionText: state.restaurantsTotal > nearby.length
                 ? 'See all (${state.restaurantsTotal})'
@@ -287,7 +278,6 @@ class _AllTab extends StatelessWidget {
         ],
         if (recommended.isNotEmpty) ...[
           SearchSectionHeader(
-            emoji: '⭐',
             title: 'Recommended restaurants',
             trailingLabel: recommended.any((r) => r.isSponsored)
                 ? 'Sponsored'
@@ -311,12 +301,7 @@ class _AllTab extends StatelessWidget {
           const Gap(14),
         ],
         if (state.videos.isNotEmpty) ...[
-          SearchSectionHeader(
-            emoji: '🎬',
-            title: 'Food reviews & videos',
-            actionText: state.videosTotal > _allVideos ? 'View all' : null,
-            onAction: () => onSeeAll(2),
-          ),
+          SearchSectionHeader(title: 'Food reviews & videos'),
           VideoReviewGrid(
             videos: state.videos.take(_allVideos).toList(),
             onOpened: onOpened,
@@ -325,10 +310,9 @@ class _AllTab extends StatelessWidget {
         ],
         if (state.users.isNotEmpty) ...[
           SearchSectionHeader(
-            emoji: '👥',
             title: 'Popular reviewers',
             actionText: state.usersTotal > _allUsers ? 'See all' : null,
-            onAction: () => onSeeAll(3),
+            onAction: () => onSeeAll(2),
           ),
           ReviewerList(
             users: state.users.take(_allUsers).toList(),
@@ -410,32 +394,6 @@ class _RestaurantsTab extends HookWidget {
           for (final r in results)
             NearbyRestaurantCard(restaurant: r, onOpened: onOpened),
       ],
-    );
-  }
-}
-
-class _VideosTab extends StatelessWidget {
-  final SearchState state;
-  final VoidCallback onOpened;
-  const _VideosTab({required this.state, required this.onOpened});
-
-  @override
-  Widget build(BuildContext context) {
-    if (state.videos.isEmpty) {
-      return const SearchMessage(
-        icon: Icons.videocam_off_rounded,
-        title: 'No videos',
-        message: 'No videos match your search.',
-      );
-    }
-    return ListView(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        16,
-        16,
-        28 + MediaQuery.paddingOf(context).bottom,
-      ),
-      children: [VideoReviewGrid(videos: state.videos, onOpened: onOpened)],
     );
   }
 }

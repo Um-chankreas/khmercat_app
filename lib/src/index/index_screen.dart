@@ -8,6 +8,7 @@ import 'package:khmer_cat_app/core/components/navigationbar/app_bottom_nav_bar.d
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/src/feed/presentation/screens/home_feed.dart';
+import 'package:khmer_cat_app/src/feed/providers/feed_chrome_provider.dart';
 import 'package:khmer_cat_app/src/notifications/presentation/screens/notifications_screen.dart';
 import 'package:khmer_cat_app/src/profile/presentation/screens/profile_tab.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
@@ -87,34 +88,87 @@ class IndexScreen extends HookConsumerWidget {
         extendBody: true,
         body: IndexedStack(index: selectedIndex.value, children: pages),
 
-        bottomNavigationBar: AppBottomNavBar(
-          currentIndex: selectedIndex.value,
-          overMedia: selectedIndex.value == 0,
-          onTap: (i) => selectedIndex.value = i,
-          uploadBusy: uploadBusy,
-          uploadProgress: upload.stage == UploadStage.uploading
-              ? upload.uploadProgress
-              : null,
-          uploadError: upload.stage == UploadStage.error,
-          uploadSuccess: upload.stage == UploadStage.success,
-          onCreateTap: () async {
-            // A background upload is running — ignore taps until it settles.
-            if (uploadBusy) return;
-            // Last one failed: the button is a retry affordance now.
-            if (upload.stage == UploadStage.error) {
-              ref.read(videoUploadViewModelProvider.notifier).retry();
-              return;
-            }
-            if (!await requireLogin(
-              context,
-              ref,
-              message: 'Sign in to upload a video',
-            )) {
-              return;
-            }
-            AppRouter.router.pushNamed(AppRoute.cameraRecord.name);
-          },
-          actingAsRestaurant: activeRestaurant != null,
+        bottomNavigationBar: _AutoHide(
+          // Only the feed hides it, and only while swiping.
+          hidden:
+              selectedIndex.value == 0 && ref.watch(feedChromeHiddenProvider),
+          child: AppBottomNavBar(
+            currentIndex: selectedIndex.value,
+            overMedia: selectedIndex.value == 0,
+            onTap: (i) => selectedIndex.value = i,
+            uploadBusy: uploadBusy,
+            uploadProgress: upload.stage == UploadStage.uploading
+                ? upload.uploadProgress
+                : null,
+            uploadError: upload.stage == UploadStage.error,
+            uploadSuccess: upload.stage == UploadStage.success,
+            onCreateTap: () async {
+              // A background upload is running — ignore taps until it settles.
+              if (uploadBusy) return;
+              // Last one failed: the button is a retry affordance now.
+              if (upload.stage == UploadStage.error) {
+                ref.read(videoUploadViewModelProvider.notifier).retry();
+                return;
+              }
+              if (!await requireLogin(
+                context,
+                ref,
+                message: 'Sign in to upload a video',
+              )) {
+                return;
+              }
+              AppRouter.router.pushNamed(AppRoute.cameraRecord.name);
+            },
+            actingAsRestaurant: activeRestaurant != null,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Slides [child] down off the screen while [hidden]. The slot keeps its
+/// height (so nothing above re-lays out) and, once fully off-screen, the
+/// child is switched off so its backdrop blur stops rendering. It stays in
+/// the tree, so its state (icon animations, upload ring) is kept.
+class _AutoHide extends StatefulWidget {
+  final bool hidden;
+  final Widget child;
+  const _AutoHide({required this.hidden, required this.child});
+
+  @override
+  State<_AutoHide> createState() => _AutoHideState();
+}
+
+class _AutoHideState extends State<_AutoHide> {
+  bool _gone = false;
+
+  @override
+  void didUpdateWidget(_AutoHide old) {
+    super.didUpdateWidget(old);
+    // Back on screen: render again before it slides in.
+    if (!widget.hidden && _gone) _gone = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      ignoring: widget.hidden,
+      child: AnimatedSlide(
+        duration: const Duration(milliseconds: 220),
+        curve: widget.hidden ? Curves.easeInCubic : Curves.easeOutCubic,
+        offset: widget.hidden ? const Offset(0, 1.4) : Offset.zero,
+        onEnd: () {
+          if (widget.hidden && !_gone) setState(() => _gone = true);
+        },
+        child: Visibility(
+          visible: !_gone,
+          // Keep the slot's size: if it collapsed, the feed's bottom inset
+          // would change and its overlays would jump.
+          maintainSize: true,
+          maintainState: true,
+          maintainAnimation: true,
+          child: widget.child,
         ),
       ),
     );

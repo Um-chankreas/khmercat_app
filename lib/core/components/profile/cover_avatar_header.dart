@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:khmer_cat_app/core/components/image_network/image_user_circle_profile.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
+import 'package:khmer_cat_app/core/utils/assets_name.dart';
 
 /// Cover photo + gradient-ring avatar overlapping its bottom edge. Used by
 /// the signed-in user's own profile (with [actions] / [avatarBadge] for edit
@@ -32,6 +33,13 @@ class CoverAvatarHeader extends StatelessWidget {
   /// [coverAction] and [avatarBadge] as the header's edit affordances,
   /// rather than a flow child further down the page.
   final Widget? belowFoldAction;
+
+  /// Centers the avatar instead of left-aligning it.
+  final bool centerAvatar;
+
+  /// Height reserved for [belowFoldAction] (it starts [actionGap] under the
+  /// cover).
+  final double belowFoldHeight;
   final double coverHeight;
   final double avatarSize;
 
@@ -54,6 +62,8 @@ class CoverAvatarHeader extends StatelessWidget {
     this.coverAction,
     this.avatarBadge,
     this.belowFoldAction,
+    this.centerAvatar = false,
+    this.belowFoldHeight = actionHeight,
     this.coverHeight = 200,
     this.avatarSize = 104,
     this.coverRadius = 28,
@@ -64,6 +74,16 @@ class CoverAvatarHeader extends StatelessWidget {
   /// Space to leave below the header so content clears the overlapping
   /// avatar (half its outer size plus breathing room).
   static double contentGap([double avatarSize = 104]) => avatarSize / 2 + 18;
+
+  /// A [belowFoldAction] sits [actionGap] under the cover and is at most
+  /// [actionHeight] tall.
+  static const double actionGap = 16;
+  static const double actionHeight = 44;
+
+  /// Space below the cover that a [belowFoldAction] of [height] needs,
+  /// including the same [actionGap] again before the content that follows.
+  static double belowFoldExtent([double height = actionHeight]) =>
+      actionGap + height + actionGap;
 
   @override
   Widget build(BuildContext context) {
@@ -81,11 +101,24 @@ class CoverAvatarHeader extends StatelessWidget {
     // amount to land at the same on-screen spot it would if the Stack were
     // still exactly `coverHeight` tall.
     final avatarOverlap = (avatarSize + 12) / 2;
+    // The box also has to reach the bottom of a below-fold action.
+    final extra = belowFoldAction == null
+        ? avatarOverlap
+        : (avatarOverlap > actionGap + belowFoldHeight
+              ? avatarOverlap
+              : actionGap + belowFoldHeight);
+
+    final avatar = ProfileRingAvatar(
+      avatarUrl: avatarUrl,
+      name: name,
+      size: avatarSize,
+      badge: avatarBadge,
+    );
 
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        SizedBox(width: double.infinity, height: coverHeight + avatarOverlap),
+        SizedBox(width: double.infinity, height: coverHeight + extra),
         ClipRRect(
           borderRadius: BorderRadius.vertical(
             bottom: Radius.circular(coverRadius),
@@ -97,22 +130,10 @@ class CoverAvatarHeader extends StatelessWidget {
                 ? CachedNetworkImage(
                     imageUrl: coverUrl!,
                     fit: BoxFit.cover,
-                    placeholder: (_, _) => const DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: ProfileTheme.coverFallback,
-                      ),
-                    ),
-                    errorWidget: (_, _, _) => const DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: ProfileTheme.coverFallback,
-                      ),
-                    ),
+                    placeholder: (_, _) => const _SoftCoverFallback(),
+                    errorWidget: (_, _, _) => const _SoftCoverFallback(),
                   )
-                : const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: ProfileTheme.coverFallback,
-                    ),
-                  ),
+                : const _SoftCoverFallback(),
           ),
         ),
         // Only wash a real photo — the fallback gradient is already the
@@ -181,23 +202,19 @@ class CoverAvatarHeader extends StatelessWidget {
             ),
           ),
         if (coverAction != null)
-          Positioned(
-            bottom: 14 + avatarOverlap,
-            right: 14,
-            child: coverAction!,
-          ),
+          Positioned(bottom: 14 + extra, right: 14, child: coverAction!),
         Positioned(
-          left: 20,
-          bottom: 0,
-          child: ProfileRingAvatar(
-            avatarUrl: avatarUrl,
-            name: name,
-            size: avatarSize,
-            badge: avatarBadge,
-          ),
+          left: centerAvatar ? 0 : 20,
+          right: centerAvatar ? 0 : null,
+          bottom: extra - avatarOverlap,
+          child: centerAvatar ? Center(child: avatar) : avatar,
         ),
         if (belowFoldAction != null)
-          Positioned(right: 20, bottom: 4, child: belowFoldAction!),
+          Positioned(
+            right: 20,
+            top: coverHeight + actionGap,
+            child: belowFoldAction!,
+          ),
       ],
     );
   }
@@ -228,13 +245,6 @@ class ProfileRingAvatar extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: ProfileTheme.gradient,
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: ProfileTheme.purple.withValues(alpha: 0.25),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
           ),
           child: Container(
             padding: const EdgeInsets.all(3),
@@ -359,6 +369,52 @@ class ProfileEditIconButton extends StatelessWidget {
             child: Icon(icon, size: size * 0.45, color: Colors.white),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Cover for a profile with no photo: the app's pink → purple → blue as a
+/// soft wash on white, with the cat logo faded into the top-right corner.
+class _SoftCoverFallback extends StatelessWidget {
+  const _SoftCoverFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return LayoutBuilder(
+      builder: (context, c) => Stack(
+        clipBehavior: Clip.hardEdge,
+        fit: StackFit.expand,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xff1B1830) : Colors.white,
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  ProfileTheme.pink.withValues(alpha: isDark ? 0.35 : 0.38),
+                  ProfileTheme.purple.withValues(alpha: isDark ? 0.3 : 0.28),
+                  ProfileTheme.blue.withValues(alpha: isDark ? 0.35 : 0.42),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            right: -c.maxWidth * 0.06,
+            top: -c.maxHeight * 0.1,
+            width: c.maxWidth * 0.72,
+            child: Image.asset(
+              AssetsName.appLogoTrsm,
+              opacity: const AlwaysStoppedAnimation(0.55),
+            ),
+          ),
+        ],
       ),
     );
   }

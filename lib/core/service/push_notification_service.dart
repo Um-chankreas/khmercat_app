@@ -56,14 +56,19 @@ class PushNotificationService {
         if (text.isNotEmpty) AppService.showToast(text);
       });
 
-      FirebaseMessaging.onMessageOpenedApp.listen((_) => _openFromNotification());
+      FirebaseMessaging.onMessageOpenedApp.listen(
+        (_) => _openFromNotification(),
+      );
 
-      final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+      final initialMessage = await FirebaseMessaging.instance
+          .getInitialMessage();
       if (initialMessage != null) _openFromNotification();
 
       FirebaseMessaging.instance.onTokenRefresh.listen((_) => registerToken());
     } catch (e) {
-      AppLog.info('Push notifications unavailable (Firebase not set up yet?): $e');
+      AppLog.info(
+        'Push notifications unavailable (Firebase not set up yet?): $e',
+      );
     }
   }
 
@@ -102,7 +107,8 @@ class PushNotificationService {
   /// notifications for the account that just signed out.
   Future<void> unregisterToken() async {
     try {
-      final token = _lastRegisteredToken ?? await FirebaseMessaging.instance.getToken();
+      final token =
+          _lastRegisteredToken ?? await FirebaseMessaging.instance.getToken();
       if (token == null) return;
 
       await _client.delete(ApiRoute.deviceTokens, body: {'token': token});

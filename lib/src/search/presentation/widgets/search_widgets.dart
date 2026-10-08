@@ -58,7 +58,20 @@ class SearchBackdrop extends StatelessWidget {
 
     return IgnorePointer(
       child: DecoratedBox(
-        decoration: BoxDecoration(color: isDark ? null : Colors.white),
+        // Light mode: a soft pink wash at the top easing into lavender.
+        decoration: BoxDecoration(
+          gradient: isDark
+              ? null
+              : const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xffFEF4F9),
+                    Color(0xffFBF8FD),
+                    Color(0xffF7F8FE),
+                  ],
+                ),
+        ),
         child: Stack(
           clipBehavior: Clip.hardEdge,
           children: [
@@ -69,13 +82,13 @@ class SearchBackdrop extends StatelessWidget {
               width: cat,
               // Behind the search bar, chips and heading, so it's fainter
               // to stay out of their way.
-              child: logo(opacity: isDark ? 0.05 : 0.09),
+              child: logo(opacity: isDark ? 0.05 : 0.06),
             ),
             Positioned(
               left: -cat * 0.16,
               bottom: -cat * 0.10,
               width: cat,
-              child: logo(opacity: isDark ? 0.06 : 0.13),
+              child: logo(opacity: isDark ? 0.06 : 0.08),
             ),
           ],
         ),
@@ -84,8 +97,8 @@ class SearchBackdrop extends StatelessWidget {
   }
 }
 
-/// Square icon button that sits beside the search bar and matches it: the
-/// same white field, corner radius, hairline border and shadow.
+/// Round icon button that sits beside the search bar and matches it: the
+/// same white field, hairline border and shadow.
 class SearchActionButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
@@ -114,7 +127,7 @@ class SearchActionButton extends StatelessWidget {
           height: 50,
           decoration: BoxDecoration(
             color: scheme.surface,
-            borderRadius: BorderRadius.circular(16),
+            shape: BoxShape.circle,
             border: Border.all(
               color: scheme.onSurface.withValues(alpha: 0.07),
               width: 1.2,
@@ -157,7 +170,7 @@ class SearchInputBar extends StatelessWidget {
         // White field floating on the backdrop; the outline turns pink
         // while typing.
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(25),
         border: Border.all(
           color: focused
               ? searchAccent.withValues(alpha: 0.55)
@@ -372,31 +385,36 @@ class SearchTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final muted = ProfileTheme.textSecondary(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: ProfileTheme.hairlineColor(context)),
+    // Full width: inside the screen's Column a bare box would shrink to its
+    // content and sit centered.
+    return SizedBox(
+      width: double.infinity,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: ProfileTheme.hairlineColor(context)),
+          ),
         ),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            for (var i = 0; i < tabs.length; i++)
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  onChanged(i);
-                },
-                child: _TabItem(
-                  tab: tabs[i],
-                  active: i == selected,
-                  muted: muted,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              for (var i = 0; i < tabs.length; i++)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    onChanged(i);
+                  },
+                  child: _TabItem(
+                    tab: tabs[i],
+                    active: i == selected,
+                    muted: muted,
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -416,73 +434,43 @@ class _TabItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final count = tab.count;
+    final primary = ProfileTheme.textPrimary(context);
     return Padding(
       padding: const EdgeInsets.only(right: 22),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            height: 38,
-            child: Row(
-              children: [
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 180),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        height: 42,
+        alignment: Alignment.center,
+        // Dark underline as wide as the tab, over the bar's hairline.
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              width: 2,
+              color: active ? primary : Colors.transparent,
+            ),
+          ),
+        ),
+        // "Restaurants 2": the count is plain, lighter text.
+        child: Text.rich(
+          TextSpan(
+            text: tab.label,
+            children: [
+              if (count != null)
+                TextSpan(
+                  text: ' $count',
                   style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                    color: active ? ProfileTheme.textPrimary(context) : muted,
+                    fontWeight: FontWeight.w500,
+                    color: muted.withValues(alpha: 0.8),
                   ),
-                  child: Text(tab.label),
                 ),
-                if (count != null) ...[
-                  const Gap(6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: ProfileTheme.purple.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '$count',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: muted,
-                      ),
-                    ),
-                  ),
-                ] else if (active) ...[
-                  const Gap(5),
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: ProfileTheme.pink,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ],
-              ],
-            ),
+            ],
           ),
-          // Underline, as wide as the tab's label row.
-          AnimatedOpacity(
-            duration: const Duration(milliseconds: 180),
-            opacity: active ? 1 : 0,
-            child: Container(
-              height: 3,
-              width: 28,
-              decoration: BoxDecoration(
-                gradient: ProfileTheme.pinkPurple,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+          style: TextStyle(
+            fontSize: 14.5,
+            fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+            color: active ? primary : muted,
           ),
-        ],
+        ),
       ),
     );
   }
@@ -513,9 +501,9 @@ class SectionTitle extends StatelessWidget {
           child: Text(
             title,
             style: TextStyle(
-              fontSize: 16.5,
+              fontSize: 20,
               fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
+              letterSpacing: -0.4,
               color: ProfileTheme.textPrimary(context),
             ),
           ),
@@ -529,7 +517,7 @@ class SectionTitle extends StatelessWidget {
               child: Text(
                 actionText!,
                 style: const TextStyle(
-                  fontSize: 13.5,
+                  fontSize: 14.5,
                   fontWeight: FontWeight.w700,
                   color: searchAccent,
                 ),
@@ -544,7 +532,10 @@ class SectionTitle extends StatelessWidget {
 /// Large icon in a soft ringed circle, title, message, optional tips,
 /// tappable suggestions and an action button.
 class SearchMessage extends StatelessWidget {
-  final IconData icon;
+  /// Either [icon] (in a ringed circle) or [imageAsset] (the mascot, shown
+  /// as is).
+  final IconData? icon;
+  final String? imageAsset;
   final String title;
   final String message;
   final List<String> tips;
@@ -553,7 +544,8 @@ class SearchMessage extends StatelessWidget {
   final ValueChanged<String>? onSuggestion;
   final Widget? action;
   const SearchMessage({
-    required this.icon,
+    this.icon,
+    this.imageAsset,
     required this.title,
     required this.message,
     this.tips = const [],
@@ -566,72 +558,81 @@ class SearchMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return Align(
+      alignment: Alignment.topCenter,
       child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
           28,
-          24,
+          36,
           28,
           40 + MediaQuery.paddingOf(context).bottom,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.6, end: 1),
-              duration: const Duration(milliseconds: 550),
-              curve: Curves.elasticOut,
-              builder: (context, t, child) =>
-                  Transform.scale(scale: t, child: child),
-              child: Container(
-                width: 132,
-                height: 132,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: ProfileTheme.purple.withValues(alpha: 0.06),
-                ),
-                child: Center(
-                  child: Container(
-                    width: 96,
-                    height: 96,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          ProfileTheme.pink.withValues(alpha: 0.16),
-                          ProfileTheme.blue.withValues(alpha: 0.24),
-                        ],
+            if (imageAsset != null)
+              Image.asset(
+                imageAsset!,
+                width: 150,
+                cacheWidth: (150 * MediaQuery.devicePixelRatioOf(context))
+                    .round(),
+              )
+            else
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.6, end: 1),
+                duration: const Duration(milliseconds: 550),
+                curve: Curves.elasticOut,
+                builder: (context, t, child) =>
+                    Transform.scale(scale: t, child: child),
+                child: Container(
+                  width: 132,
+                  height: 132,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: ProfileTheme.purple.withValues(alpha: 0.06),
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            ProfileTheme.pink.withValues(alpha: 0.16),
+                            ProfileTheme.blue.withValues(alpha: 0.24),
+                          ],
+                        ),
                       ),
-                    ),
-                    child: ShaderMask(
-                      shaderCallback: (r) =>
-                          ProfileTheme.gradient.createShader(r),
-                      child: Icon(icon, size: 48, color: Colors.white),
+                      child: ShaderMask(
+                        shaderCallback: (r) =>
+                            ProfileTheme.gradient.createShader(r),
+                        child: Icon(icon!, size: 48, color: Colors.white),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            const Gap(22),
+            const Gap(24),
             Text(
               title,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 20,
+                fontSize: 22,
                 fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
+                letterSpacing: -0.4,
               ),
             ),
-            const Gap(8),
+            const Gap(10),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14.5,
+              style: TextStyle(
+                fontSize: 15,
                 height: 1.45,
-                color: ProfileTheme.muted,
+                color: ProfileTheme.textSecondary(context),
               ),
             ),
             if (tips.isNotEmpty) ...[
@@ -694,27 +695,29 @@ class SearchMessage extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   for (final s in suggestions)
-                    Material(
-                      color: ProfileTheme.purple.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(20),
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        onTap: () => onSuggestion?.call(s),
-                        splashColor: ProfileTheme.purple.withValues(
-                          alpha: 0.16,
+                    GestureDetector(
+                      onTap: () => onSuggestion?.call(s),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.09),
                           ),
-                          child: Text(
-                            s,
-                            style: const TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
-                              color: ProfileTheme.deepPurple,
-                            ),
+                          boxShadow: searchShadow(),
+                        ),
+                        child: Text(
+                          s,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: ProfileTheme.textPrimary(context),
                           ),
                         ),
                       ),

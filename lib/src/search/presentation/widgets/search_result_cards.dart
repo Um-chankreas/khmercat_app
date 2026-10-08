@@ -14,9 +14,6 @@ import 'package:khmer_cat_app/src/users/domain/public_profile.dart';
 // Cards for the search results screen: nearby restaurant rows, recommended
 // restaurant tiles, food review video cards and popular reviewer rows.
 
-const _openGreen = Color(0xff22C55E);
-const _closedRed = Color(0xffEF4444);
-
 /// "800m away" / "1.2 km away".
 String formatAway(double km) => km < 1
     ? '${(km * 1000).round()}m away'
@@ -39,17 +36,15 @@ String? shortAddress(String? address) {
 // Section header
 // =============================================================================
 
-/// Emoji + UPPERCASE title, with an optional pink action ("See all (12)") or
-/// a quiet trailing label ("Sponsored").
+/// Bold title with an optional pink action ("View all") or a quiet trailing
+/// label ("Sponsored").
 class SearchSectionHeader extends StatelessWidget {
-  final String emoji;
   final String title;
   final String? actionText;
   final VoidCallback? onAction;
   final String? trailingLabel;
 
   const SearchSectionHeader({
-    required this.emoji,
     required this.title,
     this.actionText,
     this.onAction,
@@ -60,20 +55,18 @@ class SearchSectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 14),
       child: Row(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 15)),
-          const Gap(6),
           Expanded(
             child: Text(
-              title.toUpperCase(),
+              title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 13.5,
+                fontSize: 20,
                 fontWeight: FontWeight.w800,
-                letterSpacing: 0.6,
+                letterSpacing: -0.4,
                 color: ProfileTheme.textPrimary(context),
               ),
             ),
@@ -87,9 +80,9 @@ class SearchSectionHeader extends StatelessWidget {
                 child: Text(
                   actionText!,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.w700,
-                    color: ProfileTheme.pink,
+                    color: searchAccent,
                   ),
                 ),
               ),
@@ -121,43 +114,27 @@ class _TapCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: ProfileTheme.surface(context),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: ProfileTheme.hairlineColor(context)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        splashColor: ProfileTheme.purple.withValues(alpha: 0.08),
-        highlightColor: ProfileTheme.purple.withValues(alpha: 0.04),
-        child: child,
-      ),
-    );
-  }
-}
-
-class _OpenBadge extends StatelessWidget {
-  final bool open;
-  const _OpenBadge({required this.open});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = open ? _openGreen : _closedRed;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: searchShadow(),
       ),
-      child: Text(
-        open ? 'Open' : 'Closed',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: color,
+      child: Material(
+        color: ProfileTheme.surface(context),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.06),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          splashColor: ProfileTheme.purple.withValues(alpha: 0.08),
+          highlightColor: ProfileTheme.purple.withValues(alpha: 0.04),
+          child: child,
         ),
       ),
     );
@@ -189,13 +166,37 @@ class _OverlayPill extends StatelessWidget {
   }
 }
 
-Widget _dot(BuildContext context) => Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 6),
-  child: Text(
-    '•',
-    style: TextStyle(fontSize: 11, color: ProfileTheme.textSecondary(context)),
-  ),
-);
+/// "▶ 0:33" on a dark pill, bottom-right of a video thumbnail.
+class _DurationPill extends StatelessWidget {
+  final String text;
+  const _DurationPill({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(7, 4, 10, 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(100),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.play_arrow_rounded, size: 15, color: Colors.white),
+          const Gap(2),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 // =============================================================================
 // Nearby restaurant row
@@ -214,18 +215,20 @@ class NearbyRestaurantCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = restaurant;
     final muted = ProfileTheme.textSecondary(context);
+    // "Beverage · Rupp-CJCC"
     final subtitle = [
       r.category?.name,
       shortAddress(r.address),
-    ].whereType<String>().where((s) => s.isNotEmpty).join(' • ');
+    ].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
 
+    // "★ 4.4 · 4.7 km away" — either part may be missing.
     final meta = <Widget>[
       if (r.avgRating != null)
         RatingBadge(
           rating: r.avgRating!,
           iconSize: 15,
           style: TextStyle(
-            fontSize: 12.5,
+            fontSize: 13.5,
             fontWeight: FontWeight.w700,
             color: ProfileTheme.textPrimary(context),
           ),
@@ -234,9 +237,9 @@ class NearbyRestaurantCard extends StatelessWidget {
         Text(
           formatAway(r.distanceKm!),
           style: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: ProfileTheme.pink,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            color: searchAccent,
           ),
         ),
     ];
@@ -255,9 +258,9 @@ class NearbyRestaurantCard extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(14),
                 child: SizedBox(
-                  width: 58,
-                  height: 58,
-                  child: NetImage(url: r.profilePicture),
+                  width: 68,
+                  height: 68,
+                  child: NetImage(url: r.profilePicture, cacheWidth: 68),
                 ),
               ),
               const Gap(14),
@@ -265,26 +268,16 @@ class NearbyRestaurantCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            r.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.2,
-                              color: ProfileTheme.textPrimary(context),
-                            ),
-                          ),
-                        ),
-                        if (r.isOpen != null) ...[
-                          const Gap(8),
-                          _OpenBadge(open: r.isOpen!),
-                        ],
-                      ],
+                    Text(
+                      r.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                        color: ProfileTheme.textPrimary(context),
+                      ),
                     ),
                     if (subtitle.isNotEmpty) ...[
                       const Gap(3),
@@ -292,35 +285,25 @@ class NearbyRestaurantCard extends StatelessWidget {
                         subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 13, color: muted),
+                        style: TextStyle(fontSize: 14, color: muted),
                       ),
                     ],
                     if (meta.isNotEmpty) ...[
-                      const Gap(5),
+                      const Gap(4),
                       Row(
                         children: [
                           for (var i = 0; i < meta.length; i++) ...[
-                            if (i > 0) _dot(context),
+                            if (i > 0)
+                              Text(
+                                '  ·  ',
+                                style: TextStyle(fontSize: 13.5, color: muted),
+                              ),
                             meta[i],
                           ],
                         ],
                       ),
                     ],
                   ],
-                ),
-              ),
-              const Gap(8),
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: ProfileTheme.purple.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.chevron_right_rounded,
-                  size: 22,
-                  color: ProfileTheme.textPrimary(context),
                 ),
               ),
             ],
@@ -480,32 +463,17 @@ class VideoReviewCard extends StatelessWidget {
                   url: video.thumbnailUrl,
                   fallback: Icons.play_circle_outline_rounded,
                 ),
-                Center(
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.play_arrow_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                ),
                 if (video.durationText != null)
                   Positioned(
                     right: 8,
                     bottom: 8,
-                    child: _OverlayPill(child: Text(video.durationText!)),
+                    child: _DurationPill(text: video.durationText!),
                   ),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 9, 10, 10),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -514,27 +482,19 @@ class VideoReviewCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: ProfileTheme.textPrimary(context),
                   ),
                 ),
                 const Gap(3),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '@${video.user.username}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 11.5, color: muted),
-                      ),
-                    ),
-                    Text(
-                      '${formatViews(video.viewsCount)} views',
-                      style: TextStyle(fontSize: 11.5, color: muted),
-                    ),
-                  ],
+                // "@username · 128 views", cut with an ellipsis if long.
+                Text(
+                  '@${video.user.username} · '
+                  '${formatViews(video.viewsCount)} views',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, color: muted),
                 ),
               ],
             ),
@@ -561,7 +521,7 @@ class VideoReviewGrid extends StatelessWidget {
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 0.82,
+        childAspectRatio: 0.68,
       ),
       itemCount: videos.length,
       itemBuilder: (context, i) =>

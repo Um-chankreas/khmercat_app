@@ -6,7 +6,9 @@ import 'package:khmer_cat_app/core/components/dialogs/sign_in_prompt.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_action_tiles.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_collapsing_header.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_empty_tab_body.dart';
-import 'package:khmer_cat_app/core/components/profile/profile_social_widgets.dart';
+import 'package:khmer_cat_app/core/components/profile/cover_avatar_header.dart';
+import 'package:khmer_cat_app/core/components/profile/profile_shared_widgets.dart';
+import 'package:khmer_cat_app/src/profile/presentation/widgets/profile_image_flow.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
@@ -26,6 +28,7 @@ class UserProfileScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scrollController = useScrollController();
     final tab = useState(0);
+    final visited = useState<Set<int>>({0});
     final state = ref.watch(userProfileControllerProvider(username));
     final currentUser = ref.watch(currentUserProvider);
     final isMe = currentUser?.username == username;
@@ -62,6 +65,14 @@ class UserProfileScreen extends HookConsumerWidget {
       ref.read(userProfileControllerProvider(username).notifier).toggleFollow();
     }
 
+    Future<void> changeImage(ProfileImageKind kind) async {
+      await changeProfileImage(context, ref, kind);
+      if (!context.mounted) return;
+      ref
+          .read(userProfileControllerProvider(username).notifier)
+          .refreshQuietly();
+    }
+
     void share() => SharePlus.instance.share(
       ShareParams(
         text: '${profile.name} (@${profile.username}) on Khmer Cat',
@@ -83,287 +94,248 @@ class UserProfileScreen extends HookConsumerWidget {
       ),
     ].where((l) => l.$1 != null).map((l) => (l.$1!, l.$2, l.$3)).toList();
 
-    final tiles = isMe
-        ? [
-            ProfileActionTile(
-              icon: Icons.edit_rounded,
-              label: 'Edit profile',
-              primary: true,
-              onTap: () =>
-                  AppRouter.router.pushNamed(AppRoute.editProfile.name),
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.15,
+      child: Scaffold(
+        body: CustomScrollView(
+          controller: scrollController,
+          slivers: [
+            ProfileCollapsingHeader(
+              scrollController: scrollController,
+              coverUrl: profile.coverPicture,
+              avatarUrl: profile.profilePicture,
+              name: profile.name,
+              subtitle: '@${profile.username}',
+              // 16:9
+              coverHeight: MediaQuery.sizeOf(context).width * 9 / 16,
+              avatarSize: 90,
+              coverRadius: 0,
+              centerAvatar: true,
+              // Your own profile: change the cover and the photo in place.
+              coverAction: isMe
+                  ? ProfileChangeCoverButton(
+                      onTap: () => changeImage(ProfileImageKind.cover),
+                    )
+                  : null,
+              avatarBadge: isMe
+                  ? ProfileEditIconButton(
+                      icon: Icons.photo_camera_rounded,
+                      size: 28,
+                      ringed: true,
+                      onTap: () => changeImage(ProfileImageKind.avatar),
+                    )
+                  : null,
+              lightControls: true,
+              onBack: () {
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                }
+              },
+              actions: [
+                ProfileCircleButton(
+                  icon: Icons.qr_code_2_rounded,
+                  // TODO(backend): a profile QR / deep link isn't available.
+                  onTap: () => AppService.showToast('Coming soon'),
+                ),
+                // The header already puts 8px between actions; this adds 8
+                // more between QR and share.
+                const SizedBox.shrink(),
+                ProfileCircleButton(
+                  icon: Icons.ios_share_rounded,
+                  onTap: share,
+                ),
+                const Gap(6),
+              ],
             ),
-            ProfileActionTile(
-              icon: Icons.ios_share_rounded,
-              label: 'Share',
-              onTap: share,
-            ),
-          ]
-        : [
-            ProfileActionTile(
-              icon: state.isFollowingLocally
-                  ? Icons.check_rounded
-                  : Icons.person_add_alt_1_rounded,
-              label: state.isFollowingLocally ? 'Following' : 'Follow',
-              primary: !state.isFollowingLocally,
-              onTap: onFollow,
-            ),
-            // TODO(backend): no direct messages yet.
-            ProfileActionTile(
-              icon: Icons.chat_bubble_outline_rounded,
-              label: 'Message',
-              onTap: () => AppService.showToast('Coming soon'),
-            ),
-            ProfileActionTile(
-              icon: Icons.ios_share_rounded,
-              label: 'Share',
-              onTap: share,
-            ),
-          ];
-
-    return Scaffold(
-      body: CustomScrollView(
-        controller: scrollController,
-        slivers: [
-          ProfileCollapsingHeader(
-            scrollController: scrollController,
-            coverUrl: profile.coverPicture,
-            avatarUrl: profile.profilePicture,
-            name: profile.name,
-            subtitle: '@${profile.username}',
-            coverHeight: MediaQuery.sizeOf(context).width * 9 / 16,
-            avatarSize: 86,
-            coverRadius: 0,
-            onBack: () {
-              if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-            },
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Name (+ verified), then the @handle — people have a
-                  // handle, restaurants don't, which already sets them apart.
-                  Text.rich(
-                    TextSpan(
-                      text: profile.name,
-                      children: [
-                        if (profile.isVerified)
-                          const WidgetSpan(
-                            alignment: PlaceholderAlignment.middle,
-                            child: Padding(
-                              padding: EdgeInsets.only(left: 6),
-                              child: Icon(
-                                Icons.verified_rounded,
-                                size: 20,
-                                color: Color(0xff3B82F6),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  children: [
+                    // Name (+ verified), then "Personal" and the @handle.
+                    Text.rich(
+                      TextSpan(
+                        text: profile.name,
+                        children: [
+                          if (profile.isVerified)
+                            const WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: Padding(
+                                padding: EdgeInsets.only(left: 6),
+                                child: Icon(
+                                  Icons.verified_rounded,
+                                  size: 20,
+                                  color: Color(0xff3B82F6),
+                                ),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                    style: TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                      color: ProfileTheme.textPrimary(context),
-                    ),
-                  ),
-                  const Gap(2),
-                  Text(
-                    '@${profile.username}',
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: ProfileTheme.pink,
-                    ),
-                  ),
-                  const Gap(8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      // Person chip = a person (restaurants get a storefront
-                      // chip with their category instead).
-                      const ProfileTypeChip(isRestaurant: false),
-                      if (profile.reviewsCount > 0)
-                        _Chip(
-                          icon: Icons.rate_review_rounded,
-                          label: 'Food reviewer',
-                          color: ProfileTheme.purple,
-                        ),
-                      if (isMe)
-                        const _Chip(
-                          icon: Icons.face_rounded,
-                          label: 'You',
-                          color: ProfileTheme.pink,
-                        ),
-                    ],
-                  ),
-                  const Gap(10),
-                  _StatsLine(
-                    stats: [
-                      (profile.followingCount, 'following', 'following'),
-                      (profile.followersCount ?? 0, 'follower', 'followers'),
-                      (profile.likesReceived, 'like', 'likes'),
-                      if (profile.reviewsCount > 0)
-                        (profile.reviewsCount, 'review', 'reviews'),
-                    ],
-                  ),
-                  if (bio != null && bio.isNotEmpty) ...[
-                    const Gap(10),
-                    Text(
-                      bio,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 14,
-                        height: 1.45,
-                        color: ProfileTheme.textSecondary(context),
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                        color: ProfileTheme.textPrimary(context),
                       ),
                     ),
-                  ],
-
-                  // ---- Action tiles + social strip (same as restaurants)
-                  const Gap(16),
-                  Row(
-                    children: [
-                      for (var i = 0; i < tiles.length; i++) ...[
-                        if (i > 0) const Gap(8),
-                        Expanded(child: tiles[i]),
+                    const Gap(10),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 10,
+                      runSpacing: 6,
+                      children: [
+                        const ProfileTypeChip(isRestaurant: false),
+                        Text(
+                          '@${profile.username}',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            color: ProfileTheme.textSecondary(context),
+                          ),
+                        ),
                       ],
+                    ),
+                    if (bio != null && bio.isNotEmpty) ...[
+                      const Gap(12),
+                      Text(
+                        bio,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 15,
+                          height: 1.45,
+                          color: ProfileTheme.textPrimary(context),
+                        ),
+                      ),
                     ],
-                  ),
-                  if (socialLinks.isNotEmpty) ...[
-                    const Gap(12),
-                    ProfileSocialStrip(links: socialLinks),
+                    const Gap(_section),
+                    ProfileStatsRow(
+                      stats: [
+                        (_compact(profile.postsCount), 'Posts'),
+                        (_compact(profile.followersCount ?? 0), 'Followers'),
+                        (_compact(profile.followingCount), 'Following'),
+                      ],
+                    ),
+                    const Gap(_section),
+                    // Follow (or Edit profile) and the social circles.
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: isMe
+                              ? ProfileGradientButton(
+                                  icon: Icons.edit_outlined,
+                                  label: 'Edit profile',
+                                  onTap: () => AppRouter.router.pushNamed(
+                                    AppRoute.editProfile.name,
+                                  ),
+                                )
+                              : ProfileGradientButton(
+                                  icon: state.isFollowingLocally
+                                      ? Icons.check_rounded
+                                      : Icons.add_rounded,
+                                  label: state.isFollowingLocally
+                                      ? 'Following'
+                                      : 'Follow',
+                                  filled: !state.isFollowingLocally,
+                                  onTap: onFollow,
+                                ),
+                        ),
+                        for (final l in socialLinks) ...[
+                          const Gap(12),
+                          ProfileLinkCircle(
+                            label: l.$3,
+                            asset: l.$2,
+                            onTap: () => SocialLinks.open(l.$1),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
+                ),
+              ),
+            ),
+            const SliverToBoxAdapter(child: Gap(_section)),
+            SliverToBoxAdapter(
+              child: ProfileUnderlineTabs(
+                tabs: [
+                  const ProfileUnderlineTab(
+                    icon: Icons.grid_view_rounded,
+                    label: 'Posts',
+                  ),
+                  ProfileUnderlineTab(
+                    asset: AssetsName.review,
+                    label: 'Review videos',
+                  ),
+                  const ProfileUnderlineTab(
+                    icon: Icons.bookmark_border_rounded,
+                    label: 'Saved',
+                  ),
+                ],
+                selected: tab.value,
+                onChanged: (i) {
+                  tab.value = i;
+                  if (!visited.value.contains(i)) {
+                    visited.value = {...visited.value, i};
+                  }
+                },
+              ),
+            ),
+            const SliverToBoxAdapter(child: Gap(16)),
+            // The grids stay alive once opened (no refetch when switching
+            // back). Saved has no public backend listing (a user's saves
+            // are owner-only), so it's an honest placeholder.
+            SliverToBoxAdapter(
+              child: Column(
+                children: [
+                  Visibility(
+                    visible: tab.value == 0,
+                    maintainState: true,
+                    child: UserVideosGrid(
+                      userId: profile.id,
+                      emptyTitle: 'No videos yet',
+                      emptyMessage:
+                          'Videos posted by this account show up here.',
+                    ),
+                  ),
+                  if (visited.value.contains(1))
+                    Visibility(
+                      visible: tab.value == 1,
+                      maintainState: true,
+                      child: UserVideosGrid(
+                        userId: profile.id,
+                        type: 'review',
+                        emptyTitle: 'No review videos yet',
+                        emptyMessage:
+                            'Food reviews from this account show up here.',
+                      ),
+                    ),
+                  if (tab.value == 2)
+                    ProfileEmptyTabBody(
+                      icon: Icons.bookmark_border_rounded,
+                      title: 'Nothing saved yet',
+                      message: 'Saved videos aren\'t available here yet.',
+                    ),
                 ],
               ),
             ),
-          ),
-          const SliverToBoxAdapter(child: Gap(16)),
-          SliverToBoxAdapter(
-            child: ProfileSegmentTabs(
-              tabs: [
-                ProfileSegmentTab(
-                  asset: AssetsName.feeds,
-                  label: 'Videos',
-                  count: profile.postsCount,
-                ),
-                ProfileSegmentTab(
-                  asset: AssetsName.heartout,
-                  label: 'Favorites',
-                ),
-              ],
-              selected: tab.value,
-              onChanged: (i) => tab.value = i,
-              compact: true,
+            SliverToBoxAdapter(
+              child: Gap(24 + MediaQuery.paddingOf(context).bottom),
             ),
-          ),
-          const SliverToBoxAdapter(child: Gap(16)),
-          // Videos stays alive while Favorites is shown (no refetch when
-          // switching back). Favorites has no public backend listing (a
-          // user's saves are owner-only), so it's an honest placeholder.
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                Visibility(
-                  visible: tab.value == 0,
-                  maintainState: true,
-                  child: UserVideosGrid(
-                    userId: profile.id,
-                    emptyTitle: 'No videos yet',
-                    emptyMessage: 'Videos posted by this account show up here.',
-                  ),
-                ),
-                if (tab.value == 1)
-                  ProfileEmptyTabBody(
-                    asset: AssetsName.heartout,
-                    title: 'No favorites yet',
-                    message: 'Favorite videos aren\'t available here yet.',
-                  ),
-              ],
-            ),
-          ),
-          const SliverToBoxAdapter(child: Gap(16)),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
+
+/// Vertical gap between the profile's blocks.
+const _section = 20.0;
 
 String _compact(int n) {
   if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
   if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
   return '$n';
-}
-
-/// "0 following · 3 followers · 20 likes" — one quiet line, like the
-/// restaurant page's stats.
-class _StatsLine extends StatelessWidget {
-  /// (count, singular label, plural label)
-  final List<(int, String, String)> stats;
-  const _StatsLine({required this.stats});
-
-  @override
-  Widget build(BuildContext context) {
-    final strong = TextStyle(
-      fontSize: 13.5,
-      fontWeight: FontWeight.w800,
-      color: ProfileTheme.textPrimary(context),
-    );
-    final soft = TextStyle(
-      fontSize: 13.5,
-      color: ProfileTheme.textSecondary(context),
-    );
-    return Text.rich(
-      TextSpan(
-        children: [
-          for (var i = 0; i < stats.length; i++) ...[
-            if (i > 0) TextSpan(text: '  ·  ', style: soft),
-            TextSpan(text: _compact(stats[i].$1), style: strong),
-            TextSpan(
-              text: ' ${stats[i].$1 == 1 ? stats[i].$2 : stats[i].$3}',
-              style: soft,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  const _Chip({required this.icon, required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const Gap(5),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

@@ -1,24 +1,18 @@
 // lib/features/feed/presentation/widgets/feed_info_overlay.dart
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:khmer_cat_app/core/components/image_network/image_user_circle_profile.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
-import 'package:khmer_cat_app/core/utils/size_responsive.dart';
 import '../../domain/video_feed_item.dart';
 
 const _pink = Color(0xffFF54AB);
 const _purple = Color(0xff9B6BFF);
-const _blue = Color(0xff74BFFF);
 const _shadow = [Shadow(color: Colors.black54, blurRadius: 6)];
 
-/// Bottom-left overlay, split into two visually distinct identities so it's
-/// never ambiguous who posted vs. which restaurant it's about:
-///   1. Reviewer byline — small, muted, transparent background (avatar,
-///      @username, posted-time with a clock icon).
-///   2. Restaurant card — a divider below the byline, then a translucent
-///      card with a bigger avatar, bold name, star rating, and the follow
-///      chip, only shown when the video has a restaurant.
-/// Below both: the expandable caption (its own #hashtags stay tappable).
+/// Bottom-left overlay:
+///   1. Reviewer byline — small and muted ("@username · time").
+///   2. The expandable caption (its own #hashtags stay tappable).
+///   3. One restaurant row — icon, name, rating star and a Follow chip —
+///      only shown when the video has a restaurant.
 class FeedInfoOverlay extends StatelessWidget {
   final VideoFeedItem item;
   final VoidCallback onFollowTap;
@@ -100,14 +94,6 @@ class FeedInfoOverlay extends StatelessWidget {
             ),
           ),
 
-          // 2. Rating pill — only shown on review videos that actually
-          // carry a rating; the "recommended" label is derived from that
-          // real value, not a fixed string.
-          if (rating != null) ...[
-            const SizedBox(height: 8),
-            _RatingPill(rating: rating),
-          ],
-
           if (item.caption.isNotEmpty) ...[
             const SizedBox(height: 8),
             _ExpandableCaption(
@@ -119,88 +105,59 @@ class FeedInfoOverlay extends StatelessWidget {
             ),
           ],
 
-          // 3. Restaurant card — which restaurant this review is about.
-          // A flat dark-glass card, last in the column so it sits right
-          // above the tab bar / safe area, matching the reference design.
+          // 2. Restaurant row — icon, name, rating star and Follow on one
+          // line, last in the column so it sits right above the tab bar.
           if (restaurant != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: context.all(8),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.42),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: onRestaurantTap,
-                      child: Row(
-                        children: [
-                          _RingedAvatar(
-                            imageUrl: restaurant.profilePicture,
-                            name: restaurant.name,
-                            size: context.sc(40),
-                          ),
-                          const SizedBox(width: 10),
-                          Flexible(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  restaurant.name,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 15,
-                                    letterSpacing: -0.2,
-                                    shadows: _shadow,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onRestaurantTap,
+                    child: Row(
+                      children: [
+                        const _RestaurantIcon(),
+                        const SizedBox(width: 8),
+                        // Name with the rating under it.
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                restaurant.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15.5,
+                                  letterSpacing: -0.2,
+                                  shadows: _shadow,
                                 ),
-                                const SizedBox(height: 2),
-                                // TODO(backend): the feed API's `restaurant`
-                                // object only sends id/name/profile_picture
-                                // today — address isn't in the response, so
-                                // this is a static placeholder until it is.
-                                const Text(
-                                  'Street 271, Boeng Tumpun ...',
-                                  style: TextStyle(
-                                    color: Colors.white60,
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                              ),
+                              // TODO(backend): this is the review's own
+                              // rating; the feed's `restaurant` object has no
+                              // average rating yet (send `avg_rating` there
+                              // to show that instead).
+                              if (rating != null) ...[
                                 const SizedBox(height: 1),
-                                // TODO(backend): same as above — category and
-                                // the restaurant's aggregate rating/review
-                                // count aren't in the feed response yet.
-                                const Text(
-                                  'Khmer Fusion  ·  ★ 4.0 (128)',
-                                  style: TextStyle(
-                                    color: Colors.white60,
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                _RatingStar(rating: rating),
                               ],
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  _FollowChip(
-                    following: item.isFollowingRestaurant,
-                    onTap: onFollowTap,
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 10),
+                _FollowChip(
+                  following: item.isFollowingRestaurant,
+                  onTap: onFollowTap,
+                ),
+              ],
             ),
           ],
         ],
@@ -209,96 +166,51 @@ class FeedInfoOverlay extends StatelessWidget {
   }
 }
 
-/// "★ 4.8 / 5 · Highly Recommended" — the label is derived from the real
-/// rating value (not a fixed string), so it stays honest even though the
-/// surrounding restaurant card below has placeholder fields.
-class _RatingPill extends StatelessWidget {
-  final double rating;
-  const _RatingPill({required this.rating});
-
-  String get _label {
-    if (rating >= 4.5) return 'Highly Recommended';
-    if (rating >= 3.5) return 'Recommended';
-    return 'Reviewed';
-  }
+/// Storefront icon in a soft glass circle — marks the row as a restaurant.
+class _RestaurantIcon extends StatelessWidget {
+  const _RestaurantIcon();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      width: 32,
+      height: 32,
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.42),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+        shape: BoxShape.circle,
+        color: Colors.black.withValues(alpha: 0.35),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.star_rounded, size: 14, color: Color(0xffFFC83D)),
-          const SizedBox(width: 4),
-          Text(
-            '${rating.toStringAsFixed(1)} / 5',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const Text(
-            '  ·  ',
-            style: TextStyle(color: Colors.white60, fontSize: 12),
-          ),
-          Text(
-            _label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+      child: const Icon(
+        Icons.storefront_outlined,
+        size: 18,
+        color: Colors.white,
       ),
     );
   }
 }
 
-/// Small gradient-ringed circular avatar shared by the reviewer and
-/// restaurant rows (restaurant's ring renders thinner/smaller since it's
-/// the secondary identity of the two).
-class _RingedAvatar extends StatelessWidget {
-  final String? imageUrl;
-  final String name;
-  final double size;
-  const _RingedAvatar({
-    required this.imageUrl,
-    required this.name,
-    required this.size,
-  });
+/// "★ 4.0"
+class _RatingStar extends StatelessWidget {
+  final double rating;
+  const _RatingStar({required this.rating});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(2),
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_pink, _purple, _blue],
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.star_rounded, size: 17, color: Color(0xffFFC83D)),
+        const SizedBox(width: 3),
+        Text(
+          rating.toStringAsFixed(1),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            shadows: _shadow,
+          ),
         ),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(1.5),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-        ),
-        child: ImageUserCircleProfile(
-          imageUrl: imageUrl,
-          name: name,
-          size: size,
-        ),
-      ),
+      ],
     );
   }
 }

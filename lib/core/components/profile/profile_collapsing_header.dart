@@ -29,6 +29,21 @@ class ProfileCollapsingHeader extends StatelessWidget {
   /// Small badge on the avatar (e.g. a storefront for restaurants).
   final Widget? avatarBadge;
 
+  /// Buttons level with the avatar, right-aligned (e.g. Follow / View menu).
+  final Widget? belowFoldAction;
+
+  /// Button on the cover photo, bottom-right (e.g. "Change cover").
+  final Widget? coverAction;
+
+  /// Centers the avatar under the cover.
+  final bool centerAvatar;
+
+  /// Height of [belowFoldAction].
+  final double belowFoldHeight;
+
+  /// White circle buttons (as on a plain cover) instead of dark glass.
+  final bool lightControls;
+
   /// Height of the toolbar row once pinned — tall enough for avatar + two
   /// lines of text without clipping.
   static const double pinnedHeaderHeight = 60;
@@ -46,6 +61,11 @@ class ProfileCollapsingHeader extends StatelessWidget {
     this.coverRadius = 28,
     this.coverTint,
     this.avatarBadge,
+    this.belowFoldAction,
+    this.coverAction,
+    this.centerAvatar = false,
+    this.belowFoldHeight = CoverAvatarHeader.actionHeight,
+    this.lightControls = false,
     super.key,
   });
 
@@ -65,8 +85,13 @@ class ProfileCollapsingHeader extends StatelessWidget {
     // status bar) on top of whatever `expandedHeight` it's given, so we
     // subtract it back out here to land on the intended total height.
     final statusBarHeight = MediaQuery.paddingOf(context).top;
+    final gap = CoverAvatarHeader.contentGap(avatarSize);
     final expandedHeaderHeight =
-        coverHeight + CoverAvatarHeader.contentGap(avatarSize);
+        coverHeight +
+        (belowFoldAction != null &&
+                CoverAvatarHeader.belowFoldExtent(belowFoldHeight) > gap
+            ? CoverAvatarHeader.belowFoldExtent(belowFoldHeight)
+            : gap);
     final titleFadeDistance =
         expandedHeaderHeight - statusBarHeight - pinnedHeaderHeight;
 
@@ -100,7 +125,7 @@ class ProfileCollapsingHeader extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 14),
                 child: ProfileCircleButton(
                   icon: Icons.arrow_back_rounded,
-                  dark: true,
+                  dark: !lightControls,
                   onTap: onBack!,
                 ),
               ),
@@ -131,6 +156,10 @@ class ProfileCollapsingHeader extends StatelessWidget {
                   coverRadius: coverRadius,
                   coverTint: coverTint,
                   avatarBadge: avatarBadge,
+                  belowFoldAction: belowFoldAction,
+                  coverAction: coverAction,
+                  centerAvatar: centerAvatar,
+                  belowFoldHeight: belowFoldHeight,
                 ),
               ),
             ),

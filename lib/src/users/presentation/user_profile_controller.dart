@@ -54,6 +54,16 @@ class UserProfileController extends FamilyNotifier<UserProfileState, String> {
     }
   }
 
+  /// Refetches without the loading state (no spinner flash), keeping the
+  /// current data if it fails — e.g. after changing the photo or cover.
+  Future<void> refreshQuietly() async {
+    try {
+      final data = await ref.read(userRemoteDataSourceProvider).show(arg);
+      final profile = PublicProfile.fromJson(data);
+      state = state.copyWith(profile: profile, isLoading: false);
+    } catch (_) {}
+  }
+
   /// Same limitation as the restaurant profile — no `is_following` flag on
   /// GET /users/{username}, so this is optimistic-only for the session.
   Future<void> toggleFollow() async {

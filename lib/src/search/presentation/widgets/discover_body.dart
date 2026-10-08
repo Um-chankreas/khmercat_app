@@ -419,12 +419,7 @@ void _showAllTrending(BuildContext context, List<VideoFeedItem> videos) {
 // Rankings
 // =============================================================================
 
-typedef _Ranking = ({
-  String label,
-  List<RestaurantHighlight> items,
-  // Null when the tab's stat is the star rating itself.
-  (IconData, String) Function(RestaurantHighlight)? stat,
-});
+typedef _Ranking = ({String label, List<RestaurantHighlight> items});
 
 String _plural(int n, String word) =>
     '${formatCount(n)} $word${n == 1 ? '' : 's'}';
@@ -438,30 +433,20 @@ class _Rankings extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final rankings = <_Ranking>[
-      (
-        label: 'Most loved',
-        items: data.popular,
-        stat: (h) => (Icons.favorite_border_rounded, _plural(h.likes, 'like')),
-      ),
-      (label: 'Top rated', items: data.topRated, stat: null),
-      (
-        label: 'Most reviewed',
-        items: data.mostReviewed,
-        stat: (h) =>
-            (Icons.chat_bubble_outline_rounded, _plural(h.reviews, 'review')),
-      ),
+      (label: 'Most loved', items: data.popular),
+      (label: 'Top rated', items: data.topRated),
+      (label: 'Most reviewed', items: data.mostReviewed),
     ].where((r) => r.items.isNotEmpty).toList();
 
     final selected = useState(0);
     final index = selected.value.clamp(0, rankings.length - 1);
     final current = rankings[index];
     final rows = current.items.take(_rankRows).toList();
-    final stat = current.stat;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     // A soft white card, slightly see-through so the backdrop tints it.
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 12),
       padding: const EdgeInsets.only(top: 20, bottom: 6),
       decoration: BoxDecoration(
         color: Theme.of(
@@ -507,17 +492,15 @@ class _Rankings extends HookWidget {
                       _RestaurantRow(
                         picture: h.picture,
                         name: h.name,
-                        // The rating sits by the subtitle, or on the
-                        // right when it is what the tab ranks by.
-                        rating: stat == null ? null : h.avgRating,
+                        // "★ 4.8 · 4 reviews · 4 likes", leaving out
+                        // whatever is zero or missing.
+                        rating: h.avgRating,
                         subtitle: [
                           if (h.reviews > 0) _plural(h.reviews, 'review'),
-                          if (h.avgRating == null && h.reviews == 0)
+                          if (h.likes > 0) _plural(h.likes, 'like'),
+                          if (h.reviews == 0 && h.likes == 0)
                             _plural(h.videos, 'video'),
                         ].join(' · '),
-                        trailingRating: stat == null ? h.avgRating : null,
-                        trailingIcon: stat?.call(h).$1,
-                        trailingText: stat?.call(h).$2,
                         onTap: () => openRestaurant(h.id),
                       ),
                     ],
@@ -628,7 +611,7 @@ class _RowDivider extends StatelessWidget {
 }
 
 /// Square photo · name over a grey line (optionally led by the star
-/// rating) · icon + stat, or the star rating, on the right.
+/// rating) · optional star rating on the right.
 class _RestaurantRow extends StatelessWidget {
   final String? picture;
   final String name;
@@ -637,10 +620,8 @@ class _RestaurantRow extends StatelessWidget {
   /// Shown as a [RatingBadge] in front of [subtitle].
   final double? rating;
 
-  /// Shown as a [RatingBadge] on the right, in place of the icon + text.
+  /// Shown as a [RatingBadge] on the right.
   final double? trailingRating;
-  final IconData? trailingIcon;
-  final String? trailingText;
   final VoidCallback onTap;
   const _RestaurantRow({
     required this.picture,
@@ -649,8 +630,6 @@ class _RestaurantRow extends StatelessWidget {
     required this.onTap,
     this.rating,
     this.trailingRating,
-    this.trailingIcon,
-    this.trailingText,
   });
 
   @override
@@ -664,7 +643,7 @@ class _RestaurantRow extends StatelessWidget {
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
               child: SizedBox(
                 width: 56,
                 height: 56,
@@ -725,20 +704,6 @@ class _RestaurantRow extends StatelessWidget {
               const Gap(10),
               RatingBadge(
                 rating: trailingRating!,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: primary,
-                ),
-              ),
-            ] else if (trailingText != null) ...[
-              const Gap(10),
-              if (trailingIcon != null) ...[
-                Icon(trailingIcon, size: 16, color: primary),
-                const Gap(5),
-              ],
-              Text(
-                trailingText!,
                 style: TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,

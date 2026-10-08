@@ -1,10 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_empty_tab_body.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
+import 'package:khmer_cat_app/core/components/profile/video_grid_tile.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
@@ -20,10 +20,14 @@ class UserVideosGrid extends HookConsumerWidget {
   final String emptyTitle;
   final String emptyMessage;
 
+  /// `review` for the review videos only; null for all posts.
+  final String? type;
+
   const UserVideosGrid({
     required this.userId,
     this.emptyTitle = 'No videos yet',
     this.emptyMessage = 'No videos yet.',
+    this.type,
     super.key,
   });
 
@@ -47,6 +51,7 @@ class UserVideosGrid extends HookConsumerWidget {
               tab: 'for_you',
               cursor: reset ? null : cursor.value,
               userId: userId,
+              type: type,
             );
         if (!context.mounted) return;
         items.value = reset ? page.items : [...items.value, ...page.items];
@@ -89,18 +94,25 @@ class UserVideosGrid extends HookConsumerWidget {
             shrinkWrap: true,
             padding: EdgeInsets.zero,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              childAspectRatio: 0.78,
-            ),
+            gridDelegate: VideoGrid.delegate,
             itemCount: items.value.length,
-            itemBuilder: (context, index) => _FadeIn(
-              // Stagger only within a page's worth of tiles.
-              delayMs: (index % 12) * 40,
-              child: _VideoThumb(video: items.value[index]),
-            ),
+            itemBuilder: (context, index) {
+              final video = items.value[index];
+              return VideoGridTile(
+                // Stagger only within a page's worth of tiles.
+                fadeDelayMs: (index % 12) * 40,
+                thumbnailUrl: video.thumbnailUrl,
+                likesCount: video.likesCount,
+                pillLabel:
+                    '${formatCount(video.likesCount)} '
+                    'like${video.likesCount == 1 ? '' : 's'}',
+                onTap: () => AppRouter.router.pushNamed(
+                  AppRoute.videoViewer.name,
+                  pathParameters: {'id': video.id},
+                  extra: video,
+                ),
+              );
+            },
           ),
         ),
         if (failed.value)
@@ -176,142 +188,6 @@ class _RetryBox extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _FadeIn extends StatelessWidget {
-  final int delayMs;
-  final Widget child;
-  const _FadeIn({required this.delayMs, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final total = 320 + delayMs;
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: total),
-      curve: Interval(delayMs / total, 1, curve: Curves.easeOut),
-      builder: (context, t, child) => Opacity(
-        opacity: t,
-        child: Transform.scale(scale: 0.94 + 0.06 * t, child: child),
-      ),
-      child: child,
-    );
-  }
-}
-
-class _VideoThumb extends StatelessWidget {
-  final VideoFeedItem video;
-  const _VideoThumb({required this.video});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => AppRouter.router.pushNamed(
-        AppRoute.videoViewer.name,
-        pathParameters: {'id': video.id},
-        extra: video,
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: ProfileTheme.cardShadow(),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              if (video.thumbnailUrl != null)
-                CachedNetworkImage(
-                  imageUrl: video.thumbnailUrl!,
-                  fit: BoxFit.cover,
-                  placeholder: (_, _) => const _ThumbPlaceholder(),
-                  errorWidget: (_, _, _) => const _ThumbPlaceholder(play: true),
-                )
-              else
-                const _ThumbPlaceholder(play: true),
-              // Bottom scrim so the like count stays readable.
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: 44,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withValues(alpha: 0.55),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 8,
-                bottom: 6,
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.favorite_rounded,
-                      size: 13,
-                      color: Colors.white,
-                    ),
-                    const Gap(4),
-                    Text(
-                      '${video.likesCount}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.play_arrow_rounded,
-                    size: 20,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ThumbPlaceholder extends StatelessWidget {
-  final bool play;
-  const _ThumbPlaceholder({this.play = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(gradient: ProfileTheme.coverFallback),
-      child: play
-          ? const Center(
-              child: Icon(
-                Icons.play_circle_outline_rounded,
-                color: Colors.white,
-                size: 30,
-              ),
-            )
-          : null,
     );
   }
 }

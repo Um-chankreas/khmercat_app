@@ -15,6 +15,18 @@ class RestaurantCategory {
       );
 }
 
+/// An order-delivery app the restaurant is listed on (Grab, foodpanda, …).
+class DeliveryLink {
+  final String name;
+  final String url;
+  const DeliveryLink({required this.name, required this.url});
+
+  factory DeliveryLink.fromJson(Map<String, dynamic> json) => DeliveryLink(
+    name: json['name'] as String? ?? '',
+    url: json['url'] as String? ?? '',
+  );
+}
+
 class Restaurant {
   final String id;
   final String name;
@@ -26,6 +38,9 @@ class Restaurant {
   final double? longitude;
   final String status;
   final int? followersCount;
+
+  /// Accounts this restaurant follows; null until the API sends it.
+  final int? followingCount;
   final RestaurantCategory? category;
 
   // Search-result extras. All optional: only the search API sends them, and
@@ -72,6 +87,12 @@ class Restaurant {
   final String? openingTime;
   final String? closingTime;
 
+  /// "daily", "Mon – Sat", … — null until the API sends it.
+  final String? openDaysLabel;
+
+  /// Delivery apps; empty until the API sends them.
+  final List<DeliveryLink> deliveryLinks;
+
   Restaurant({
     required this.id,
     required this.name,
@@ -83,6 +104,7 @@ class Restaurant {
     this.longitude,
     required this.status,
     this.followersCount,
+    this.followingCount,
     this.category,
     this.avgRating,
     this.reviewsCount = 0,
@@ -104,6 +126,8 @@ class Restaurant {
     this.menuUrl,
     this.openingTime,
     this.closingTime,
+    this.openDaysLabel,
+    this.deliveryLinks = const [],
   });
 
   String? get priceText =>
@@ -140,6 +164,7 @@ class Restaurant {
     longitude: (json['longitude'] as num?)?.toDouble(),
     status: json['status'] as String? ?? 'pending',
     followersCount: (json['followers_count'] as num?)?.toInt(),
+    followingCount: (json['following_count'] as num?)?.toInt(),
     category: json['category'] != null
         ? RestaurantCategory.fromJson(json['category'] as Map<String, dynamic>)
         : null,
@@ -165,6 +190,11 @@ class Restaurant {
         : AppConfig.fixMediaUrl(json['menu_url'] as String),
     openingTime: json['opening_time'] as String?,
     closingTime: json['closing_time'] as String?,
+    openDaysLabel: json['open_days_label'] as String?,
+    deliveryLinks: [
+      for (final l in (json['delivery_links'] as List?) ?? const [])
+        DeliveryLink.fromJson(l as Map<String, dynamic>),
+    ],
   );
 
   Restaurant copyWith({int? followersCount}) => Restaurant(
@@ -178,6 +208,7 @@ class Restaurant {
     longitude: longitude,
     status: status,
     followersCount: followersCount ?? this.followersCount,
+    followingCount: followingCount,
     category: category,
     avgRating: avgRating,
     reviewsCount: reviewsCount,
@@ -199,5 +230,7 @@ class Restaurant {
     menuUrl: menuUrl,
     openingTime: openingTime,
     closingTime: closingTime,
+    openDaysLabel: openDaysLabel,
+    deliveryLinks: deliveryLinks,
   );
 }

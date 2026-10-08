@@ -33,6 +33,12 @@ class RestaurantVideosGrid extends HookConsumerWidget {
   final String emptyTitle;
   final String emptyMessage;
 
+  /// Shows a dashed "Add video" tile first in the grid (the team's view).
+  final VoidCallback? onAdd;
+
+  /// Text for each tile's "▶ …" pill; null keeps the heart + like count.
+  final String Function(VideoFeedItem video)? pillLabel;
+
   const RestaurantVideosGrid({
     required this.restaurantId,
     this.type,
@@ -41,6 +47,8 @@ class RestaurantVideosGrid extends HookConsumerWidget {
     this.onDeleted,
     this.emptyTitle = 'No videos yet',
     this.emptyMessage = 'No videos yet.',
+    this.pillLabel,
+    this.onAdd,
     super.key,
   });
 
@@ -132,7 +140,7 @@ class RestaurantVideosGrid extends HookConsumerWidget {
 
     if (!firstLoadDone.value) return const VideoGridSkeleton();
 
-    if (items.value.isEmpty) {
+    if (items.value.isEmpty && onAdd == null) {
       if (failed.value) {
         return _RetryBox(onRetry: () => loadMore(reset: true));
       }
@@ -156,15 +164,22 @@ class RestaurantVideosGrid extends HookConsumerWidget {
             padding: EdgeInsets.zero,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: VideoGrid.delegate,
-            itemCount: items.value.length,
+            itemCount: items.value.length + (onAdd == null ? 0 : 1),
             itemBuilder: (context, index) {
-              final video = items.value[index];
+              if (onAdd != null && index == 0) {
+                return _AddVideoTile(onTap: onAdd!);
+              }
+              final offset = onAdd == null ? 0 : 1;
+              final video = items.value[index - offset];
               return VideoGridTile(
                 // Stagger only within a page's worth of tiles.
                 fadeDelayMs: (index % 12) * 40,
                 thumbnailUrl: video.thumbnailUrl,
                 likesCount: video.likesCount,
-                rating: type == 'review' ? video.rating : null,
+                rating: pillLabel == null && type == 'review'
+                    ? video.rating
+                    : null,
+                pillLabel: pillLabel?.call(video),
                 trashed: deleted,
                 onTap: deleted
                     ? null
@@ -277,6 +292,78 @@ class _LoadMoreSentinelState extends State<_LoadMoreSentinel> {
       ),
     );
   }
+}
+
+/// Dashed accent-colored tile that starts a new post.
+class _AddVideoTile extends StatelessWidget {
+  final VoidCallback onTap;
+  const _AddVideoTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    const color = Color(0xffB0125A);
+    return GestureDetector(
+      onTap: onTap,
+      child: CustomPaint(
+        painter: _DashedBorderPainter(
+          color: color.withValues(alpha: 0.45),
+          radius: VideoGrid.radius,
+          fill: color.withValues(alpha: 0.07),
+        ),
+        child: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.add_rounded, size: 30, color: color),
+              Gap(6),
+              Text(
+                'Add video',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final Color fill;
+  final double radius;
+  const _DashedBorderPainter({
+    required this.color,
+    required this.fill,
+    required this.radius,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rrect = RRect.fromRectAndRadius(
+      (Offset.zero & size).deflate(0.75),
+      Radius.circular(radius),
+    );
+    canvas.drawRRect(rrect, Paint()..color = fill);
+    final path = Path()..addRRect(rrect);
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    for (final metric in path.computeMetrics()) {
+      for (var d = 0.0; d < metric.length; d += 10) {
+        canvas.drawPath(metric.extractPath(d, d + 5), stroke);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter old) =>
+      old.color != color || old.fill != fill || old.radius != radius;
 }
 
 class _RetryBox extends StatelessWidget {
