@@ -24,6 +24,7 @@ class SearchRepository {
     double? lat,
     double? lng,
     bool nearest = false,
+    bool halal = false,
   }) async {
     final data = await _remote.search(
       query: query,
@@ -31,6 +32,7 @@ class SearchRepository {
       lat: lat,
       lng: lng,
       nearest: nearest,
+      halal: halal,
     );
 
     List<T> list<T>(String key, T Function(Map<String, dynamic>) parse) =>

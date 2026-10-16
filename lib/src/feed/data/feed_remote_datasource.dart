@@ -49,12 +49,14 @@ class FeedRemoteDataSource {
     return json.dataMap;
   }
 
-  Future<void> save(String videoId) {
-    return _client.post(ApiRoute.videoSave(videoId));
+  Future<Map<String, dynamic>> save(String videoId) async {
+    final json = await _client.post(ApiRoute.videoSave(videoId));
+    return json.dataMap;
   }
 
-  Future<void> unsave(String videoId) {
-    return _client.delete(ApiRoute.videoSave(videoId));
+  Future<Map<String, dynamic>> unsave(String videoId) async {
+    final json = await _client.delete(ApiRoute.videoSave(videoId));
+    return json.dataMap;
   }
 
   Future<void> recordView(String videoId) {

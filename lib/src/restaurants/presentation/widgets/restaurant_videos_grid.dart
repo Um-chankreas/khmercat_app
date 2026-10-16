@@ -13,6 +13,7 @@ import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
 import 'package:khmer_cat_app/src/feed/providers/feed_providers.dart';
 import 'package:khmer_cat_app/src/restaurants/providers/restaurant_providers.dart';
+import 'package:khmer_cat_app/src/feed/presentation/screens/video_viewer_screen.dart';
 
 /// 3-column grid of a restaurant's videos (posts, or `type: 'review'`
 /// uploads), or with [deleted] its team's Delete tab. Loads page by page: a
@@ -186,7 +187,11 @@ class RestaurantVideosGrid extends HookConsumerWidget {
                     : () => AppRouter.router.pushNamed(
                         AppRoute.videoViewer.name,
                         pathParameters: {'id': video.id},
-                        extra: video,
+                        // Swipe on through the rest of the grid.
+                        extra: VideoViewerArgs(
+                          videos: items.value,
+                          initialIndex: index,
+                        ),
                       ),
                 onLongPress: canManage && !deleted
                     ? () => showVideoTileActions(context, [

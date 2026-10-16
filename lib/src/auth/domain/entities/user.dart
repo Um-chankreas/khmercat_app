@@ -7,6 +7,9 @@ class User {
   final String? coverPicture;
   final String? bio;
 
+  /// Can approve restaurants and review reports (Menu → Admin).
+  final bool isAdmin;
+
   User({
     required this.id,
     required this.name,
@@ -15,5 +18,6 @@ class User {
     this.profilePicture,
     this.coverPicture,
     this.bio,
+    this.isAdmin = false,
   });
 }

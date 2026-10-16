@@ -11,6 +11,7 @@ import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/src/profile/domain/profile_post.dart';
 import 'package:khmer_cat_app/src/profile/presentation/viewmodel/my_profile_summary_controller.dart';
 import 'package:khmer_cat_app/src/profile/providers/profile_providers.dart';
+import 'package:khmer_cat_app/src/feed/presentation/screens/video_viewer_screen.dart';
 
 /// 3-column grid backing the profile's Videos / Favorite / Delete tabs.
 /// [flag] selects which list GET /profile/{userId}/posts returns: `null` for
@@ -167,7 +168,13 @@ class ProfilePostsGrid extends HookConsumerWidget {
                     : () => AppRouter.router.pushNamed(
                         AppRoute.videoViewer.name,
                         pathParameters: {'id': post.id},
-                        extra: post.toVideoFeedItem(),
+                        // Swipe on through the rest of the grid.
+                        extra: VideoViewerArgs(
+                          videos: [
+                            for (final p in items.value) p.toVideoFeedItem(),
+                          ],
+                          initialIndex: index,
+                        ),
                       ),
                 onLongPress: trashed
                     ? null

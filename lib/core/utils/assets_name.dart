@@ -34,6 +34,8 @@ class AssetsName {
   static final facebook = '${iconsPath}facebook.png';
   static final tiktok = '${iconsPath}tik-tok.png';
   static final telegram = '${iconsPath}telegram.png';
+  static final cameraPhoto = '${iconsPath}photo-camera.png';
+  static final foodMenu = '${iconsPath}food-menu.png';
 
   // Lucide icons (ISC license) — black glyphs, tint with Image.color.
   static const lucidePath = 'assets/icons/lucide/';

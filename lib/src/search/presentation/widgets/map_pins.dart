@@ -5,17 +5,22 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:khmer_cat_app/core/components/navigationbar/nav_item.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/themes/app_colors.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
+import 'package:khmer_cat_app/core/utils/cat_head_path.dart';
 
 /// The map's own markers, in the app's primary colors: a pink pin with the
-/// shop icon for restaurants, a blue pin with the user's photo (or the user
-/// icon) for the spot the search is centered on.
+/// shop icon for restaurants, and the logo's cat head holding the user's
+/// photo (or the user icon) for the spot the search is centered on.
 class MapPins {
   final BitmapDescriptor restaurant;
   final BitmapDescriptor selectedRestaurant;
   final BitmapDescriptor user;
+
+  /// The user marker sits centered on its position (it has no point).
+  static const userAnchor = Offset(0.5, 0.5);
 
   const MapPins({
     required this.restaurant,
@@ -34,7 +39,7 @@ class MapPins {
         ? null
         : await _loadPhoto(
             userPhotoUrl,
-            (_radius * 2 * devicePixelRatio).ceil(),
+            (_userWidth * devicePixelRatio).ceil(),
           );
     final pins = await Future.wait([
       _draw(AssetsName.shop, AppColors.appPrimaryPink, devicePixelRatio),
@@ -48,12 +53,7 @@ class MapPins {
         whiteRim: true,
         fill: ProfileTheme.gradient,
       ),
-      _draw(
-        AssetsName.user,
-        AppColors.appPrimaryBlue,
-        devicePixelRatio,
-        photo: photo,
-      ),
+      drawUserPin(devicePixelRatio, photo),
     ]);
     return MapPins(
       restaurant: pins[0],
@@ -62,8 +62,9 @@ class MapPins {
     );
   }
 
-  // Radius of a pin's round head, in logical pixels.
-  static const _radius = 19.0;
+  // The cat head's size on the map, in logical pixels.
+  static const _userWidth = 40.0;
+  static const _userHeight = _userWidth / catHeadAspectRatio;
 
   /// The image at [url] (from the same cache the avatars use), or null if
   /// it doesn't load in time.
@@ -106,12 +107,10 @@ class MapPins {
     bool whiteRim = false,
     // Painted over the whole pin in place of the flat color.
     Gradient? fill,
-    // Fills the round head in place of the icon.
-    ui.Image? photo,
   }) async {
     // Logical size: a round head with a point underneath, whose tip is the
     // marker's anchor (bottom center).
-    const width = 44.0, height = 56.0, radius = _radius, iconSize = 21.0;
+    const width = 44.0, height = 56.0, radius = 19.0, iconSize = 21.0;
     const head = Offset(width / 2, radius + 3);
     final pixelRatio = devicePixelRatio * scale;
 
@@ -155,36 +154,15 @@ class MapPins {
             const Rect.fromLTWH(0, 0, width, height),
           ),
       );
-    if (photo != null) {
-      // Center-cropped to a square, clipped to the head inside the rim.
-      final side = photo.width < photo.height ? photo.width : photo.height;
-      canvas
-        ..save()
-        ..clipPath(
-          Path()..addOval(Rect.fromCircle(center: head, radius: radius - 2)),
-        )
-        ..drawImageRect(
-          photo,
-          Rect.fromCenter(
-            center: Offset(photo.width / 2, photo.height / 2),
-            width: side.toDouble(),
-            height: side.toDouble(),
-          ),
-          Rect.fromCircle(center: head, radius: radius - 2),
-          Paint()..filterQuality = FilterQuality.medium,
-        )
-        ..restore();
-    } else {
-      // The icons are line art on transparent: paint their shape in [ink].
-      canvas.drawImageRect(
-        icon,
-        Rect.fromLTWH(0, 0, icon.width.toDouble(), icon.height.toDouble()),
-        Rect.fromCenter(center: head, width: iconSize, height: iconSize),
-        Paint()
-          ..colorFilter = ColorFilter.mode(ink, BlendMode.srcIn)
-          ..filterQuality = FilterQuality.medium,
-      );
-    }
+    // The icons are line art on transparent: paint their shape in [ink].
+    canvas.drawImageRect(
+      icon,
+      Rect.fromLTWH(0, 0, icon.width.toDouble(), icon.height.toDouble()),
+      Rect.fromCenter(center: head, width: iconSize, height: iconSize),
+      Paint()
+        ..colorFilter = ColorFilter.mode(ink, BlendMode.srcIn)
+        ..filterQuality = FilterQuality.medium,
+    );
 
     final image = await recorder.endRecording().toImage(
       (width * pixelRatio).ceil(),
@@ -195,6 +173,92 @@ class MapPins {
       bytes!.buffer.asUint8List(),
       width: width * scale,
       height: height * scale,
+    );
+  }
+
+  /// The logo's cat head drawn like the nav bar's create button — a thin
+  /// pink → blue line — and filled with [photo], or with white and the user
+  /// icon when there's none.
+  @visibleForTesting
+  static Future<BitmapDescriptor> drawUserPin(
+    double devicePixelRatio,
+    ui.Image? photo,
+  ) async {
+    const rim = 2.0, iconSize = 17.0;
+    const width = _userWidth + rim * 2, height = _userHeight + rim * 2;
+    const head = Rect.fromLTWH(rim, rim, _userWidth, _userHeight);
+    final shape = catHeadPath(head);
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder)..scale(devicePixelRatio);
+    canvas.drawPath(shape, Paint()..color = Colors.white);
+    if (photo != null) {
+      // Scaled to cover the head and cropped to its outline.
+      final scale = [
+        head.width / photo.width,
+        head.height / photo.height,
+      ].reduce((a, b) => a > b ? a : b);
+      canvas
+        ..save()
+        ..clipPath(shape)
+        ..drawImageRect(
+          photo,
+          Rect.fromCenter(
+            center: Offset(photo.width / 2, photo.height / 2),
+            width: head.width / scale,
+            height: head.height / scale,
+          ),
+          head,
+          Paint()..filterQuality = FilterQuality.medium,
+        )
+        ..restore();
+    } else {
+      final data = await rootBundle.load(AssetsName.user);
+      final codec = await ui.instantiateImageCodec(
+        data.buffer.asUint8List(),
+        targetWidth: (iconSize * devicePixelRatio).round(),
+      );
+      final icon = (await codec.getNextFrame()).image;
+      canvas.drawImageRect(
+        icon,
+        Rect.fromLTWH(0, 0, icon.width.toDouble(), icon.height.toDouble()),
+        Rect.fromCenter(
+          center: Offset(
+            head.center.dx,
+            head.top + head.height * catHeadFaceCenter,
+          ),
+          width: iconSize,
+          height: iconSize,
+        ),
+        Paint()
+          ..colorFilter = const ColorFilter.mode(
+            ProfileTheme.ink,
+            BlendMode.srcIn,
+          )
+          ..filterQuality = FilterQuality.medium,
+      );
+    }
+    // The rim goes on last so it covers the photo's cut edge.
+    canvas.drawPath(
+      shape,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = rim
+        ..strokeJoin = StrokeJoin.round
+        ..shader = navGlowGradient.createShader(
+          const Rect.fromLTWH(0, 0, width, height),
+        ),
+    );
+
+    final image = await recorder.endRecording().toImage(
+      (width * devicePixelRatio).ceil(),
+      (height * devicePixelRatio).ceil(),
+    );
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    return BitmapDescriptor.bytes(
+      bytes!.buffer.asUint8List(),
+      width: width,
+      height: height,
     );
   }
 }

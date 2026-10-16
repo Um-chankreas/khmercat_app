@@ -10,6 +10,7 @@ import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
 import 'package:khmer_cat_app/src/search/presentation/widgets/search_widgets.dart';
 import 'package:khmer_cat_app/src/users/domain/public_profile.dart';
+import 'package:khmer_cat_app/core/components/halal_badge.dart';
 
 // Cards for the search results screen: nearby restaurant rows, recommended
 // restaurant tiles, food review video cards and popular reviewer rows.
@@ -268,15 +269,18 @@ class NearbyRestaurantCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      r.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
-                        color: ProfileTheme.textPrimary(context),
+                    NameWithHalalBadge(
+                      isHalal: r.isHalal,
+                      name: Text(
+                        r.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
+                          color: ProfileTheme.textPrimary(context),
+                        ),
                       ),
                     ),
                     if (subtitle.isNotEmpty) ...[
@@ -361,6 +365,12 @@ class RecommendedRestaurantCard extends StatelessWidget {
                       left: 8,
                       top: 8,
                       child: _OverlayPill(child: Text(r.serviceTypeLabel!)),
+                    ),
+                  if (r.isHalal)
+                    const Positioned(
+                      right: 8,
+                      top: 8,
+                      child: HalalBadge(onImage: true),
                     ),
                   if (r.avgRating != null)
                     Positioned(

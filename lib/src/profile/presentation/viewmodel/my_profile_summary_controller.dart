@@ -34,6 +34,8 @@ class MyProfileSummaryController
       avatar: current.avatar,
       bio: current.bio,
       email: current.email,
+      phone: current.phone,
+      socialLinks: current.socialLinks,
       followingCount: current.followingCount,
       followersCount: current.followersCount,
       postsCount: (current.postsCount - 1).clamp(0, 1 << 31),

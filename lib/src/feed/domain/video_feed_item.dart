@@ -33,11 +33,24 @@ class FeedRestaurant {
   final String name;
   final String? profilePicture;
 
-  FeedRestaurant({required this.id, required this.name, this.profilePicture});
+  /// Cuisine category ("Khmer Food"); null until the feed API sends one.
+  final String? categoryName;
+
+  FeedRestaurant({
+    required this.id,
+    required this.name,
+    this.profilePicture,
+    this.categoryName,
+  });
 
   factory FeedRestaurant.fromJson(Map<String, dynamic> json) => FeedRestaurant(
     id: json['id'].toString(),
     name: json['name'] as String? ?? '',
+    categoryName: switch (json['category']) {
+      {'name': final String name} => name,
+      final String name => name,
+      _ => null,
+    },
     profilePicture: (json['profile_picture'] as String?) != null
         ? AppConfig.fixMediaUrl(json['profile_picture'] as String)
         : null,
@@ -52,6 +65,9 @@ class VideoFeedItem {
   final double aspectRatio;
   final int commentsCount;
   final int likesCount;
+
+  /// How many people saved it (0 from a server too old to send it).
+  final int savesCount;
   final bool likedByMe;
   final bool savedByMe;
   final FeedAuthor user;
@@ -87,6 +103,7 @@ class VideoFeedItem {
     required this.aspectRatio,
     required this.commentsCount,
     required this.likesCount,
+    this.savesCount = 0,
     required this.likedByMe,
     this.savedByMe = false,
     required this.user,
@@ -119,6 +136,7 @@ class VideoFeedItem {
     aspectRatio: (json['aspect_ratio'] as num?)?.toDouble() ?? (9 / 16),
     commentsCount: (json['comments_count'] as num?)?.toInt() ?? 0,
     likesCount: (json['likes_count'] as num?)?.toInt() ?? 0,
+    savesCount: (json['saves_count'] as num?)?.toInt() ?? 0,
     likedByMe: json['liked_by_me'] == true,
     savedByMe: json['saved_by_me'] == true,
     user: FeedAuthor.fromJson(json['user'] as Map<String, dynamic>),
@@ -135,6 +153,7 @@ class VideoFeedItem {
   VideoFeedItem copyWith({
     int? commentsCount,
     int? likesCount,
+    int? savesCount,
     bool? likedByMe,
     bool? savedByMe,
     bool? isFollowingRestaurant,
@@ -148,6 +167,7 @@ class VideoFeedItem {
       aspectRatio: aspectRatio,
       commentsCount: commentsCount ?? this.commentsCount,
       likesCount: likesCount ?? this.likesCount,
+      savesCount: savesCount ?? this.savesCount,
       likedByMe: likedByMe ?? this.likedByMe,
       savedByMe: savedByMe ?? this.savedByMe,
       user: user,

@@ -47,6 +47,7 @@ class AppRoute {
     path: '/member-info',
   );
   static AppRoute settings = AppRoute(name: 'settings', path: '/settings');
+  static AppRoute addresses = AppRoute(name: 'addresses', path: '/addresses');
   static AppRoute editProfile = AppRoute(
     name: 'edit-profile',
     path: '/edit-profile',

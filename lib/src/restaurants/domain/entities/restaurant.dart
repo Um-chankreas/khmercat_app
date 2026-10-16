@@ -36,7 +36,13 @@ class Restaurant {
   final String? coverPicture;
   final double? latitude;
   final double? longitude;
+
+  /// pending (awaiting an admin) → approved, or rejected. Only approved
+  /// ones are public.
   final String status;
+
+  /// Why an admin rejected it, if they said.
+  final String? rejectionReason;
   final int? followersCount;
 
   /// Accounts this restaurant follows; null until the API sends it.
@@ -65,6 +71,10 @@ class Restaurant {
 
   /// false = hidden from the public by its owner (the team still sees it).
   final bool isPublished;
+
+  /// Set by its team: shown as a Halal badge, and matched by search's
+  /// Halal filter.
+  final bool isHalal;
 
   /// Your role here ("owner", "manager", …) — only in your own restaurants
   /// list (GET /restaurants/mine); null elsewhere.
@@ -103,6 +113,7 @@ class Restaurant {
     this.latitude,
     this.longitude,
     required this.status,
+    this.rejectionReason,
     this.followersCount,
     this.followingCount,
     this.category,
@@ -116,6 +127,7 @@ class Restaurant {
     this.deliveryTimeMax,
     this.isSponsored = false,
     this.isPublished = true,
+    this.isHalal = false,
     this.myRole,
     this.phone,
     this.facebookUrl,
@@ -163,6 +175,7 @@ class Restaurant {
     latitude: (json['latitude'] as num?)?.toDouble(),
     longitude: (json['longitude'] as num?)?.toDouble(),
     status: json['status'] as String? ?? 'pending',
+    rejectionReason: json['rejection_reason'] as String?,
     followersCount: (json['followers_count'] as num?)?.toInt(),
     followingCount: (json['following_count'] as num?)?.toInt(),
     category: json['category'] != null
@@ -178,6 +191,7 @@ class Restaurant {
     deliveryTimeMax: (json['delivery_time_max'] as num?)?.toInt(),
     isSponsored: json['is_sponsored'] == true,
     isPublished: json['is_published'] != false,
+    isHalal: json['is_halal'] == true,
     myRole: (json['pivot'] as Map?)?['role'] as String?,
     phone: json['phone'] as String?,
     facebookUrl: json['facebook_url'] as String?,
@@ -207,6 +221,7 @@ class Restaurant {
     latitude: latitude,
     longitude: longitude,
     status: status,
+    rejectionReason: rejectionReason,
     followersCount: followersCount ?? this.followersCount,
     followingCount: followingCount,
     category: category,
@@ -220,6 +235,7 @@ class Restaurant {
     deliveryTimeMax: deliveryTimeMax,
     isSponsored: isSponsored,
     isPublished: isPublished,
+    isHalal: isHalal,
     myRole: myRole,
     phone: phone,
     facebookUrl: facebookUrl,

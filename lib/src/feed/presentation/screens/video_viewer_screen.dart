@@ -12,30 +12,68 @@ import '../widgets/feed_video_page.dart';
 import '../widgets/share_video.dart';
 import '../widgets/video_controller_manager.dart';
 import 'comments_sheet.dart';
+import 'package:khmer_cat_app/src/feed/presentation/widgets/video_options_sheet.dart';
 
-/// Single-video playback for entry points outside the swipeable feed (e.g.
-/// tapping a thumbnail in a restaurant's video grid) — no pagination, same
-/// like/comment actions as the main feed.
+/// What the video viewer opens: [videos] to swipe through, starting at
+/// [initialIndex]. Pass this as the route's `extra`; a lone [VideoFeedItem]
+/// works too and opens just that video.
+class VideoViewerArgs {
+  final List<VideoFeedItem> videos;
+  final int initialIndex;
+  const VideoViewerArgs({required this.videos, this.initialIndex = 0});
+}
+
+/// Full-screen playback for entry points outside the main feed — a
+/// restaurant's or a user's video grid, search, a notification. Swipe up and
+/// down through the videos it was opened with, with the same like / comment
+/// / save / follow actions as the feed.
 class VideoViewerScreen extends HookConsumerWidget {
-  final VideoFeedItem video;
-  const VideoViewerScreen({required this.video, super.key});
+  final List<VideoFeedItem> videos;
+  final int initialIndex;
+  const VideoViewerScreen({
+    required this.videos,
+    this.initialIndex = 0,
+    super.key,
+  });
+
+  /// Builds the screen from a route's `extra`.
+  factory VideoViewerScreen.fromExtra(Object? extra) => switch (extra) {
+    VideoViewerArgs(:final videos, :final initialIndex) => VideoViewerScreen(
+      videos: videos,
+      initialIndex: initialIndex.clamp(0, videos.length - 1),
+    ),
+    final VideoFeedItem video => VideoViewerScreen(videos: [video]),
+    _ => throw ArgumentError('VideoViewerScreen needs a video to show'),
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final item = useState(video);
+    // Local copies, so likes / saves / follows show up right away.
+    final items = useState(videos);
+    final index = useState(initialIndex);
+    final pages = usePageController(initialPage: initialIndex);
     final videoManager = useMemoized(() => VideoControllerManager());
     useEffect(() => videoManager.dispose, [videoManager]);
     useListenable(videoManager);
+    // Plays the current video and preloads its neighbours.
     useEffect(() {
-      videoManager.syncWindow([item.value], 0, tabIsVisible: true);
+      videoManager.syncWindow(items.value, index.value, tabIsVisible: true);
       return null;
-    }, [item.value]);
+    }, [items.value, index.value]);
+    // Counts a view for each video as it comes on screen.
+    final currentId = items.value[index.value].id;
     useEffect(() {
-      ref.read(feedRepositoryProvider).recordView(video.id);
+      ref.read(feedRepositoryProvider).recordView(currentId);
       return null;
-    }, [video.id]);
+    }, [currentId]);
 
-    Future<void> handleLike() async {
+    VideoFeedItem? byId(String id) =>
+        items.value.where((v) => v.id == id).firstOrNull;
+    void replace(VideoFeedItem updated) => items.value = [
+      for (final v in items.value) v.id == updated.id ? updated : v,
+    ];
+
+    Future<void> handleLike(String id) async {
       if (!await requireLogin(
         context,
         ref,
@@ -43,26 +81,29 @@ class VideoViewerScreen extends HookConsumerWidget {
       )) {
         return;
       }
-      final original = item.value;
+      final original = byId(id);
+      if (original == null) return;
       final optimistic = original.copyWith(
         likedByMe: !original.likedByMe,
         likesCount: original.likedByMe
             ? original.likesCount - 1
             : original.likesCount + 1,
       );
-      item.value = optimistic;
+      replace(optimistic);
       try {
         final repo = ref.read(feedRepositoryProvider);
         final likesCount = optimistic.likedByMe
-            ? await repo.like(original.id)
-            : await repo.unlike(original.id);
-        item.value = item.value.copyWith(likesCount: likesCount);
+            ? await repo.like(id)
+            : await repo.unlike(id);
+        if (context.mounted) {
+          replace(byId(id)!.copyWith(likesCount: likesCount));
+        }
       } catch (_) {
-        if (context.mounted) item.value = original;
+        if (context.mounted) replace(original);
       }
     }
 
-    Future<void> handleSave() async {
+    Future<void> handleSave(String id) async {
       if (!await requireLogin(
         context,
         ref,
@@ -70,22 +111,31 @@ class VideoViewerScreen extends HookConsumerWidget {
       )) {
         return;
       }
-      final original = item.value;
-      final optimistic = original.copyWith(savedByMe: !original.savedByMe);
-      item.value = optimistic;
+      final original = byId(id);
+      if (original == null) return;
+      final optimistic = original.copyWith(
+        savedByMe: !original.savedByMe,
+        savesCount: original.savedByMe
+            ? (original.savesCount - 1).clamp(0, original.savesCount)
+            : original.savesCount + 1,
+      );
+      replace(optimistic);
       try {
         final repo = ref.read(feedRepositoryProvider);
-        if (optimistic.savedByMe) {
-          await repo.save(original.id);
-        } else {
-          await repo.unsave(original.id);
+        final savesCount = optimistic.savedByMe
+            ? await repo.save(id)
+            : await repo.unsave(id);
+        if (context.mounted) {
+          replace(byId(id)!.copyWith(savesCount: savesCount));
         }
       } catch (_) {
-        if (context.mounted) item.value = original;
+        if (context.mounted) replace(original);
       }
     }
 
-    Future<void> handleFollow() async {
+    /// Follows (or unfollows) the video's restaurant — on every video of
+    /// that restaurant in the list, not just this one.
+    Future<void> handleFollow(String id) async {
       if (!await requireLogin(
         context,
         ref,
@@ -93,50 +143,124 @@ class VideoViewerScreen extends HookConsumerWidget {
       )) {
         return;
       }
-      final restaurantId = item.value.restaurant?.id;
+      final restaurantId = byId(id)?.restaurant?.id;
       if (restaurantId == null) return;
 
-      final original = item.value;
-      final wasFollowing = original.isFollowingRestaurant;
-      item.value = original.copyWith(isFollowingRestaurant: !wasFollowing);
+      final before = items.value;
+      final follow = !byId(id)!.isFollowingRestaurant;
+      items.value = [
+        for (final v in before)
+          v.restaurant?.id == restaurantId
+              ? v.copyWith(isFollowingRestaurant: follow)
+              : v,
+      ];
       try {
         final social = ref.read(socialRemoteDataSourceProvider);
-        if (wasFollowing) {
-          await social.unfollowRestaurant(restaurantId);
-        } else {
+        if (follow) {
           await social.followRestaurant(restaurantId);
+        } else {
+          await social.unfollowRestaurant(restaurantId);
         }
       } catch (_) {
-        if (context.mounted) item.value = original;
+        if (context.mounted) items.value = before;
       }
     }
+
+    // The restaurant strip sits above the system gesture area; the other
+    // overlays sit above the strip.
+    final barBottom = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          FeedVideoPage(
-            item: item.value,
-            controller: videoManager.controllerFor(item.value.id),
-            failed: videoManager.hasFailed(item.value.id),
-            onRetry: () => videoManager.retry(item.value),
-            onDoubleTapLike: () {
-              if (!item.value.likedByMe) handleLike();
+          PageView.builder(
+            controller: pages,
+            scrollDirection: Axis.vertical,
+            itemCount: items.value.length,
+            onPageChanged: (i) => index.value = i,
+            itemBuilder: (context, i) {
+              final item = items.value[i];
+              final overlayBottom =
+                  barBottom +
+                  (item.restaurant == null ? 0 : FeedRestaurantBar.height);
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  FeedVideoPage(
+                    item: item,
+                    controller: videoManager.controllerFor(item.id),
+                    failed: videoManager.hasFailed(item.id),
+                    onRetry: () => videoManager.retry(item),
+                    onDoubleTapLike: () {
+                      if (!item.likedByMe) handleLike(item.id);
+                    },
+                    onLongPress: () => showVideoOptionsSheet(
+                      context,
+                      ref,
+                      item,
+                      controller: videoManager.controllerFor(item.id),
+                    ),
+                  ),
+                  IgnorePointer(
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Colors.black45],
+                          stops: [0.6, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 12,
+                    bottom: overlayBottom + context.sc(18),
+                    child: FeedActionRail(
+                      item: item,
+                      onLike: () => handleLike(item.id),
+                      onComment: () => showCommentsSheet(
+                        context,
+                        videoId: item.id,
+                        onCountChanged: (delta) {
+                          final current = byId(item.id);
+                          if (current == null) return;
+                          replace(
+                            current.copyWith(
+                              commentsCount: current.commentsCount + delta,
+                            ),
+                          );
+                        },
+                      ),
+                      onSave: () => handleSave(item.id),
+                      onShare: () => shareVideo(item),
+                      onFollowTap: () => handleFollow(item.id),
+                      onAvatarTap: () {},
+                    ),
+                  ),
+                  Positioned(
+                    left: context.sc(14),
+                    right: 90,
+                    bottom: overlayBottom + context.sc(12),
+                    child: FeedInfoOverlay(item: item, onUserTap: () {}),
+                  ),
+                  if (item.restaurant != null)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: barBottom,
+                      child: FeedRestaurantBar(
+                        item: item,
+                        onFollowTap: () => handleFollow(item.id),
+                      ),
+                    ),
+                ],
+              );
             },
           ),
-          IgnorePointer(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black45],
-                  stops: [0.6, 1.0],
-                ),
-              ),
-            ),
-          ),
+          // Back stays put while the videos move under it.
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(8),
@@ -147,35 +271,6 @@ class VideoViewerScreen extends HookConsumerWidget {
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ),
-            ),
-          ),
-          Positioned(
-            right: 12,
-            bottom: context.sc(50),
-            child: FeedActionRail(
-              item: item.value,
-              onLike: handleLike,
-              onComment: () => showCommentsSheet(
-                context,
-                videoId: item.value.id,
-                onCountChanged: (delta) => item.value = item.value.copyWith(
-                  commentsCount: item.value.commentsCount + delta,
-                ),
-              ),
-              onSave: handleSave,
-              onShare: () => shareVideo(item.value),
-              onFollowTap: handleFollow,
-              onAvatarTap: () {},
-            ),
-          ),
-          Positioned(
-            left: context.sc(14),
-            right: 90,
-            bottom: context.sc(14),
-            child: FeedInfoOverlay(
-              item: item.value,
-              onFollowTap: handleFollow,
-              onUserTap: () {},
             ),
           ),
         ],

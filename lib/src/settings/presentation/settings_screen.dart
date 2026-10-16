@@ -12,16 +12,19 @@ import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/core/settings/app_settings_controller.dart';
 import 'package:khmer_cat_app/core/themes/app_colors.dart';
-import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import 'package:khmer_cat_app/l10n/app_localizations.dart';
+import 'package:khmer_cat_app/src/addresses/presentation/addresses_controller.dart';
 import 'package:khmer_cat_app/src/auth/presentation/viewmodel/auth_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/my_restaurants_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/switch_password_sheet.dart';
 import 'package:khmer_cat_app/src/settings/presentation/widgets/account_action_sheet.dart';
+import 'package:khmer_cat_app/src/settings/presentation/widgets/menu_chrome.dart';
+import 'package:khmer_cat_app/src/admin/data/admin_remote_datasource.dart';
+import 'package:khmer_cat_app/src/admin/presentation/admin_reports_screen.dart';
+import 'package:khmer_cat_app/src/admin/presentation/admin_restaurants_screen.dart';
 
 const _danger = Color(0xffE5484D);
-const _accent = Color(0xffB0125A);
 
 // Restaurants listed before "See all".
 const _restaurantsShown = 5;
@@ -79,6 +82,11 @@ class SettingsScreen extends HookConsumerWidget {
         themeMode == ThemeMode.dark ||
         (themeMode == ThemeMode.system &&
             MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+    // How many addresses are saved; null until that's known.
+    final savedAddresses = ref
+        .watch(addressesControllerProvider)
+        .valueOrNull
+        ?.length;
     // "See all" on the restaurants card.
     final showAll = useState(false);
     final followers =
@@ -87,12 +95,12 @@ class SettingsScreen extends HookConsumerWidget {
     return Scaffold(
       body: Stack(
         children: [
-          const Positioned.fill(child: _MenuBackdrop()),
+          const Positioned.fill(child: MenuBackdrop()),
           SafeArea(
             bottom: false,
             child: Column(
               children: [
-                _MenuBar(title: l.menuTitle),
+                MenuTitleBar(title: l.menuTitle),
                 Expanded(
                   child: ListView(
                     padding: EdgeInsets.fromLTRB(
@@ -119,16 +127,22 @@ class SettingsScreen extends HookConsumerWidget {
                       ),
                       const Gap(16),
 
+                      // ---- Admin (admins only) -------------------------
+                      if (user?.isAdmin ?? false) ...[
+                        const _AdminCard(),
+                        const Gap(12),
+                      ],
+
                       // ---- Your account --------------------------------
-                      _MenuCard(
+                      MenuCard(
                         title: l.yourAccount,
                         children: [
-                          _MenuRow(
+                          MenuRow(
                             leading: _ProfileAvatar(
                               imageUrl: user?.profilePicture,
                               name: user?.name ?? '',
                               isRestaurant: false,
-                              size: _MenuRow.leadingSize,
+                              size: MenuRow.leadingSize,
                             ),
                             title: user?.name ?? '',
                             subtitle: Text(
@@ -155,7 +169,7 @@ class SettingsScreen extends HookConsumerWidget {
                           final shown = showAll.value
                               ? all
                               : all.take(_restaurantsShown).toList();
-                          return _MenuCard(
+                          return MenuCard(
                             title: l.yourRestaurants,
                             action: all.length > _restaurantsShown
                                 ? (
@@ -197,12 +211,12 @@ class SettingsScreen extends HookConsumerWidget {
                                   ),
                                 ),
                               for (final r in shown)
-                                _MenuRow(
+                                MenuRow(
                                   leading: _ProfileAvatar(
                                     imageUrl: r.profilePicture,
                                     name: r.name,
                                     isRestaurant: true,
-                                    size: _MenuRow.leadingSize,
+                                    size: MenuRow.leadingSize,
                                   ),
                                   title: r.name,
                                   subtitle: _RestaurantMeta(
@@ -228,10 +242,10 @@ class SettingsScreen extends HookConsumerWidget {
                                       : const SizedBox.shrink(),
                                   onTap: () => switchTo(r, r.name),
                                 ),
-                              _MenuRow(
+                              MenuRow(
                                 leading: Container(
-                                  width: _MenuRow.leadingSize,
-                                  height: _MenuRow.leadingSize,
+                                  width: MenuRow.leadingSize,
+                                  height: MenuRow.leadingSize,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     gradient: AppColors.backgroundGradientLR,
@@ -255,31 +269,35 @@ class SettingsScreen extends HookConsumerWidget {
                       const Gap(12),
 
                       // ---- Address -------------------------------------
-                      _MenuCard(
+                      MenuCard(
                         title: l.addressSection,
                         children: [
-                          _MenuRow.icon(
+                          MenuRow.icon(
                             icon: Icons.place_outlined,
                             title: l.savedAddresses,
-                            // TODO: open the saved addresses screen once
-                            // that feature exists.
-                            onTap: () => AppService.showToast(l.comingSoon),
+                            subtitle: switch (savedAddresses) {
+                              null || 0 => null,
+                              final n => l.savedCount(n),
+                            },
+                            onTap: () => AppRouter.router.pushNamed(
+                              AppRoute.addresses.name,
+                            ),
                           ),
                         ],
                       ),
                       const Gap(12),
 
                       // ---- Preferences ---------------------------------
-                      _MenuCard(
+                      MenuCard(
                         title: l.preferences,
                         children: [
-                          _MenuRow.icon(
+                          MenuRow.icon(
                             icon: Icons.language_rounded,
                             title: l.language,
                             subtitle: _localeLabel(l, locale),
                             onTap: () => _pickLanguage(context, ref, l, locale),
                           ),
-                          _MenuRow.icon(
+                          MenuRow.icon(
                             icon: isDark
                                 ? Icons.dark_mode_outlined
                                 : Icons.light_mode_outlined,
@@ -302,16 +320,16 @@ class SettingsScreen extends HookConsumerWidget {
                       const Gap(12),
 
                       // ---- Terms of Policy -----------------------------
-                      _MenuCard(
+                      MenuCard(
                         title: l.termsOfPolicy,
                         children: [
-                          _MenuRow.icon(
+                          MenuRow.icon(
                             icon: Icons.description_outlined,
                             title: l.termsOfService,
                             // TODO: point at the real Terms of Service page/URL once it exists.
                             onTap: () => AppService.showToast(l.comingSoon),
                           ),
-                          _MenuRow.icon(
+                          MenuRow.icon(
                             icon: Icons.shield_outlined,
                             title: l.termsOfPrivacy,
                             // TODO: point at the real Privacy Policy page/URL once it exists.
@@ -325,10 +343,10 @@ class SettingsScreen extends HookConsumerWidget {
                       // can't be mistaken for actions on the restaurant.
                       if (user != null && activeRestaurant == null) ...[
                         const Gap(12),
-                        _MenuCard(
+                        MenuCard(
                           title: l.accountSection,
                           children: [
-                            _MenuRow.icon(
+                            MenuRow.icon(
                               icon: Icons.visibility_off_outlined,
                               title: l.deactivateAccount,
                               subtitle: l.deactivateAccountSubtitle,
@@ -341,7 +359,7 @@ class SettingsScreen extends HookConsumerWidget {
                                 Navigator.of(context).maybePop();
                               },
                             ),
-                            _MenuRow.icon(
+                            MenuRow.icon(
                               icon: Icons.delete_outline_rounded,
                               color: _danger,
                               title: l.deleteAccount,
@@ -361,9 +379,9 @@ class SettingsScreen extends HookConsumerWidget {
 
                       // ---- Log out -------------------------------------
                       const Gap(12),
-                      _MenuCard(
+                      MenuCard(
                         children: [
-                          _MenuRow.icon(
+                          MenuRow.icon(
                             icon: Icons.logout_rounded,
                             color: _danger,
                             title: l.logOut,
@@ -465,269 +483,6 @@ class SettingsScreen extends HookConsumerWidget {
 // =============================================================================
 // Layout pieces
 // =============================================================================
-
-/// Pale pink → lavender → blue wash with the logo's cat head faded into the
-/// top-right corner. Dark mode keeps the plain page color and a faint cat.
-class _MenuBackdrop extends StatelessWidget {
-  const _MenuBackdrop();
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cat = (MediaQuery.sizeOf(context).width * 0.8).clamp(260.0, 420.0);
-    return IgnorePointer(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: isDark
-              ? null
-              : const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xffFDE7F1),
-                    Color(0xffF6F1FC),
-                    Color(0xffEAF1FE),
-                  ],
-                ),
-        ),
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: [
-            Positioned(
-              right: -cat * 0.22,
-              top: -cat * 0.12,
-              width: cat,
-              child: RepaintBoundary(
-                child: Image.asset(
-                  AssetsName.appLogoTrsm,
-                  opacity: AlwaysStoppedAnimation(isDark ? 0.06 : 0.16),
-                  // Decoded at on-screen size, not the 1198px source.
-                  cacheWidth: (cat * MediaQuery.devicePixelRatioOf(context))
-                      .round(),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Back arrow with the title centered on the screen.
-class _MenuBar extends StatelessWidget {
-  final String title;
-  const _MenuBar({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = ProfileTheme.textPrimary(context);
-    return SizedBox(
-      height: 52,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: IconButton(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 20,
-                color: primary,
-              ),
-              onPressed: () => Navigator.of(context).maybePop(),
-            ),
-          ),
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 17,
-              letterSpacing: -0.3,
-              color: primary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Translucent rounded card: an optional small title (with an optional text
-/// action on the right) over rows separated by hairlines.
-class _MenuCard extends StatelessWidget {
-  final String? title;
-  final (String, VoidCallback)? action;
-  final List<Widget> children;
-  const _MenuCard({required this.children, this.title, this.action});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final line = ProfileTheme.hairlineColor(context);
-    return Container(
-      decoration: BoxDecoration(
-        // Slightly see-through so the backdrop tints it.
-        color: Theme.of(
-          context,
-        ).colorScheme.surface.withValues(alpha: isDark ? 1 : 0.72),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? line : Colors.white.withValues(alpha: 0.9),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (title != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title!,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: ProfileTheme.textSecondary(context),
-                      ),
-                    ),
-                  ),
-                  if (action != null)
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: action!.$2,
-                      child: Text(
-                        action!.$1,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: _accent,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0)
-              Divider(
-                height: 1,
-                thickness: 1,
-                indent: 16,
-                endIndent: 16,
-                color: line,
-              ),
-            children[i],
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Leading widget (an avatar, or a plain line icon), title, optional
-/// subtitle, and a trailing widget — a chevron by default.
-class _MenuRow extends StatelessWidget {
-  final Widget leading;
-  final String title;
-
-  /// Rendered in the muted subtitle style.
-  final Widget? subtitle;
-  final Widget? trailing;
-  final Color? titleColor;
-  final VoidCallback onTap;
-  const _MenuRow({
-    required this.leading,
-    required this.title,
-    required this.onTap,
-    this.subtitle,
-    this.trailing,
-    this.titleColor,
-  });
-
-  /// A row led by a line icon; [color] also tints the title (destructive
-  /// rows).
-  factory _MenuRow.icon({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    String? subtitle,
-    Widget? trailing,
-    Color? color,
-  }) => _MenuRow(
-    leading: SizedBox(
-      width: leadingSize,
-      height: leadingSize,
-      child: Builder(
-        builder: (context) => Icon(
-          icon,
-          size: 23,
-          color: color ?? ProfileTheme.textPrimary(context),
-        ),
-      ),
-    ),
-    title: title,
-    subtitle: subtitle == null ? null : Text(subtitle),
-    trailing: trailing,
-    titleColor: color,
-    onTap: onTap,
-  );
-
-  static const double leadingSize = 40;
-
-  @override
-  Widget build(BuildContext context) {
-    final muted = ProfileTheme.textSecondary(context);
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 14, 12),
-        child: Row(
-          children: [
-            leading,
-            const Gap(14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w700,
-                      color: titleColor ?? ProfileTheme.textPrimary(context),
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const Gap(2),
-                    DefaultTextStyle.merge(
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, color: muted),
-                      child: subtitle!,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const Gap(8),
-            trailing ??
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: ProfileTheme.textPrimary(context),
-                ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// "✓ Active" on the brand pink → blue wash.
 class _ActivePill extends StatelessWidget {
@@ -929,5 +684,41 @@ class _ProfileAvatar extends StatelessWidget {
             ),
           )
         : ImageUserCircleProfile(imageUrl: url, name: name, size: size);
+  }
+}
+
+/// Menu → Admin: the approval queue and reported content, each with how
+/// many are waiting.
+class _AdminCard extends ConsumerWidget {
+  const _AdminCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final counts = ref.watch(adminCountsProvider).valueOrNull;
+    String? waiting(int? n, String noun) =>
+        n == null || n == 0 ? null : '$n $noun';
+    return MenuCard(
+      title: 'Admin',
+      children: [
+        MenuRow.icon(
+          icon: Icons.storefront_outlined,
+          title: 'Restaurant approvals',
+          subtitle: waiting(counts?.pendingRestaurants, 'waiting'),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const AdminRestaurantsScreen(),
+            ),
+          ),
+        ),
+        MenuRow.icon(
+          icon: Icons.flag_outlined,
+          title: 'Reported content',
+          subtitle: waiting(counts?.openReports, 'open'),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const AdminReportsScreen()),
+          ),
+        ),
+      ],
+    );
   }
 }

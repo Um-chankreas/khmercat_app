@@ -21,12 +21,16 @@ class FeedVideoPage extends StatefulWidget {
   /// conventionally only ever *adds* a like, it doesn't unlike).
   final VoidCallback onDoubleTapLike;
 
+  /// Press and hold: the video's options (Report, speed).
+  final VoidCallback? onLongPress;
+
   const FeedVideoPage({
     required this.item,
     required this.controller,
     required this.failed,
     required this.onRetry,
     required this.onDoubleTapLike,
+    this.onLongPress,
     super.key,
   });
 
@@ -67,6 +71,7 @@ class _FeedVideoPageState extends State<FeedVideoPage> {
           onTap: () => value.isPlaying ? ctrl.pause() : ctrl.play(),
           onDoubleTapDown: _handleDoubleTapDown,
           onDoubleTap: () {}, // required for onDoubleTapDown to be recognized
+          onLongPress: widget.onLongPress,
           child: Stack(
             fit: StackFit.expand,
             children: [

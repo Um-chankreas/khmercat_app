@@ -23,4 +23,12 @@ class PlacesRemoteDataSource {
     final data = json.dataMap;
     return data.isEmpty ? null : data;
   }
+
+  Future<Map<String, dynamic>> reverse(double lat, double lng) async {
+    final json = await _client.get(
+      ApiRoute.placesReverse,
+      query: {'lat': lat, 'lng': lng},
+    );
+    return json.dataMap;
+  }
 }

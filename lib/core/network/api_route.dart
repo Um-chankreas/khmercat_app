@@ -17,6 +17,7 @@ abstract class ApiRoute {
   static String video(String id) => '/videos/$id';
   static String videoLike(String id) => '/videos/$id/like';
   static String videoSave(String id) => '/videos/$id/save';
+  static String videoReport(String id) => '/videos/$id/report';
   static String videoView(String id) => '/videos/$id/view';
   static String videoComments(String id) => '/videos/$id/comments';
   static String comment(String id) => '/comments/$id';
@@ -29,6 +30,30 @@ abstract class ApiRoute {
   // places (Google Places proxy — used by the restaurant location picker)
   static const String placesAutocomplete = '/places/autocomplete';
   static const String placesDetails = '/places/details';
+  static const String placesReverse = '/places/reverse';
+
+  // people lists behind profile stats
+  static String restaurantFollowers(String id) => '/restaurants/$id/followers';
+  static String restaurantReviewers(String id) => '/restaurants/$id/reviewers';
+  static String restaurantFollowing(String id) => '/restaurants/$id/following';
+  static String userFollowers(String username) => '/users/$username/followers';
+  static String userFollowing(String username) => '/users/$username/following';
+
+  // admin
+  static const String adminRestaurants = '/admin/restaurants';
+  static String adminApproveRestaurant(String id) =>
+      '/admin/restaurants/$id/approve';
+  static String adminRejectRestaurant(String id) =>
+      '/admin/restaurants/$id/reject';
+  static const String adminReports = '/admin/reports';
+  static String adminRemoveReported(String videoId) =>
+      '/admin/reports/$videoId/remove';
+  static String adminDismissReports(String videoId) =>
+      '/admin/reports/$videoId/dismiss';
+
+  // saved addresses
+  static const String addresses = '/addresses';
+  static String address(String id) => '/addresses/$id';
 
   // restaurants
   static const String createRestaurant = '/restaurants/create';

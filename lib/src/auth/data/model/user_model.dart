@@ -9,6 +9,7 @@ class UserModel {
   final String? profilePicture;
   final String? coverPicture;
   final String? bio;
+  final bool isAdmin;
 
   UserModel({
     required this.id,
@@ -18,6 +19,7 @@ class UserModel {
     this.profilePicture,
     this.coverPicture,
     this.bio,
+    this.isAdmin = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
@@ -32,6 +34,7 @@ class UserModel {
         ? AppConfig.fixMediaUrl(json['cover_picture'] as String)
         : null,
     bio: json['bio'] as String?,
+    isAdmin: json['is_admin'] == true,
   );
 
   Map<String, dynamic> toJson() => {
@@ -42,6 +45,7 @@ class UserModel {
     'profile_picture': profilePicture,
     'cover_picture': coverPicture,
     'bio': bio,
+    'is_admin': isAdmin,
   };
 
   User toEntity() => User(
@@ -52,5 +56,6 @@ class UserModel {
     profilePicture: profilePicture,
     coverPicture: coverPicture,
     bio: bio,
+    isAdmin: isAdmin,
   );
 }

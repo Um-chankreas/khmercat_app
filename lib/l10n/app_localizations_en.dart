@@ -313,4 +313,127 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get restaurantHidden => 'Hidden';
+
+  @override
+  String savedCount(int count) {
+    return '$count saved';
+  }
+
+  @override
+  String get addressesTitle => 'Addresses';
+
+  @override
+  String get addNewAddress => 'Add new address';
+
+  @override
+  String get noData => 'No data';
+
+  @override
+  String get noAddressesMessage =>
+      'You haven\'t saved any addresses yet.\nTap \"Add new address\" to add one.';
+
+  @override
+  String get somethingWentWrong => 'Something went wrong';
+
+  @override
+  String get addressesLoadFailed => 'Couldn\'t load your addresses.';
+
+  @override
+  String get tryAgain => 'Try again';
+
+  @override
+  String get editAction => 'Edit';
+
+  @override
+  String get moreActions => 'More';
+
+  @override
+  String get deleteAddressTitle => 'Delete address?';
+
+  @override
+  String deleteAddressMessage(String label) {
+    return '\"$label\" will be removed from your addresses.';
+  }
+
+  @override
+  String get addressDeleteFailed => 'Could not delete the address';
+
+  @override
+  String get addressSaveFailed =>
+      'Could not save the address. Please try again.';
+
+  @override
+  String get addressSearchHint => 'Search for an address';
+
+  @override
+  String get addressPinHint => 'Move the map to place the pin';
+
+  @override
+  String get findingAddress => 'Finding address…';
+
+  @override
+  String get addressDetailHint => 'House no., building, floor (optional)';
+
+  @override
+  String get saveAddress => 'Save address';
+
+  @override
+  String get saveChanges => 'Save changes';
+
+  @override
+  String get addressSaved => 'Address saved';
+
+  @override
+  String get addressUpdated => 'Address updated';
+
+  @override
+  String get placeOpenFailed => 'Could not open that place';
+
+  @override
+  String get addressLabelHome => 'Home';
+
+  @override
+  String get addressLabelOffice => 'Office';
+
+  @override
+  String get addressLabelOther => 'Other';
+
+  @override
+  String get backAction => 'Back';
+
+  @override
+  String get myLocation => 'My location';
+
+  @override
+  String get reviewersTitle => 'Reviewers';
+
+  @override
+  String get followAction => 'Follow';
+
+  @override
+  String get followingAction => 'Following';
+
+  @override
+  String get youLabel => 'You';
+
+  @override
+  String get noFollowersYet => 'No followers yet';
+
+  @override
+  String get notFollowingAnyoneYet => 'Not following anyone yet';
+
+  @override
+  String get noReviewersYet => 'No reviews yet';
+
+  @override
+  String get peopleLoadFailed => 'Couldn\'t load this list.';
+
+  @override
+  String get signInToFollow => 'Sign in to follow people';
+
+  @override
+  String get followFailed => 'Couldn\'t update follow. Please try again.';
+
+  @override
+  String get profileTabVideos => 'Videos';
 }

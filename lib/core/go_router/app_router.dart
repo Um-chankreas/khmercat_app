@@ -1,10 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
+import 'package:khmer_cat_app/src/addresses/presentation/addresses_screen.dart';
 import 'package:khmer_cat_app/src/auth/presentation/screens/login_screen.dart';
 import 'package:khmer_cat_app/src/auth/presentation/screens/otp_verify.dart';
 import 'package:khmer_cat_app/src/auth/presentation/screens/register_screen.dart';
-import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
 import 'package:khmer_cat_app/src/feed/presentation/screens/video_viewer_screen.dart';
 import 'package:khmer_cat_app/src/index/index_screen.dart';
 import 'package:khmer_cat_app/src/onboarding/presentation/screens/onboarding_screen_restaurant.dart';
@@ -123,6 +123,13 @@ class AppRouter {
       ),
 
       GoRoute(
+        path: AppRoute.addresses.path,
+        name: AppRoute.addresses.name,
+        pageBuilder: (context, state) =>
+            const CupertinoPage(child: AddressesScreen()),
+      ),
+
+      GoRoute(
         path: AppRoute.editProfile.path,
         name: AppRoute.editProfile.name,
         pageBuilder: (context, state) =>
@@ -172,9 +179,8 @@ class AppRouter {
       GoRoute(
         path: AppRoute.videoViewer.path,
         name: AppRoute.videoViewer.name,
-        pageBuilder: (context, state) => CupertinoPage(
-          child: VideoViewerScreen(video: state.extra as VideoFeedItem),
-        ),
+        pageBuilder: (context, state) =>
+            CupertinoPage(child: VideoViewerScreen.fromExtra(state.extra)),
       ),
     ],
   );

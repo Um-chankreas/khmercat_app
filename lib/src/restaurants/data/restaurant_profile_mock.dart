@@ -5,15 +5,14 @@ import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
 /// here once the endpoint exists.
 ///
 /// API still needed:
-///  - GET /restaurants/{id}: `following_count`, `open_days_label`
-///    ("daily" / "Mon – Sat") and `delivery_links` [{name, url}].
+///  - GET /restaurants/{id}: `open_days_label` ("daily" / "Mon – Sat")
+///    and `delivery_links` [{name, url}].
 ///  - GET /restaurants/{id}/reviews: `summary` {avg, total, counts{1..5}}
 ///    plus a page of reviews {id, user{id,name,profile_picture}, rating,
 ///    comment, media_thumbnail_url?, created_at}.
 ///  - POST /restaurants/{id}/reviews {rating, comment, media?} for "Write a
 ///    review".
 abstract final class RestaurantProfileMock {
-  static const followingCount = 12;
   static const openDaysLabel = 'daily';
 
   static const deliveryLinks = [

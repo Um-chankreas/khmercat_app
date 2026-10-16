@@ -171,16 +171,20 @@ class FeedController extends FamilyNotifier<FeedState, FeedTab> {
     if (index == -1 || state.items[index].isPending) return;
 
     final original = state.items[index];
-    final optimistic = original.copyWith(savedByMe: !original.savedByMe);
+    final optimistic = original.copyWith(
+      savedByMe: !original.savedByMe,
+      savesCount: original.savedByMe
+          ? (original.savesCount - 1).clamp(0, original.savesCount)
+          : original.savesCount + 1,
+    );
     _replaceAt(index, optimistic);
 
     try {
       final repo = ref.read(feedRepositoryProvider);
-      if (optimistic.savedByMe) {
-        await repo.save(videoId);
-      } else {
-        await repo.unsave(videoId);
-      }
+      final savesCount = optimistic.savedByMe
+          ? await repo.save(videoId)
+          : await repo.unsave(videoId);
+      _replaceAt(index, optimistic.copyWith(savesCount: savesCount));
     } catch (_) {
       _replaceAt(index, original); // roll back
     }

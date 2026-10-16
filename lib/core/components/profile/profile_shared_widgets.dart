@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
+import 'package:khmer_cat_app/core/utils/assets_name.dart';
 
 /// One tab for [ProfileUnderlineTabs]: an app icon image ([asset]) or a
 /// Material [icon], plus a short label.
@@ -243,10 +244,14 @@ class ProfileChangeCoverButton extends StatelessWidget {
             color: Colors.white.withValues(alpha: 0.92),
             shape: BoxShape.circle,
           ),
-          child: const Icon(
-            Icons.photo_camera_outlined,
-            size: 19,
+          alignment: Alignment.center,
+          child: Image.asset(
+            AssetsName.cameraPhoto,
+            width: 19,
+            height: 19,
             color: ProfileTheme.ink,
+            // A 512px PNG; decode it at its on-screen size.
+            cacheWidth: (19 * MediaQuery.devicePixelRatioOf(context)).round(),
           ),
         ),
       ),
@@ -259,7 +264,15 @@ class ProfileChangeCoverButton extends StatelessWidget {
 class ProfileStatsRow extends StatelessWidget {
   /// (value, label) — shown in order.
   final List<(String, String)> stats;
-  const ProfileStatsRow({required this.stats, super.key});
+
+  /// What tapping each stat opens, by position; null (or missing) for
+  /// none.
+  final List<VoidCallback?> onTaps;
+  const ProfileStatsRow({
+    required this.stats,
+    this.onTaps = const [],
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -280,28 +293,32 @@ class ProfileStatsRow extends StatelessWidget {
           for (final (i, (value, label)) in stats.indexed) ...[
             if (i > 0) divider,
             Expanded(
-              child: Column(
-                children: [
-                  Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                      color: ProfileTheme.textPrimary(context),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: i < onTaps.length ? onTaps[i] : null,
+                child: Column(
+                  children: [
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                        color: ProfileTheme.textPrimary(context),
+                      ),
                     ),
-                  ),
-                  const Gap(2),
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      color: ProfileTheme.textSecondary(context),
+                    const Gap(2),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: ProfileTheme.textSecondary(context),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

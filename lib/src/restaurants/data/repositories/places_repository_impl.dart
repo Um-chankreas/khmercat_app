@@ -34,4 +34,15 @@ class PlacesRepositoryImpl implements PlacesRepository {
       businessStatus: data['business_status'],
     );
   }
+
+  @override
+  Future<String?> reverseGeocode(double lat, double lng) async {
+    try {
+      final address = (await _remote.reverse(lat, lng))['address'];
+      return address is String && address.isNotEmpty ? address : null;
+    } catch (_) {
+      // A 404 just means there's no address at that spot.
+      return null;
+    }
+  }
 }

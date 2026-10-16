@@ -27,6 +27,8 @@ import 'package:khmer_cat_app/src/restaurants/presentation/widgets/restaurant_re
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/restaurant_videos_grid.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/unpublished_banner.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:khmer_cat_app/src/people/presentation/people_list_screen.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/widgets/approval_banner.dart';
 
 const _orange = Color(0xffFF8A3D);
 const _gold = Color(0xffFFC83D);
@@ -225,7 +227,7 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                     Positioned(
                       // Right of the avatar (98px with its ring) + a gap.
                       left: 110,
-                      right: 56,
+                      right: 50,
                       top: 0,
                       child: _HeaderTitle(restaurant: r),
                     ),
@@ -255,7 +257,10 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                       ),
                     ),
                     Positioned(
-                      right: 0,
+                      // Lines up under the cover's camera button, which
+                      // sits 14px from the screen edge (this row's edge is
+                      // 20px in).
+                      right: -6,
                       top: 0,
                       child: _MenuCircleButton(onTap: openMenu),
                     ),
@@ -330,11 +335,25 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                       index: 1,
                       child: _StatsRow(
                         restaurant: r,
-                        following:
-                            r.followingCount ??
-                            RestaurantProfileMock.followingCount,
+                        onReviewsTap: () => openPeopleList(
+                          context,
+                          PeopleList.restaurantReviewers(r.id),
+                        ),
+                        onFollowersTap: () => openPeopleList(
+                          context,
+                          PeopleList.restaurantFollowers(r.id),
+                        ),
+                        following: r.followingCount ?? 0,
+                        onFollowingTap: () => openPeopleList(
+                          context,
+                          PeopleList.restaurantFollowing(r.id),
+                        ),
                       ),
                     ),
+                    if (isOwner && ApprovalBanner.appliesTo(r)) ...[
+                      const Gap(_section),
+                      ApprovalBanner(restaurant: r),
+                    ],
                     if (isOwner && !r.isPublished) ...[
                       const Gap(_section),
                       UnpublishedBanner(restaurant: r),
@@ -568,10 +587,10 @@ class _HeaderTitle extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 22,
+            fontSize: 18,
             height: 1.15,
             fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
+            letterSpacing: -0.3,
             color: ProfileTheme.textPrimary(context),
           ),
         ),
@@ -843,17 +862,22 @@ class _MenuCircleButton extends StatelessWidget {
           onTap();
         },
         child: Container(
-          width: 44,
-          height: 44,
+          // Same size as the cover's camera button above it.
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: scheme.surface,
             border: Border.all(color: scheme.onSurface.withValues(alpha: 0.14)),
           ),
-          child: Icon(
-            Icons.description_outlined,
-            size: 20,
+          child: Image.asset(
+            AssetsName.foodMenu,
+            width: 19,
+            height: 19,
             color: ProfileTheme.textPrimary(context),
+            // A 512px PNG; decode it at its on-screen size.
+            cacheWidth: (19 * MediaQuery.devicePixelRatioOf(context)).round(),
           ),
         ),
       ),
@@ -965,18 +989,31 @@ class _Pill extends StatelessWidget {
 class _StatsRow extends StatelessWidget {
   final Restaurant restaurant;
   final int following;
-  const _StatsRow({required this.restaurant, required this.following});
+  final VoidCallback onReviewsTap;
+  final VoidCallback onFollowersTap;
+  final VoidCallback onFollowingTap;
+  const _StatsRow({
+    required this.restaurant,
+    required this.following,
+    required this.onReviewsTap,
+    required this.onFollowersTap,
+    required this.onFollowingTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final r = restaurant;
     final followers = r.followersCount ?? 0;
 
-    Widget stat(int value, String label) => Expanded(
-      child: _Stat(
-        value: value.toDouble(),
-        format: (v) => _compact(v.round()),
-        label: label,
+    Widget stat(int value, String label, [VoidCallback? onTap]) => Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: _Stat(
+          value: value.toDouble(),
+          format: (v) => _compact(v.round()),
+          label: label,
+        ),
       ),
     );
 
@@ -998,11 +1035,20 @@ class _StatsRow extends StatelessWidget {
         children: [
           stat(r.videosCount, r.videosCount == 1 ? 'Post' : 'Posts'),
           divider,
-          stat(r.reviewsCount, r.reviewsCount == 1 ? 'Review' : 'Reviews'),
+          stat(
+            r.reviewsCount,
+            r.reviewsCount == 1 ? 'Review' : 'Reviews',
+            onReviewsTap,
+          ),
           divider,
-          stat(followers, followers == 1 ? 'Follower' : 'Followers'),
+          stat(
+            followers,
+            followers == 1 ? 'Follower' : 'Followers',
+            onFollowersTap,
+          ),
           divider,
-          stat(following, 'Following'),
+          // People its team followed while acting as it.
+          stat(following, 'Following', onFollowingTap),
         ],
       ),
     );

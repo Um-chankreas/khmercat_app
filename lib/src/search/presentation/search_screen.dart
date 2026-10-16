@@ -79,6 +79,12 @@ class SearchScreen extends HookConsumerWidget {
           vm.setNearest(!state.nearest);
         },
       ),
+      FilterPill(
+        label: 'Halal',
+        icon: Icons.verified_outlined,
+        selected: state.halal,
+        onTap: () => vm.setHalal(!state.halal),
+      ),
       for (final c in cuisineOptions)
         FilterPill(
           label: c,

@@ -6,10 +6,14 @@ class ProfileStat {
   final int value;
   final String label;
   final IconData icon;
+
+  /// Opens what the number counts (e.g. the list of followers).
+  final VoidCallback? onTap;
   const ProfileStat({
     required this.value,
     required this.label,
     required this.icon,
+    this.onTap,
   });
 }
 
@@ -43,7 +47,11 @@ class ProfileStatsRow extends StatelessWidget {
                   color: ProfileTheme.hairlineColor(context),
                 ),
               Expanded(
-                child: _Stat(stat: stats[i], tint: _tints[i % _tints.length]),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: stats[i].onTap,
+                  child: _Stat(stat: stats[i], tint: _tints[i % _tints.length]),
+                ),
               ),
             ],
           ],

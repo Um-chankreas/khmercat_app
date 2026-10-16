@@ -22,6 +22,8 @@ import 'package:khmer_cat_app/src/restaurants/presentation/widgets/restaurant_in
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/restaurant_videos_grid.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/unpublished_banner.dart';
 import 'package:khmer_cat_app/src/restaurants/providers/restaurant_providers.dart';
+import 'package:khmer_cat_app/src/people/presentation/people_list_screen.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/widgets/approval_banner.dart';
 
 /// The Profile tab while the user is acting as a restaurant — the same look
 /// as their personal profile tab (full-bleed cover, camera buttons on the
@@ -488,6 +490,10 @@ class _RestaurantInfo extends StatelessWidget {
               ],
             ),
           ],
+          if (ApprovalBanner.appliesTo(r)) ...[
+            const Gap(12),
+            ApprovalBanner(restaurant: r),
+          ],
           if (!r.isPublished) ...[
             const Gap(12),
             UnpublishedBanner(restaurant: r),
@@ -499,6 +505,19 @@ class _RestaurantInfo extends StatelessWidget {
                 value: r.followersCount ?? 0,
                 label: l.statFollowers,
                 icon: Icons.people_alt_rounded,
+                onTap: () => openPeopleList(
+                  context,
+                  PeopleList.restaurantFollowers(r.id),
+                ),
+              ),
+              ProfileStat(
+                value: r.followingCount ?? 0,
+                label: l.statFollowing,
+                icon: Icons.person_add_alt_1_rounded,
+                onTap: () => openPeopleList(
+                  context,
+                  PeopleList.restaurantFollowing(r.id),
+                ),
               ),
               ProfileStat(
                 value: r.videosCount,
@@ -509,6 +528,10 @@ class _RestaurantInfo extends StatelessWidget {
                 value: r.reviewsCount,
                 label: 'Reviews',
                 icon: Icons.star_rounded,
+                onTap: () => openPeopleList(
+                  context,
+                  PeopleList.restaurantReviewers(r.id),
+                ),
               ),
             ],
           ),

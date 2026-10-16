@@ -1,5 +1,6 @@
 // lib/src/profile/domain/my_profile_summary.dart
 import 'package:khmer_cat_app/core/config/app_config.dart';
+import 'package:khmer_cat_app/src/profile/domain/edit_profile_data.dart';
 
 /// GET /profile/{userId} — counts for the signed-in user's own profile
 /// header (Following/Followers/Posts/Likes). The rest of the header (name,
@@ -11,6 +12,8 @@ class MyProfileSummary {
   final String? avatar;
   final String? bio;
   final String email;
+  final String? phone;
+  final SocialLinks socialLinks;
   final int followingCount;
   final int followersCount;
   final int postsCount;
@@ -23,6 +26,8 @@ class MyProfileSummary {
     this.avatar,
     this.bio,
     required this.email,
+    this.phone,
+    this.socialLinks = const SocialLinks(),
     required this.followingCount,
     required this.followersCount,
     required this.postsCount,
@@ -39,6 +44,13 @@ class MyProfileSummary {
             : null,
         bio: json['bio'] as String?,
         email: json['email'] as String? ?? '',
+        phone: switch (json['phone']) {
+          final String p when p.trim().isNotEmpty => p.trim(),
+          _ => null,
+        },
+        socialLinks: SocialLinks.fromJson(
+          json['social_links'] as Map<String, dynamic>?,
+        ),
         followingCount: (json['following_count'] as num?)?.toInt() ?? 0,
         followersCount: (json['followers_count'] as num?)?.toInt() ?? 0,
         postsCount: (json['posts_count'] as num?)?.toInt() ?? 0,

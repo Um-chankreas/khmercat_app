@@ -12,6 +12,7 @@ class SearchRemoteDataSource {
     double? lat,
     double? lng,
     bool nearest = false,
+    bool halal = false,
   }) async {
     final json = await _client.get(
       ApiRoute.search,
@@ -20,6 +21,7 @@ class SearchRemoteDataSource {
         'category_id': ?categoryId,
         if (lat != null && lng != null) ...{'lat': lat, 'lng': lng},
         if (nearest) 'sort': 'nearest',
+        if (halal) 'halal': 1,
       },
     );
     return json.dataMap;

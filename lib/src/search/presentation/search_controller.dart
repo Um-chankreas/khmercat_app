@@ -34,6 +34,9 @@ class SearchState {
 
   /// "Nearest" chip: the API sorts restaurants by distance.
   final bool nearest;
+
+  /// "Halal" chip: only halal restaurants (and videos about them).
+  final bool halal;
   final List<String> recents;
 
   const SearchState({
@@ -49,6 +52,7 @@ class SearchState {
     this.errorMessage,
     this.cuisine,
     this.nearest = false,
+    this.halal = false,
     this.recents = const [],
   });
 
@@ -70,6 +74,7 @@ class SearchState {
     String? cuisine,
     bool clearCuisine = false,
     bool? nearest,
+    bool? halal,
     List<String>? recents,
   }) {
     return SearchState(
@@ -85,6 +90,7 @@ class SearchState {
       errorMessage: errorMessage,
       cuisine: clearCuisine ? null : (cuisine ?? this.cuisine),
       nearest: nearest ?? this.nearest,
+      halal: halal ?? this.halal,
       recents: recents ?? this.recents,
     );
   }
@@ -117,8 +123,9 @@ class SearchViewModel extends Notifier<SearchState> {
     _debounce?.cancel();
     _typed = query.trim();
     if (_typed.isEmpty) {
-      // A cuisine chip is still selected: fall back to searching by it.
-      state.cuisine != null ? _run() : _resetResults();
+      // A cuisine or Halal chip is still selected: fall back to searching
+      // by it.
+      state.cuisine != null || state.halal ? _run() : _resetResults();
       return;
     }
     _debounce = Timer(const Duration(milliseconds: 400), _run);
@@ -150,7 +157,7 @@ class SearchViewModel extends Notifier<SearchState> {
     state = cuisine == null
         ? state.copyWith(clearCuisine: true)
         : state.copyWith(cuisine: cuisine);
-    if (_typed.isEmpty && cuisine == null) {
+    if (_typed.isEmpty && cuisine == null && !state.halal) {
       _resetResults();
     } else {
       _run();
@@ -163,12 +170,25 @@ class SearchViewModel extends Notifier<SearchState> {
     if (state.hasSearched) _run();
   }
 
+  /// The Halal chip: on its own it's a search of its own (like a cuisine);
+  /// otherwise it narrows the current one.
+  void setHalal(bool halal) {
+    if (halal == state.halal) return;
+    state = state.copyWith(halal: halal);
+    if (_typed.isEmpty && state.cuisine == null && !halal) {
+      _resetResults();
+    } else {
+      _run();
+    }
+  }
+
   void _resetResults() {
     _debounce?.cancel();
     _seq++;
     state = SearchState(
       cuisine: state.cuisine,
       nearest: state.nearest,
+      halal: state.halal,
       recents: state.recents,
     );
   }
@@ -179,7 +199,7 @@ class SearchViewModel extends Notifier<SearchState> {
     final typed = _typed;
     final position = ref.read(locationProvider);
     state = state.copyWith(
-      query: typed.isNotEmpty ? typed : cuisine,
+      query: typed.isNotEmpty ? typed : (cuisine ?? 'Halal'),
       isLoading: true,
     );
     try {
@@ -191,6 +211,7 @@ class SearchViewModel extends Notifier<SearchState> {
             lat: position?.latitude,
             lng: position?.longitude,
             nearest: state.nearest,
+            halal: state.halal,
           );
       if (seq != _seq) return;
       state = state.copyWith(

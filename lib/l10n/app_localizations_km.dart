@@ -313,4 +313,128 @@ class AppLocalizationsKm extends AppLocalizations {
 
   @override
   String get restaurantHidden => 'លាក់';
+
+  @override
+  String savedCount(int count) {
+    return 'បានរក្សាទុក $count';
+  }
+
+  @override
+  String get addressesTitle => 'អាសយដ្ឋាន';
+
+  @override
+  String get addNewAddress => 'បន្ថែមអាសយដ្ឋានថ្មី';
+
+  @override
+  String get noData => 'គ្មានទិន្នន័យ';
+
+  @override
+  String get noAddressesMessage =>
+      'អ្នកមិនទាន់បានរក្សាទុកអាសយដ្ឋានណាមួយទេ។\nចុច «បន្ថែមអាសយដ្ឋានថ្មី» ដើម្បីបន្ថែម។';
+
+  @override
+  String get somethingWentWrong => 'មានបញ្ហាកើតឡើង';
+
+  @override
+  String get addressesLoadFailed => 'មិនអាចផ្ទុកអាសយដ្ឋានរបស់អ្នកបានទេ។';
+
+  @override
+  String get tryAgain => 'ព្យាយាមម្តងទៀត';
+
+  @override
+  String get editAction => 'កែប្រែ';
+
+  @override
+  String get moreActions => 'ច្រើនទៀត';
+
+  @override
+  String get deleteAddressTitle => 'លុបអាសយដ្ឋាន?';
+
+  @override
+  String deleteAddressMessage(String label) {
+    return '«$label» នឹងត្រូវដកចេញពីអាសយដ្ឋានរបស់អ្នក។';
+  }
+
+  @override
+  String get addressDeleteFailed => 'មិនអាចលុបអាសយដ្ឋានបានទេ';
+
+  @override
+  String get addressSaveFailed =>
+      'មិនអាចរក្សាទុកអាសយដ្ឋានបានទេ។ សូមព្យាយាមម្តងទៀត។';
+
+  @override
+  String get addressSearchHint => 'ស្វែងរកអាសយដ្ឋាន';
+
+  @override
+  String get addressPinHint => 'រំកិលផែនទីដើម្បីដាក់ម្ជុល';
+
+  @override
+  String get findingAddress => 'កំពុងស្វែងរកអាសយដ្ឋាន…';
+
+  @override
+  String get addressDetailHint => 'ផ្ទះលេខ អគារ ជាន់ (មិនចាំបាច់)';
+
+  @override
+  String get saveAddress => 'រក្សាទុកអាសយដ្ឋាន';
+
+  @override
+  String get saveChanges => 'រក្សាទុកការផ្លាស់ប្តូរ';
+
+  @override
+  String get addressSaved => 'បានរក្សាទុកអាសយដ្ឋាន';
+
+  @override
+  String get addressUpdated => 'បានកែប្រែអាសយដ្ឋាន';
+
+  @override
+  String get placeOpenFailed => 'មិនអាចបើកទីតាំងនោះបានទេ';
+
+  @override
+  String get addressLabelHome => 'ផ្ទះ';
+
+  @override
+  String get addressLabelOffice => 'ការិយាល័យ';
+
+  @override
+  String get addressLabelOther => 'ផ្សេងៗ';
+
+  @override
+  String get backAction => 'ត្រឡប់ក្រោយ';
+
+  @override
+  String get myLocation => 'ទីតាំងរបស់ខ្ញុំ';
+
+  @override
+  String get reviewersTitle => 'អ្នកវាយតម្លៃ';
+
+  @override
+  String get followAction => 'តាមដាន';
+
+  @override
+  String get followingAction => 'កំពុងតាមដាន';
+
+  @override
+  String get youLabel => 'អ្នក';
+
+  @override
+  String get noFollowersYet => 'មិនទាន់មានអ្នកតាមដាននៅឡើយ';
+
+  @override
+  String get notFollowingAnyoneYet => 'មិនទាន់តាមដាននរណាម្នាក់នៅឡើយ';
+
+  @override
+  String get noReviewersYet => 'មិនទាន់មានការវាយតម្លៃនៅឡើយ';
+
+  @override
+  String get peopleLoadFailed => 'មិនអាចផ្ទុកបញ្ជីនេះបានទេ។';
+
+  @override
+  String get signInToFollow => 'ចូលគណនីដើម្បីតាមដានអ្នកដទៃ';
+
+  @override
+  String get followFailed =>
+      'មិនអាចធ្វើបច្ចុប្បន្នភាពការតាមដានបានទេ។ សូមព្យាយាមម្តងទៀត។';
+
+  @override
+  String get profileTabVideos => 'វីដេអូ';
 }

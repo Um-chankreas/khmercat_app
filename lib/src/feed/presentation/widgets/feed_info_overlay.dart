@@ -1,38 +1,39 @@
 // lib/features/feed/presentation/widgets/feed_info_overlay.dart
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:khmer_cat_app/core/components/rating/rating_badge.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
+import 'package:khmer_cat_app/core/themes/app_colors.dart';
+import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import '../../domain/video_feed_item.dart';
+import '../../providers/feed_restaurant_provider.dart';
 
-const _pink = Color(0xffFF54AB);
-const _purple = Color(0xff9B6BFF);
+const _ink = Color(0xff1F1B3A);
+const _plum = Color(0xff3A3350);
 const _shadow = [Shadow(color: Colors.black54, blurRadius: 6)];
 
 /// Bottom-left overlay:
-///   1. Reviewer byline — small and muted ("@username · time").
+///   1. Reviewer byline ("@username · time").
 ///   2. The expandable caption (its own #hashtags stay tappable).
-///   3. One restaurant row — icon, name, rating star and a Follow chip —
-///      only shown when the video has a restaurant.
+/// The video's restaurant gets its own strip underneath: see
+/// [FeedRestaurantBar].
 class FeedInfoOverlay extends StatelessWidget {
   final VideoFeedItem item;
-  final VoidCallback onFollowTap;
   final VoidCallback onUserTap;
-  final VoidCallback? onRestaurantTap;
   final ValueChanged<String>? onHashtagTap;
 
   const FeedInfoOverlay({
     required this.item,
-    required this.onFollowTap,
     required this.onUserTap,
-    this.onRestaurantTap,
     this.onHashtagTap,
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
-    final restaurant = item.restaurant;
-    final rating = item.rating;
     final createdAt = item.createdAt;
 
     // Fades + rises in on every new video (re-triggers because the key
@@ -65,10 +66,10 @@ class FeedInfoOverlay extends StatelessWidget {
                 Flexible(
                   child: Text(
                     '@${item.user.username}',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13.5,
                       letterSpacing: -0.1,
                       shadows: _shadow,
                     ),
@@ -78,13 +79,13 @@ class FeedInfoOverlay extends StatelessWidget {
                 if (createdAt != null) ...[
                   const Text(
                     '  ·  ',
-                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                    style: TextStyle(color: Colors.white70, fontSize: 12.5),
                   ),
                   Text(
                     timeAgo(createdAt),
                     style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 12,
+                      color: Colors.white70,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w500,
                       shadows: _shadow,
                     ),
@@ -104,52 +105,102 @@ class FeedInfoOverlay extends StatelessWidget {
                   (tag) => AppService.showToast('#$tag search is coming soon'),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
 
-          // 2. Restaurant row — icon, name, rating star and Follow on one
-          // line, last in the column so it sits right above the tab bar.
-          if (restaurant != null) ...[
-            const SizedBox(height: 12),
-            Row(
+/// Full-width frosted strip along the bottom of a video for its restaurant:
+/// the shop icon in a gradient ring, name over rating · category, and a
+/// Follow pill. Tapping
+/// anywhere but the pill opens the restaurant.
+class FeedRestaurantBar extends ConsumerWidget {
+  final VideoFeedItem item;
+  final VoidCallback onFollowTap;
+  final VoidCallback? onTap;
+
+  const FeedRestaurantBar({
+    required this.item,
+    required this.onFollowTap,
+    this.onTap,
+    super.key,
+  });
+
+  static const double height = 50;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final restaurant = item.restaurant!;
+    // The feed item only has the restaurant's name; its average rating and
+    // category arrive a moment later from the restaurant's own record.
+    // Until then (or if that fails) a review shows the review's rating.
+    final details = ref.watch(feedRestaurantProvider(restaurant.id)).value;
+    final rating = details?.avgRating ?? item.rating;
+    final category = details?.category?.name ?? restaurant.categoryName;
+    const meta = TextStyle(
+      color: Colors.white,
+      fontSize: 11.5,
+      fontWeight: FontWeight.w600,
+    );
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      // Frosted: the video shows through, blurred, under a dark plum tint.
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            height: height,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            color: _plum.withValues(alpha: 0.45),
+            child: Row(
               children: [
+                const _RestaurantIcon(),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: onRestaurantTap,
-                    child: Row(
-                      children: [
-                        const _RestaurantIcon(),
-                        const SizedBox(width: 8),
-                        // Name with the rating under it.
-                        Flexible(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                restaurant.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        restaurant.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13.5,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      if (rating != null || category != null) ...[
+                        const SizedBox(height: 1),
+                        Row(
+                          children: [
+                            if (rating != null)
+                              RatingBadge(
+                                rating: rating,
+                                iconSize: 13,
+                                style: meta.copyWith(
                                   fontWeight: FontWeight.w800,
-                                  fontSize: 15.5,
-                                  letterSpacing: -0.2,
-                                  shadows: _shadow,
                                 ),
                               ),
-                              // TODO(backend): this is the review's own
-                              // rating; the feed's `restaurant` object has no
-                              // average rating yet (send `avg_rating` there
-                              // to show that instead).
-                              if (rating != null) ...[
-                                const SizedBox(height: 1),
-                                _RatingStar(rating: rating),
-                              ],
-                            ],
-                          ),
+                            if (rating != null && category != null)
+                              const Text('  ·  ', style: meta),
+                            if (category != null)
+                              Flexible(
+                                child: Text(
+                                  category,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: meta,
+                                ),
+                              ),
+                          ],
                         ),
                       ],
-                    ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -159,62 +210,48 @@ class FeedInfoOverlay extends StatelessWidget {
                 ),
               ],
             ),
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }
 }
 
-/// Storefront icon in a soft glass circle — marks the row as a restaurant.
+/// The shop icon in white on a dark plum disc, inside a ring of the pale
+/// pink → blue brand wash (the same wash as the Follow pill).
 class _RestaurantIcon extends StatelessWidget {
   const _RestaurantIcon();
+
+  static const double _size = 30;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 32,
-      height: 32,
+      padding: const EdgeInsets.all(1.5),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.black.withValues(alpha: 0.35),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+        gradient: AppColors.backgroundGradientLR,
       ),
-      child: const Icon(
-        Icons.storefront_outlined,
-        size: 18,
-        color: Colors.white,
-      ),
-    );
-  }
-}
-
-/// "★ 4.0"
-class _RatingStar extends StatelessWidget {
-  final double rating;
-  const _RatingStar({required this.rating});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.star_rounded, size: 17, color: Color(0xffFFC83D)),
-        const SizedBox(width: 3),
-        Text(
-          rating.toStringAsFixed(1),
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            shadows: _shadow,
-          ),
+      child: Container(
+        width: _size,
+        height: _size,
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(shape: BoxShape.circle, color: _plum),
+        child: Image.asset(
+          AssetsName.shop,
+          width: 16,
+          height: 16,
+          color: Colors.white,
+          // A 512px PNG; decode it at its on-screen size.
+          cacheWidth: (16 * MediaQuery.devicePixelRatioOf(context)).round(),
         ),
-      ],
+      ),
     );
   }
 }
 
+/// "+ Follow" on the pale pink → blue brand wash; a quiet outlined
+/// "✓ Following" once followed.
 class _FollowChip extends StatelessWidget {
   final bool following;
   final VoidCallback onTap;
@@ -222,19 +259,18 @@ class _FollowChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = following ? Colors.white : _ink;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.fromLTRB(8, 5, 12, 5),
         decoration: BoxDecoration(
-          gradient: following
-              ? null
-              : const LinearGradient(colors: [_pink, _purple]),
-          color: following ? Colors.black.withValues(alpha: 0.25) : null,
+          gradient: following ? null : AppColors.backgroundGradientLR,
+          color: following ? Colors.white.withValues(alpha: 0.12) : null,
           borderRadius: BorderRadius.circular(20),
           border: following
-              ? Border.all(color: Colors.white.withValues(alpha: 0.7))
+              ? Border.all(color: Colors.white.withValues(alpha: 0.6))
               : null,
         ),
         child: Row(
@@ -243,14 +279,14 @@ class _FollowChip extends StatelessWidget {
             Icon(
               following ? Icons.check_rounded : Icons.add_rounded,
               size: 14,
-              color: Colors.white,
+              color: color,
             ),
             const SizedBox(width: 3),
             Text(
               following ? 'Following' : 'Follow',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w800,
                 fontSize: 12,
               ),
             ),
@@ -317,8 +353,8 @@ class _ExpandableCaptionState extends State<_ExpandableCaption> {
           text: tag,
           recognizer: recognizer,
           style: const TextStyle(
-            color: Color(0xffB9A2FF),
-            fontWeight: FontWeight.w700,
+            color: Color(0xffFF6DB8),
+            fontWeight: FontWeight.w800,
           ),
         ),
       );

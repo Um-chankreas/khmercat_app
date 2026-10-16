@@ -10,6 +10,7 @@ import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
 import 'package:khmer_cat_app/src/search/presentation/discover_controller.dart';
 import 'package:khmer_cat_app/src/search/presentation/search_controller.dart';
 import 'package:khmer_cat_app/src/search/presentation/widgets/search_widgets.dart';
+import 'package:khmer_cat_app/core/components/halal_badge.dart';
 
 // Rows shown per ranking tab, and trending videos before "See all".
 const _rankRows = 5;
@@ -252,8 +253,11 @@ class _NearbyCarousel extends StatelessWidget {
     // About two-thirds of the screen, so the next card peeks in.
     final width = (MediaQuery.sizeOf(context).width * 0.68).clamp(220.0, 320.0);
     final imageHeight = width * 0.59;
+    // Under the photo: 12 + name line + 4 + meta line. The two lines grow
+    // with the system font size, so the room for them does too.
+    final textHeight = MediaQuery.textScalerOf(context).scale(46);
     return SizedBox(
-      height: imageHeight + 56,
+      height: imageHeight + 16 + textHeight,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -304,15 +308,18 @@ class _NearbyCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    r.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.1,
-                      color: ProfileTheme.textPrimary(context),
+                  child: NameWithHalalBadge(
+                    isHalal: r.isHalal,
+                    name: Text(
+                      r.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.1,
+                        color: ProfileTheme.textPrimary(context),
+                      ),
                     ),
                   ),
                 ),

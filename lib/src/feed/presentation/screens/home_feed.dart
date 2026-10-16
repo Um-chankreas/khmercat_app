@@ -20,7 +20,6 @@ import '../../domain/feed_tab.dart';
 import '../../providers/feed_providers.dart';
 import '../viewmodel/feed_controller.dart';
 import '../widgets/feed_action_rail.dart';
-import '../../providers/feed_chrome_provider.dart';
 import '../widgets/feed_info_overlay.dart';
 import '../widgets/feed_progress_bar.dart';
 import '../widgets/feed_top_tabs.dart';
@@ -28,6 +27,7 @@ import '../widgets/feed_video_page.dart';
 import '../widgets/share_video.dart';
 import '../widgets/video_controller_manager.dart';
 import 'comments_sheet.dart';
+import 'package:khmer_cat_app/src/feed/presentation/widgets/video_options_sheet.dart';
 
 /// PageView's default snap-back spring (stiffness: 100) settles slowly
 /// enough after you release a swipe that short-form feeds feel "soft"
@@ -99,8 +99,12 @@ class _HomeFeedState extends State<HomeFeed>
   @override
   Widget build(BuildContext context) {
     // True only while nothing is pushed on top of this route. Flutter
-    // rebuilds this widget whenever that changes, removals included.
-    final isTopRoute = ModalRoute.isCurrentOf(context) ?? true;
+    // rebuilds this widget whenever that changes, removals included. The
+    // long-press options sheet doesn't count: the video keeps playing under
+    // it.
+    final isTopRoute =
+        (ModalRoute.isCurrentOf(context) ?? true) ||
+        videoOptionsSheetsOpen.value > 0;
     return _HomeFeedContent(
       isActive: widget.isTabActive && isTopRoute && _appInForeground,
     );
@@ -233,42 +237,6 @@ class _TabFeedView extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentPage = useState(0);
     final pageController = usePageController();
-
-    // The bottom bar slides away while the user swipes between videos and
-    // returns shortly after they stop (a short delay, so a quick series of
-    // swipes doesn't make it flicker in and out between them).
-    final showNavTimer = useRef<Timer?>(null);
-    void setNavHidden(bool hidden) {
-      // Not during a build / dispose.
-      Future.microtask(() {
-        if (context.mounted) {
-          ref.read(feedChromeHiddenProvider.notifier).state = hidden;
-        }
-      });
-    }
-
-    useEffect(() {
-      final chrome = ref.read(feedChromeHiddenProvider.notifier);
-      return () {
-        showNavTimer.value?.cancel();
-        // Leaving the feed: make sure the bar isn't left hidden.
-        Future.microtask(() => chrome.state = false);
-      };
-    }, const []);
-    bool onFeedScroll(ScrollNotification n) {
-      if (n.depth != 0 || n.metrics.axis != Axis.vertical) return false;
-      if (n is ScrollStartNotification && n.dragDetails != null) {
-        showNavTimer.value?.cancel();
-        if (!ref.read(feedChromeHiddenProvider)) setNavHidden(true);
-      } else if (n is ScrollEndNotification) {
-        showNavTimer.value?.cancel();
-        showNavTimer.value = Timer(
-          const Duration(milliseconds: 700),
-          () => setNavHidden(false),
-        );
-      }
-      return false; // keep bubbling (pull-to-refresh needs them)
-    }
 
     final state = ref.watch(feedControllerProvider(tab));
     final controller = ref.read(feedControllerProvider(tab).notifier);
@@ -431,121 +399,138 @@ class _TabFeedView extends HookConsumerWidget {
       color: const Color(0xff9B6BFF),
       backgroundColor: Colors.white,
       edgeOffset: MediaQuery.paddingOf(context).top + 64,
-      child: NotificationListener<ScrollNotification>(
-        onNotification: onFeedScroll,
-        child: PageView.builder(
-          controller: pageController,
-          scrollDirection: Axis.vertical,
-          physics: const _SnappyPageScrollPhysics(),
-          allowImplicitScrolling: true,
-          itemCount: videoCount + (showEnd ? 1 : 0),
-          onPageChanged: (page) {
-            currentPage.value = page;
-            if (page >= videoCount - 2) controller.loadMore();
-          },
-          itemBuilder: (context, index) {
-            if (index >= videoCount) {
-              return _EndOfFeed(
-                onBackToTop: () => pageController.animateToPage(
-                  0,
-                  duration: const Duration(milliseconds: 450),
-                  curve: Curves.easeOutCubic,
-                ),
-              );
-            }
-            final item = state.items[index];
-
-            // Each page gets its own compositing layer so a swipe transition
-            // doesn't force neighboring pages' video textures to repaint, and
-            // the video texture itself is isolated from the overlay (gradient,
-            // action rail, caption) so the two don't repaint each other on
-            // every frame.
-            return RepaintBoundary(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  RepaintBoundary(
-                    child: FeedVideoPage(
-                      item: item,
-                      controller: videoManager.controllerFor(item.id),
-                      failed: videoManager.hasFailed(item.id),
-                      onRetry: () => videoManager.retry(item),
-                      onDoubleTapLike: () {
-                        if (!item.likedByMe) handleLike(item.id);
-                      },
-                    ),
-                  ),
-
-                  // Bottom scrim, tinted deep purple so the overlay text and
-                  // action rail stay readable and match the brand.
-                  IgnorePointer(
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Color(0xC01F1B3A)],
-                          stops: [0.5, 1.0],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  Positioned(
-                    right: 12,
-                    // The video runs behind the glass nav bar; the overlays
-                    // stay above it.
-                    bottom: context.sc(50) + navBarInset(context),
-                    child: IgnorePointer(
-                      ignoring: item.isPending,
-                      child: Opacity(
-                        opacity: item.isPending ? 0.4 : 1,
-                        child: FeedActionRail(
-                          item: item,
-                          onLike: () => handleLike(item.id),
-                          onComment: () => handleComment(item.id),
-                          onSave: () => handleSave(item.id),
-                          onShare: () => shareVideo(item),
-                          onFollowTap: () => handleFollow(item.id),
-                          onAvatarTap: () => AppRouter.router.pushNamed(
-                            AppRoute.userProfile.name,
-                            pathParameters: {'username': item.user.username},
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  Positioned(
-                    left: context.sc(14),
-                    right: 90,
-                    bottom: context.sc(14) + navBarInset(context) + 6,
-                    child: FeedInfoOverlay(
-                      item: item,
-                      onFollowTap: () => handleFollow(item.id),
-                      onUserTap: () => AppRouter.router.pushNamed(
-                        AppRoute.userProfile.name,
-                        pathParameters: {'username': item.user.username},
-                      ),
-                      onRestaurantTap: item.restaurant == null
-                          ? null
-                          : () => AppRouter.router.pushNamed(
-                              AppRoute.restaurantProfile.name,
-                              pathParameters: {'id': item.restaurant!.id},
-                            ),
-                    ),
-                  ),
-
-                  // Playback bar: sits on top of the nav bar, and drops to
-                  // the bottom edge while the nav bar is tucked away.
-                  _ProgressBarSlot(
-                    controller: videoManager.controllerFor(item.id),
-                  ),
-                ],
+      child: PageView.builder(
+        controller: pageController,
+        scrollDirection: Axis.vertical,
+        physics: const _SnappyPageScrollPhysics(),
+        allowImplicitScrolling: true,
+        itemCount: videoCount + (showEnd ? 1 : 0),
+        onPageChanged: (page) {
+          currentPage.value = page;
+          if (page >= videoCount - 2) controller.loadMore();
+        },
+        itemBuilder: (context, index) {
+          if (index >= videoCount) {
+            return _EndOfFeed(
+              onBackToTop: () => pageController.animateToPage(
+                0,
+                duration: const Duration(milliseconds: 450),
+                curve: Curves.easeOutCubic,
               ),
             );
-          },
-        ),
+          }
+          final item = state.items[index];
+          // Where the nav bar (dome included) ends, and where the overlays
+          // start above the restaurant strip, if the video has one.
+          final barBottom = MediaQuery.paddingOf(context).bottom;
+          final overlayBottom =
+              barBottom +
+              (item.restaurant == null ? 0 : FeedRestaurantBar.height);
+
+          // Each page gets its own compositing layer so a swipe transition
+          // doesn't force neighboring pages' video textures to repaint, and
+          // the video texture itself is isolated from the overlay (gradient,
+          // action rail, caption) so the two don't repaint each other on
+          // every frame.
+          return RepaintBoundary(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                RepaintBoundary(
+                  child: FeedVideoPage(
+                    item: item,
+                    controller: videoManager.controllerFor(item.id),
+                    failed: videoManager.hasFailed(item.id),
+                    onRetry: () => videoManager.retry(item),
+                    onDoubleTapLike: () {
+                      if (!item.likedByMe) handleLike(item.id);
+                    },
+                    onLongPress: () => showVideoOptionsSheet(
+                      context,
+                      ref,
+                      item,
+                      controller: videoManager.controllerFor(item.id),
+                    ),
+                  ),
+                ),
+
+                // Bottom scrim, tinted deep purple so the overlay text and
+                // action rail stay readable and match the brand.
+                IgnorePointer(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Color(0xC01F1B3A)],
+                        stops: [0.5, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+
+                Positioned(
+                  right: 12,
+                  // The video runs behind the glass nav bar; the overlays
+                  // stay above it and the restaurant strip.
+                  bottom: overlayBottom + context.sc(18),
+                  child: IgnorePointer(
+                    ignoring: item.isPending,
+                    child: Opacity(
+                      opacity: item.isPending ? 0.4 : 1,
+                      child: FeedActionRail(
+                        item: item,
+                        onLike: () => handleLike(item.id),
+                        onComment: () => handleComment(item.id),
+                        onSave: () => handleSave(item.id),
+                        onShare: () => shareVideo(item),
+                        onFollowTap: () => handleFollow(item.id),
+                        onAvatarTap: () => AppRouter.router.pushNamed(
+                          AppRoute.userProfile.name,
+                          pathParameters: {'username': item.user.username},
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                Positioned(
+                  left: context.sc(14),
+                  right: 90,
+                  bottom: overlayBottom + context.sc(12),
+                  child: FeedInfoOverlay(
+                    item: item,
+                    onUserTap: () => AppRouter.router.pushNamed(
+                      AppRoute.userProfile.name,
+                      pathParameters: {'username': item.user.username},
+                    ),
+                  ),
+                ),
+
+                // Restaurant strip, edge to edge just above the nav bar.
+                if (item.restaurant != null)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: barBottom,
+                    child: FeedRestaurantBar(
+                      item: item,
+                      onFollowTap: () => handleFollow(item.id),
+                      onTap: () => AppRouter.router.pushNamed(
+                        AppRoute.restaurantProfile.name,
+                        pathParameters: {'id': item.restaurant!.id},
+                      ),
+                    ),
+                  ),
+
+                // Playback bar: a line along the strip's bottom edge.
+                _ProgressBarSlot(
+                  controller: videoManager.controllerFor(item.id),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
 
@@ -601,24 +586,19 @@ class _TabFeedView extends HookConsumerWidget {
   }
 }
 
-/// Places [FeedProgressBar] along the bottom of a video page — above the nav
-/// bar normally, at the screen's bottom edge while the bar is hidden. Only
-/// this small widget listens to the hidden flag, not the whole page.
-class _ProgressBarSlot extends ConsumerWidget {
+/// Places [FeedProgressBar] along the bottom of a video page, just above
+/// the nav bar.
+class _ProgressBarSlot extends StatelessWidget {
   final VideoPlayerController? controller;
   const _ProgressBarSlot({required this.controller});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final ctrl = controller;
-    final hidden = ref.watch(feedChromeHiddenProvider);
-    final media = MediaQuery.of(context);
-    return AnimatedPositioned(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
+    return Positioned(
       left: 0,
       right: 0,
-      bottom: hidden ? media.viewPadding.bottom : media.padding.bottom,
+      bottom: MediaQuery.paddingOf(context).bottom,
       child: ctrl == null
           ? const SizedBox.shrink()
           : FeedProgressBar(controller: ctrl),

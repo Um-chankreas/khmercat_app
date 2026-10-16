@@ -14,6 +14,7 @@ import 'package:khmer_cat_app/src/search/presentation/discover_controller.dart';
 import 'package:khmer_cat_app/src/search/presentation/nearby_map_controller.dart';
 import 'package:khmer_cat_app/src/search/presentation/widgets/map_pins.dart';
 import 'package:khmer_cat_app/src/search/presentation/widgets/search_widgets.dart';
+import 'package:khmer_cat_app/core/components/halal_badge.dart';
 
 // Shown until the device position is known.
 const _phnomPenh = LatLng(11.5564, 104.9282);
@@ -197,6 +198,11 @@ class RestaurantMapScreen extends HookConsumerWidget {
                   position: center,
                   draggable: true,
                   zIndexInt: 1,
+                  // The cat head is centered on the spot; the stock pin
+                  // (until it's drawn) points at it.
+                  anchor: pins == null
+                      ? const Offset(0.5, 1)
+                      : MapPins.userAnchor,
                   icon:
                       pins?.user ??
                       BitmapDescriptor.defaultMarkerWithHue(
@@ -567,14 +573,17 @@ class _RestaurantCard extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            r.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 16.5,
-                              fontWeight: FontWeight.w700,
-                              color: primary,
+                          child: NameWithHalalBadge(
+                            isHalal: r.isHalal,
+                            name: Text(
+                              r.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 16.5,
+                                fontWeight: FontWeight.w700,
+                                color: primary,
+                              ),
                             ),
                           ),
                         ),

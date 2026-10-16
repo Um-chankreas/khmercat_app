@@ -60,9 +60,18 @@ class FeedRepository {
     return (data['likes_count'] as num).toInt();
   }
 
-  Future<void> save(String videoId) => _remote.save(videoId);
+  /// Saves the video and returns its new save count — null from a server
+  /// that doesn't report it yet (the save itself still went through).
+  Future<int?> save(String videoId) async {
+    final data = await _remote.save(videoId);
+    return (data['saves_count'] as num?)?.toInt();
+  }
 
-  Future<void> unsave(String videoId) => _remote.unsave(videoId);
+  /// The reverse of [save].
+  Future<int?> unsave(String videoId) async {
+    final data = await _remote.unsave(videoId);
+    return (data['saves_count'] as num?)?.toInt();
+  }
 
   /// Counts a view (shown as "18.4K views" in search). Best effort: a failed
   /// or throttled request is ignored, it must never disturb playback.

@@ -655,6 +655,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hidden'**
   String get restaurantHidden;
+
+  /// No description provided for @savedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} saved'**
+  String savedCount(int count);
+
+  /// No description provided for @addressesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Addresses'**
+  String get addressesTitle;
+
+  /// No description provided for @addNewAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Add new address'**
+  String get addNewAddress;
+
+  /// No description provided for @noData.
+  ///
+  /// In en, this message translates to:
+  /// **'No data'**
+  String get noData;
+
+  /// No description provided for @noAddressesMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You haven\'t saved any addresses yet.\nTap \"Add new address\" to add one.'**
+  String get noAddressesMessage;
+
+  /// No description provided for @somethingWentWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong'**
+  String get somethingWentWrong;
+
+  /// No description provided for @addressesLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load your addresses.'**
+  String get addressesLoadFailed;
+
+  /// No description provided for @tryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get tryAgain;
+
+  /// No description provided for @editAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get editAction;
+
+  /// No description provided for @moreActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get moreActions;
+
+  /// No description provided for @deleteAddressTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete address?'**
+  String get deleteAddressTitle;
+
+  /// No description provided for @deleteAddressMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{label}\" will be removed from your addresses.'**
+  String deleteAddressMessage(String label);
+
+  /// No description provided for @addressDeleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not delete the address'**
+  String get addressDeleteFailed;
+
+  /// No description provided for @addressSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the address. Please try again.'**
+  String get addressSaveFailed;
+
+  /// No description provided for @addressSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search for an address'**
+  String get addressSearchHint;
+
+  /// No description provided for @addressPinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Move the map to place the pin'**
+  String get addressPinHint;
+
+  /// No description provided for @findingAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Finding address…'**
+  String get findingAddress;
+
+  /// No description provided for @addressDetailHint.
+  ///
+  /// In en, this message translates to:
+  /// **'House no., building, floor (optional)'**
+  String get addressDetailHint;
+
+  /// No description provided for @saveAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Save address'**
+  String get saveAddress;
+
+  /// No description provided for @saveChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Save changes'**
+  String get saveChanges;
+
+  /// No description provided for @addressSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Address saved'**
+  String get addressSaved;
+
+  /// No description provided for @addressUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Address updated'**
+  String get addressUpdated;
+
+  /// No description provided for @placeOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open that place'**
+  String get placeOpenFailed;
+
+  /// No description provided for @addressLabelHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get addressLabelHome;
+
+  /// No description provided for @addressLabelOffice.
+  ///
+  /// In en, this message translates to:
+  /// **'Office'**
+  String get addressLabelOffice;
+
+  /// No description provided for @addressLabelOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get addressLabelOther;
+
+  /// No description provided for @backAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get backAction;
+
+  /// No description provided for @myLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'My location'**
+  String get myLocation;
+
+  /// No description provided for @reviewersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviewers'**
+  String get reviewersTitle;
+
+  /// No description provided for @followAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow'**
+  String get followAction;
+
+  /// No description provided for @followingAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Following'**
+  String get followingAction;
+
+  /// No description provided for @youLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get youLabel;
+
+  /// No description provided for @noFollowersYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No followers yet'**
+  String get noFollowersYet;
+
+  /// No description provided for @notFollowingAnyoneYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not following anyone yet'**
+  String get notFollowingAnyoneYet;
+
+  /// No description provided for @noReviewersYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No reviews yet'**
+  String get noReviewersYet;
+
+  /// No description provided for @peopleLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load this list.'**
+  String get peopleLoadFailed;
+
+  /// No description provided for @signInToFollow.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to follow people'**
+  String get signInToFollow;
+
+  /// No description provided for @followFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update follow. Please try again.'**
+  String get followFailed;
+
+  /// No description provided for @profileTabVideos.
+  ///
+  /// In en, this message translates to:
+  /// **'Videos'**
+  String get profileTabVideos;
 }
 
 class _AppLocalizationsDelegate

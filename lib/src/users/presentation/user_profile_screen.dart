@@ -19,6 +19,7 @@ import 'package:khmer_cat_app/src/auth/presentation/viewmodel/auth_controller.da
 import 'package:khmer_cat_app/src/users/presentation/user_profile_controller.dart';
 import 'package:khmer_cat_app/src/users/presentation/widgets/user_videos_grid.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:khmer_cat_app/src/people/presentation/people_list_screen.dart';
 
 class UserProfileScreen extends HookConsumerWidget {
   final String username;
@@ -216,6 +217,17 @@ class UserProfileScreen extends HookConsumerWidget {
                         (_compact(profile.postsCount), 'Posts'),
                         (_compact(profile.followersCount ?? 0), 'Followers'),
                         (_compact(profile.followingCount), 'Following'),
+                      ],
+                      onTaps: [
+                        null,
+                        () => openPeopleList(
+                          context,
+                          PeopleList.userFollowers(profile.username),
+                        ),
+                        () => openPeopleList(
+                          context,
+                          PeopleList.userFollowing(profile.username),
+                        ),
                       ],
                     ),
                     const Gap(_section),

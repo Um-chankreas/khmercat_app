@@ -5,7 +5,6 @@ import 'package:khmer_cat_app/src/restaurants/presentation/widgets/delete_restau
 import 'package:khmer_cat_app/core/components/dialogs/app_dialog.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:khmer_cat_app/core/components/profile/profile_action_buttons.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/network/api_exception.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
@@ -16,18 +15,30 @@ import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/restaurant_
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/cuisine_category_selector.dart';
 import 'package:khmer_cat_app/src/restaurants/providers/restaurant_providers.dart';
 
-const _red = Color(0xffE5484D);
+const _danger = Color(0xffD6336C);
+const _accent = Color(0xffB0125A);
+const _green = Color(0xff1F7A4D);
 
-const _serviceTypes = <(String, String, IconData)>[
-  ('dine_in', 'Dine-in', Icons.restaurant_rounded),
-  ('delivery', 'Delivery', Icons.delivery_dining_rounded),
-  ('dine_in_delivery', 'Dine-in & Delivery', Icons.storefront_rounded),
-  ('takeaway', 'Takeaway', Icons.takeout_dining_rounded),
+/// Pastel pink → blue wash: Save, and picked chips.
+const _wash = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [Color(0xffF0A6CE), Color(0xffA9C1F5)],
+);
+
+const _aboutMax = 1000;
+
+const _serviceTypes = <(String, String)>[
+  ('dine_in', 'Dine-in'),
+  ('delivery', 'Delivery'),
+  ('dine_in_delivery', 'Dine-in & Delivery'),
+  ('takeaway', 'Takeaway'),
 ];
 
 /// Owner/manager form for a restaurant's details: name, category, about,
-/// contact, opening hours, service type and social links.
-/// Saves only what changed, then updates the profile and the switcher.
+/// contact, opening hours, services, Halal and social links, saved with the
+/// Save pill; then Published and (for the owner) Delete, which apply right
+/// away.
 class EditRestaurantScreen extends HookConsumerWidget {
   final String restaurantId;
   const EditRestaurantScreen({required this.restaurantId, super.key});
@@ -67,6 +78,7 @@ class _EditForm extends HookConsumerWidget {
     final telegram = useTextEditingController(text: r.telegramUsername ?? '');
     final category = useState<String?>(r.category?.name);
     final service = useState<String?>(r.serviceType);
+    final halal = useState(r.isHalal);
     final opens = useState<String?>(_hm(r.openingTime));
     final closes = useState<String?>(_hm(r.closingTime));
     final saving = useState(false);
@@ -85,6 +97,40 @@ class _EditForm extends HookConsumerWidget {
       final parts = target.value?.split(':');
       final picked = await showTimePicker(
         context: context,
+        // Type the time in; no clock dial or switch to it.
+        initialEntryMode: TimePickerEntryMode.inputOnly,
+        // The app theme's primary is a very pale blue, which left Cancel /
+        // OK (and the selected AM/PM) nearly invisible on the dialog.
+        builder: (context, child) {
+          final theme = Theme.of(context);
+          return Theme(
+            data: theme.copyWith(
+              colorScheme: theme.colorScheme.copyWith(
+                primary: _accent,
+                onPrimary: Colors.white,
+              ),
+              textButtonTheme: TextButtonThemeData(
+                style: TextButton.styleFrom(
+                  foregroundColor: _accent,
+                  textStyle: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              timePickerTheme: TimePickerThemeData(
+                backgroundColor: theme.colorScheme.surface,
+                dayPeriodColor: _wash.colors.first.withValues(alpha: 0.45),
+                dayPeriodTextColor: ProfileTheme.textPrimary(context),
+                hourMinuteColor: ProfileTheme.textPrimary(
+                  context,
+                ).withValues(alpha: 0.06),
+                hourMinuteTextColor: ProfileTheme.textPrimary(context),
+              ),
+            ),
+            child: child!,
+          );
+        },
         initialTime: parts == null
             ? const TimeOfDay(hour: 9, minute: 0)
             : TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])),
@@ -131,6 +177,7 @@ class _EditForm extends HookConsumerWidget {
         'tiktok_url': text(tiktok),
         'telegram_username': text(telegram),
         'service_type': service.value,
+        'is_halal': halal.value,
         'opening_time': opens.value,
         'closing_time': closes.value,
       };
@@ -171,231 +218,417 @@ class _EditForm extends HookConsumerWidget {
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text(
-            'Edit restaurant',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-          ),
-          centerTitle: true,
-          surfaceTintColor: Colors.transparent,
-        ),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-          children: [
-            const _Label('Name', icon: Icons.storefront_rounded),
-            const Gap(8),
-            _Input(
-              controller: name,
-              hint: 'Restaurant name',
-              icon: Icons.storefront_rounded,
-              maxLength: 255,
-              errorText: err('name'),
-            ),
-            const Gap(18),
-            const _Label('Category', icon: Icons.restaurant_menu_rounded),
-            const Gap(8),
-            CuisineCategorySelector(
-              selected: category.value,
-              onSelect: (c) => category.value = c,
-              hasError: err('category_id') != null,
-            ),
-            const Gap(18),
-            const _Label('About', icon: Icons.notes_rounded, optional: true),
-            const Gap(8),
-            _Input(
-              controller: about,
-              hint: 'What makes your restaurant special?',
-              icon: Icons.notes_rounded,
-              maxLines: 4,
-              minLines: 3,
-              maxLength: 1000,
-              errorText: err('description'),
-            ),
-            const Gap(18),
-            const _Label('Phone', icon: Icons.phone_rounded, optional: true),
-            const Gap(8),
-            _Input(
-              controller: phone,
-              hint: '012 345 678',
-              icon: Icons.phone_rounded,
-              keyboardType: TextInputType.phone,
-              maxLength: 30,
-              errorText: err('phone'),
-            ),
-            const Gap(18),
-            const _Label(
-              'Address',
-              icon: Icons.location_on_rounded,
-              optional: true,
-            ),
-            const Gap(8),
-            _Input(
-              controller: address,
-              hint: 'Street 271, Phnom Penh',
-              icon: Icons.location_on_rounded,
-              maxLength: 500,
-              errorText: err('address'),
-            ),
-            const Gap(18),
-            const _Label(
-              'Opening hours',
-              icon: Icons.schedule_rounded,
-              optional: true,
-            ),
-            const Gap(8),
-            Row(
-              children: [
-                Expanded(
-                  child: _TimeButton(
-                    label: 'Opens',
-                    value: opens.value,
-                    onTap: () => pickTime(opens),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _TopBar(
+                saving: saving.value,
+                onBack: () => Navigator.of(context).maybePop(),
+                onSave: save,
+              ),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    4,
+                    20,
+                    MediaQuery.paddingOf(context).bottom + 32,
                   ),
-                ),
-                const Gap(12),
-                Expanded(
-                  child: _TimeButton(
-                    label: 'Closes',
-                    value: closes.value,
-                    onTap: () => pickTime(closes),
-                  ),
-                ),
-                if (opens.value != null || closes.value != null)
-                  IconButton(
-                    tooltip: 'Clear hours',
-                    onPressed: () {
-                      opens.value = null;
-                      closes.value = null;
-                    },
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      color: ProfileTheme.muted,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  children: [
+                    // ---- Basics
+                    const _SectionTitle('Basics'),
+                    const _Label('Name'),
+                    _Input(
+                      controller: name,
+                      hint: 'Restaurant name',
+                      maxLength: 255,
+                      errorText: err('name'),
                     ),
-                  ),
-              ],
-            ),
-            const Gap(18),
-            const _Label(
-              'Service',
-              icon: Icons.delivery_dining_rounded,
-              optional: true,
-            ),
-            const Gap(8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final (value, label, icon) in _serviceTypes)
-                  _Choice(
-                    label: label,
-                    icon: icon,
-                    selected: service.value == value,
-                    onTap: () =>
-                        service.value = service.value == value ? null : value,
-                  ),
-              ],
-            ),
-            const Gap(18),
-            const _Label(
-              'Social links',
-              icon: Icons.share_rounded,
-              optional: true,
-            ),
-            const Gap(8),
-            _Input(
-              controller: facebook,
-              hint: 'Facebook page URL',
-              asset: AssetsName.facebook,
-              keyboardType: TextInputType.url,
-              maxLength: 255,
-              errorText: err('facebook_url'),
-            ),
-            const Gap(10),
-            _Input(
-              controller: tiktok,
-              hint: 'TikTok username or URL',
-              asset: AssetsName.tiktok,
-              keyboardType: TextInputType.url,
-              maxLength: 255,
-              errorText: err('tiktok_url'),
-            ),
-            const Gap(10),
-            _Input(
-              controller: telegram,
-              hint: 'Telegram username, e.g. @angkorbites',
-              asset: AssetsName.telegram,
-              maxLength: 64,
-              errorText: err('telegram_username'),
-            ),
-            const Gap(28),
-            ProfileGradientButton(
-              text: saving.value ? 'Saving…' : 'Save changes',
-              icon: Icons.check_rounded,
-              onTap: saving.value ? null : save,
-            ),
+                    const Gap(18),
+                    const _Label('Category'),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final c in cuisineOptions)
+                          _Choice(
+                            label: c,
+                            selected: category.value == c,
+                            hasError: err('category_id') != null,
+                            onTap: () => category.value = c,
+                          ),
+                      ],
+                    ),
+                    const Gap(18),
+                    _Label(
+                      'About',
+                      optional: true,
+                      trailing: _Counter(controller: about, max: _aboutMax),
+                    ),
+                    _Input(
+                      controller: about,
+                      hint: 'What makes your restaurant special?',
+                      maxLines: 4,
+                      minLines: 3,
+                      maxLength: _aboutMax,
+                      errorText: err('description'),
+                    ),
+                    const _SectionDivider(),
 
-            // ---- Manage: these apply right away (not via Save).
-            const Gap(32),
-            const _SectionLabel('Visibility'),
-            const Gap(8),
-            _VisibilityCard(restaurant: r),
-            if (isOwner) ...[
-              const Gap(24),
-              const _SectionLabel('Danger zone'),
-              const Gap(8),
-              _DangerCard(
-                onDelete: () async {
-                  final deleted = await confirmDeleteRestaurant(context, r);
-                  if (!deleted || !context.mounted) return;
-                  HapticFeedback.mediumImpact();
-                  AppService.showToast('${r.name} was deleted');
-                  // Back to the home screen: this restaurant's pages are gone.
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
+                    // ---- Contact & location
+                    const _SectionTitle('Contact & location'),
+                    const _Label('Phone', optional: true),
+                    _Input(
+                      controller: phone,
+                      hint: '012 345 678',
+                      icon: Icons.phone_outlined,
+                      keyboardType: TextInputType.phone,
+                      maxLength: 30,
+                      errorText: err('phone'),
+                    ),
+                    const Gap(18),
+                    const _Label('Address', optional: true),
+                    _Input(
+                      controller: address,
+                      hint: 'Street 271, Phnom Penh',
+                      icon: Icons.location_on_outlined,
+                      maxLength: 500,
+                      errorText: err('address'),
+                    ),
+                    const Gap(18),
+                    const _Label('Opening hours', optional: true),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _TimeButton(
+                            label: 'Opens',
+                            value: opens.value,
+                            onTap: () => pickTime(opens),
+                          ),
+                        ),
+                        const Gap(10),
+                        Expanded(
+                          child: _TimeButton(
+                            label: 'Closes',
+                            value: closes.value,
+                            onTap: () => pickTime(closes),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (opens.value != null || closes.value != null)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () {
+                            opens.value = null;
+                            closes.value = null;
+                          },
+                          child: Text(
+                            'Clear hours',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: ProfileTheme.textSecondary(context),
+                            ),
+                          ),
+                        ),
+                      ),
+                    const _SectionDivider(),
+
+                    // ---- Services
+                    const _SectionTitle('Services'),
+                    const _Label('What you offer', optional: true),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final (value, label) in _serviceTypes)
+                          _Choice(
+                            label: label,
+                            selected: service.value == value,
+                            onTap: () => service.value = service.value == value
+                                ? null
+                                : value,
+                          ),
+                      ],
+                    ),
+                    const Gap(20),
+                    // Shown as a badge on its cards, and matched by search's
+                    // Halal filter.
+                    _SwitchRow(
+                      title: 'Halal',
+                      subtitle:
+                          'Show a Halal badge and appear in the Halal filter',
+                      value: halal.value,
+                      onChanged: (v) => halal.value = v,
+                    ),
+                    const _SectionDivider(),
+
+                    // ---- Social links
+                    const _SectionTitle('Social links'),
+                    _Input(
+                      controller: facebook,
+                      hint: 'facebook.com/yourpage',
+                      asset: AssetsName.facebook,
+                      keyboardType: TextInputType.url,
+                      maxLength: 255,
+                      errorText: err('facebook_url'),
+                    ),
+                    const Gap(10),
+                    _Input(
+                      controller: tiktok,
+                      hint: 'TikTok @username',
+                      asset: AssetsName.tiktok,
+                      keyboardType: TextInputType.url,
+                      maxLength: 255,
+                      errorText: err('tiktok_url'),
+                    ),
+                    const Gap(10),
+                    _Input(
+                      controller: telegram,
+                      hint: 'Telegram username',
+                      asset: AssetsName.telegram,
+                      maxLength: 64,
+                      errorText: err('telegram_username'),
+                    ),
+                    const _SectionDivider(),
+
+                    // ---- Applies right away (not via Save).
+                    _VisibilityCard(restaurant: r),
+                    if (isOwner) ...[
+                      const Gap(28),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            final deleted = await confirmDeleteRestaurant(
+                              context,
+                              r,
+                            );
+                            if (!deleted || !context.mounted) return;
+                            HapticFeedback.mediumImpact();
+                            AppService.showToast('${r.name} was deleted');
+                            // Back to the home screen: this restaurant's
+                            // pages are gone.
+                            Navigator.of(
+                              context,
+                            ).popUntil((route) => route.isFirst);
+                          },
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 20,
+                            color: _danger,
+                          ),
+                          label: const Text(
+                            'Delete restaurant',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: _danger,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _Label extends StatelessWidget {
-  final String text;
-  final IconData icon;
-  final bool optional;
-  const _Label(this.text, {required this.icon, this.optional = false});
+/// Back, the centered title, and the Save pill.
+class _TopBar extends StatelessWidget {
+  final bool saving;
+  final VoidCallback onBack;
+  final VoidCallback onSave;
+  const _TopBar({
+    required this.saving,
+    required this.onBack,
+    required this.onSave,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 15, color: ProfileTheme.purple),
-        const Gap(6),
-        Text(
-          text,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-        ),
-        if (optional)
-          const Text(
-            '  Optional',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: ProfileTheme.muted,
+    final primary = ProfileTheme.textPrimary(context);
+    return SizedBox(
+      height: 56,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 20,
+                color: primary,
+              ),
+              onPressed: onBack,
             ),
           ),
-      ],
+          Text(
+            'Edit restaurant',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+              color: primary,
+            ),
+          ),
+          Positioned(
+            right: 12,
+            child: GestureDetector(
+              onTap: saving ? null : onSave,
+              child: Container(
+                height: 38,
+                constraints: const BoxConstraints(minWidth: 74),
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: _wash,
+                  borderRadius: BorderRadius.circular(19),
+                ),
+                child: saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: ProfileTheme.ink,
+                        ),
+                      )
+                    : const Text(
+                        'Save',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: ProfileTheme.ink,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
+/// Small grey heading over a group of fields ("Basics", "Services").
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 14),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: ProfileTheme.textSecondary(context),
+        ),
+      ),
+    );
+  }
+}
+
+/// Hairline between sections.
+class _SectionDivider extends StatelessWidget {
+  const _SectionDivider();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 20),
+    child: Divider(
+      height: 1,
+      thickness: 1,
+      color: ProfileTheme.hairlineColor(context),
+    ),
+  );
+}
+
+/// A field's name (+ "Optional", + e.g. a counter on the right).
+class _Label extends StatelessWidget {
+  final String text;
+  final bool optional;
+  final Widget? trailing;
+  const _Label(this.text, {this.optional = false, this.trailing});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w800,
+              color: ProfileTheme.textPrimary(context),
+            ),
+          ),
+          if (optional) ...[
+            const Gap(6),
+            Text(
+              'Optional',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: ProfileTheme.textSecondary(context),
+              ),
+            ),
+          ],
+          const Spacer(),
+          ?trailing,
+        ],
+      ),
+    );
+  }
+}
+
+/// "43 / 300" for a text field, updating as you type.
+class _Counter extends StatelessWidget {
+  final TextEditingController controller;
+  final int max;
+  const _Counter({required this.controller, required this.max});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) => Text(
+        '${controller.text.length} / $max',
+        style: TextStyle(
+          fontSize: 12.5,
+          fontFeatures: const [FontFeature.tabularFigures()],
+          color: controller.text.length >= max * 0.9
+              ? _danger
+              : ProfileTheme.textSecondary(context),
+        ),
+      ),
+    );
+  }
+}
+
+/// Soft grey field with no outline until focused. Leads with a line
+/// [icon], a brand logo [asset] in a small grey circle, or nothing.
 class _Input extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
-
-  /// Leading icon: a Material [icon], or a brand logo [asset].
   final IconData? icon;
   final String? asset;
   final int maxLines;
@@ -418,53 +651,67 @@ class _Input extends StatelessWidget {
 
   OutlineInputBorder _border(Color color, [double width = 1]) =>
       OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: color, width: width),
       );
 
   @override
   Widget build(BuildContext context) {
+    final primary = ProfileTheme.textPrimary(context);
+    final hasLead = icon != null || asset != null;
+    final multiline = maxLines > 1;
     return TextField(
       controller: controller,
       maxLines: maxLines,
       minLines: minLines,
       maxLength: maxLength,
       keyboardType: keyboardType,
-      inputFormatters: keyboardType == TextInputType.number
-          ? [FilteringTextInputFormatter.digitsOnly]
-          : null,
-      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+      style: TextStyle(fontSize: 15, color: primary),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          color: ProfileTheme.muted.withValues(alpha: 0.65),
+          fontSize: 14.5,
+          color: ProfileTheme.textSecondary(context).withValues(alpha: 0.75),
         ),
         counterText: '',
         errorText: errorText,
-        prefixIcon: asset != null
-            ? Padding(
-                padding: const EdgeInsets.all(12),
-                child: Image.asset(asset!, width: 20, height: 20),
-              )
-            : Icon(icon, size: 20, color: ProfileTheme.purple),
+        prefixIcon: !hasLead
+            ? null
+            : Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 10, 0),
+                child: asset != null
+                    ? Container(
+                        width: 28,
+                        height: 28,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: primary.withValues(alpha: 0.08),
+                        ),
+                        child: Image.asset(asset!, width: 15, height: 15),
+                      )
+                    : Icon(icon, size: 20, color: primary),
+              ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 44),
         filled: true,
-        fillColor: ProfileTheme.purple.withValues(alpha: 0.04),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 14,
+        fillColor: primary.withValues(alpha: 0.045),
+        contentPadding: EdgeInsets.fromLTRB(
+          hasLead ? 0 : 16,
+          multiline ? 14 : 15,
+          14,
+          15,
         ),
-        border: _border(ProfileTheme.purple.withValues(alpha: 0.18)),
-        enabledBorder: _border(ProfileTheme.purple.withValues(alpha: 0.18)),
-        focusedBorder: _border(ProfileTheme.purple, 1.6),
-        errorBorder: _border(_red.withValues(alpha: 0.7), 1.3),
-        focusedErrorBorder: _border(_red, 1.6),
+        border: _border(Colors.transparent),
+        enabledBorder: _border(Colors.transparent),
+        focusedBorder: _border(_accent.withValues(alpha: 0.6), 1.2),
+        errorBorder: _border(_danger.withValues(alpha: 0.7), 1.2),
+        focusedErrorBorder: _border(_danger, 1.5),
       ),
     );
   }
 }
 
+/// "Opens" / "Closes": a clock, the label, and the time (or "Set time").
 class _TimeButton extends StatelessWidget {
   final String label;
   final String? value;
@@ -477,12 +724,11 @@ class _TimeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = ProfileTheme.textPrimary(context);
+    final muted = ProfileTheme.textSecondary(context);
     return Material(
-      color: ProfileTheme.purple.withValues(alpha: 0.04),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: ProfileTheme.purple.withValues(alpha: 0.18)),
-      ),
+      color: primary.withValues(alpha: 0.045),
+      borderRadius: BorderRadius.circular(14),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -490,28 +736,20 @@ class _TimeButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
-              const Icon(
-                Icons.schedule_rounded,
-                size: 20,
-                color: ProfileTheme.purple,
-              ),
+              Icon(Icons.schedule_rounded, size: 20, color: primary),
               const Gap(10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(label, style: TextStyle(fontSize: 12, color: muted)),
+                    const Gap(1),
                     Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        color: ProfileTheme.muted,
-                      ),
-                    ),
-                    Text(
-                      value ?? '--:--',
-                      style: const TextStyle(
+                      value ?? 'Set time',
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
+                        color: value == null ? muted : primary,
                       ),
                     ),
                   ],
@@ -525,49 +763,56 @@ class _TimeButton extends StatelessWidget {
   }
 }
 
+/// A choice chip: soft grey, or the pastel wash with a check when picked.
 class _Choice extends StatelessWidget {
   final String label;
-  final IconData? icon;
   final bool selected;
+  final bool hasError;
   final VoidCallback onTap;
   const _Choice({
     required this.label,
     required this.selected,
     required this.onTap,
-    this.icon,
+    this.hasError = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final fg = selected ? Colors.white : ProfileTheme.deepPurple;
+    final primary = ProfileTheme.textPrimary(context);
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 15),
         decoration: BoxDecoration(
-          gradient: selected ? ProfileTheme.pinkPurple : null,
-          color: selected ? null : ProfileTheme.purple.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected
-                ? Colors.transparent
-                : ProfileTheme.purple.withValues(alpha: 0.2),
-          ),
+          gradient: selected ? _wash : null,
+          color: selected ? null : primary.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(19),
+          border: hasError && !selected
+              ? Border.all(color: _danger.withValues(alpha: 0.6))
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (icon != null) ...[
-              Icon(icon, size: 15, color: fg),
-              const Gap(6),
+            if (selected) ...[
+              const Icon(
+                Icons.check_rounded,
+                size: 16,
+                color: ProfileTheme.ink,
+              ),
+              const Gap(4),
             ],
             Text(
               label,
               style: TextStyle(
                 fontSize: 13.5,
-                fontWeight: FontWeight.w700,
-                color: fg,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                color: selected ? ProfileTheme.ink : primary,
               ),
             ),
           ],
@@ -577,21 +822,60 @@ class _Choice extends StatelessWidget {
   }
 }
 
-/// Small grey uppercase heading for the Manage sections.
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
+/// Title over a line of help text, with a switch on the right.
+class _SwitchRow extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  /// Shown in place of the switch (e.g. while a change is saving).
+  final Widget? busy;
+  const _SwitchRow({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+    this.busy,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text.toUpperCase(),
-      style: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 0.8,
-        color: ProfileTheme.textSecondary(context),
-      ),
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: ProfileTheme.textPrimary(context),
+                ),
+              ),
+              const Gap(2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.3,
+                  color: ProfileTheme.textSecondary(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Gap(12),
+        busy ??
+            Switch(
+              value: value,
+              activeThumbColor: Colors.white,
+              activeTrackColor: _green,
+              onChanged: onChanged,
+            ),
+      ],
     );
   }
 }
@@ -606,8 +890,6 @@ class _VisibilityCard extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final published = useState(restaurant.isPublished);
     final busy = useState(false);
-    final muted = ProfileTheme.textSecondary(context);
-    const green = Color(0xff22A45D);
 
     Future<void> apply(bool value) async {
       busy.value = true;
@@ -652,138 +934,26 @@ class _VisibilityCard extends HookConsumerWidget {
     }
 
     final on = published.value;
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ProfileTheme.hairlineColor(context)),
-      ),
-      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: (on ? green : muted).withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              on ? Icons.public_rounded : Icons.visibility_off_rounded,
-              size: 20,
-              color: on ? green : muted,
-            ),
-          ),
-          const Gap(12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  on ? 'Published' : 'Unpublished',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: ProfileTheme.textPrimary(context),
-                  ),
-                ),
-                const Gap(2),
-                Text(
-                  on
-                      ? 'Customers can find and see your restaurant.'
-                      : 'Hidden from customers. Only your team can see it.',
-                  style: TextStyle(fontSize: 12.5, height: 1.3, color: muted),
-                ),
-              ],
-            ),
-          ),
-          busy.value
-              ? const Padding(
-                  padding: EdgeInsets.all(14),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: ProfileTheme.purple,
-                    ),
-                  ),
-                )
-              : Switch(
-                  value: on,
-                  activeThumbColor: Colors.white,
-                  activeTrackColor: green,
-                  onChanged: toggle,
-                ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Owner-only: permanently delete the restaurant.
-class _DangerCard extends StatelessWidget {
-  final VoidCallback onDelete;
-  const _DangerCard({required this.onDelete});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: _red.withValues(alpha: 0.05),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: _red.withValues(alpha: 0.3)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onDelete,
-        splashColor: _red.withValues(alpha: 0.1),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: _red.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.delete_outline_rounded,
-                  size: 20,
-                  color: _red,
+    return _SwitchRow(
+      title: on ? 'Published' : 'Unpublished',
+      subtitle: on
+          ? 'Customers can find and see your restaurant'
+          : 'Hidden from customers. Only your team can see it',
+      value: on,
+      onChanged: toggle,
+      busy: busy.value
+          ? const Padding(
+              padding: EdgeInsets.all(14),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: ProfileTheme.purple,
                 ),
               ),
-              const Gap(12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Delete restaurant',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: _red,
-                      ),
-                    ),
-                    const Gap(2),
-                    Text(
-                      'Removes its page, menu and videos for everyone.',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: ProfileTheme.textSecondary(context),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded, color: _red),
-            ],
-          ),
-        ),
-      ),
+            )
+          : null,
     );
   }
 }
