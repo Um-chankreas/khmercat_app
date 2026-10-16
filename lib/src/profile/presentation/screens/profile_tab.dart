@@ -128,7 +128,7 @@ class ProfileTab extends HookConsumerWidget {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
                 child: _ProfileDetails(user: user, bio: bio, summary: summary),
               ),
             ),

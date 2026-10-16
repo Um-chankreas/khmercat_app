@@ -73,184 +73,112 @@ class RestaurantInfoPanel extends StatelessWidget {
     final tiktok = _clean(r.tiktokUrl);
     final telegram = _clean(r.telegramUsername);
     final editable = onEdit != null;
+    final pages = r.menuPagesCount;
 
     // Exact pin when we have coordinates, otherwise search the address.
     final mapQuery = r.latitude != null && r.longitude != null
         ? '${r.latitude},${r.longitude}'
         : address;
 
-    /// A row, or null when there's nothing to show (unset, read-only).
-    InfoRow? row({
-      required String label,
-      required String? value,
-      required String addText,
-      IconData? icon,
-      String? iconAsset,
-      String? asset,
-      Color color = ProfileTheme.purple,
-      Widget? trailing,
-      IconData? actionIcon,
-      String? actionAsset,
-      VoidCallback? onTap,
-    }) {
-      if (value == null && !editable) return null;
-      return InfoRow(
-        icon: icon,
-        iconAsset: iconAsset,
-        asset: asset,
-        color: color,
-        label: label,
-        value: value,
-        trailing: trailing,
-        actionIcon: actionIcon,
-        actionAsset: actionAsset,
-        onTap: onTap,
-        addText: addText,
-        onAdd: onEdit,
-      );
-    }
-
-    /// Heading + group, or nothing when every row is empty. Each section
-    /// slides in a beat after the one above it.
-    var shownSections = 0;
-    List<Widget> section(String title, List<Widget?> rows) {
-      final shown = rows.whereType<Widget>().toList();
-      if (shown.isEmpty) return const [];
-      return [
-        _StaggerIn(
-          index: shownSections++,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              InfoLabel(title),
-              InfoGroup(children: shown),
-            ],
-          ),
-        ),
-      ];
-    }
-
-    final pages = r.menuPagesCount;
-    final children = [
+    // Every field, in display order: set ones become rows below, unset ones
+    // become "+ chip"s in the owner's "Finish your profile" card.
+    final items = <_InfoItem>[
       if (onOpenMenu != null)
-        ...section('Menu', [
-          if (pages > 0 || editable)
-            InfoRow(
-              iconAsset: AssetsName.lcMenu,
-              color: ProfileTheme.deepPurple,
-              label: 'Menu',
-              value: pages == 0
-                  ? null
-                  : '$pages page${pages == 1 ? '' : 's'} · QR code',
-              actionAsset: AssetsName.lcQr,
-              onTap: onOpenMenu,
-              addText: 'Add your menu',
-              onAdd: onOpenMenu,
-            ),
-        ]),
-      ...section('Details', [
-        row(
-          iconAsset: AssetsName.lcCategory,
-          label: 'Category',
-          value: r.category?.name,
-          addText: 'Add category',
+        _InfoItem(
+          label: 'Menu',
+          iconAsset: AssetsName.lcMenu,
+          value: pages > 0
+              ? '$pages page${pages == 1 ? '' : 's'} · QR code'
+              : null,
+          actionAsset: AssetsName.lcQr,
+          onTap: onOpenMenu,
+          onAdd: onOpenMenu,
         ),
-        row(
-          iconAsset: AssetsName.lcClock,
-          color: ProfileTheme.blue,
-          label: 'Opening hours',
-          value: opens != null && closes != null ? '$opens – $closes' : null,
-          trailing: r.isOpen == null ? null : OpenStatusPill(open: r.isOpen!),
-          addText: 'Add opening hours',
-        ),
-        row(
-          iconAsset: AssetsName.lcService,
-          color: ProfileTheme.pink,
-          label: 'Service',
-          value: r.serviceTypeLabel,
-          addText: 'Add service type',
-        ),
-      ]),
-      ...section('Contact', [
-        row(
-          iconAsset: AssetsName.lcPhone,
-          color: _green,
-          label: 'Phone',
-          value: phone,
-          actionAsset: AssetsName.lcPhone,
-          onTap: phone == null
-              ? null
-              : () => SocialLinks.open(
-                  Uri(scheme: 'tel', path: phone.replaceAll(' ', '')),
-                ),
-          addText: 'Add phone number',
-        ),
-        row(
-          iconAsset: AssetsName.lcPin,
-          color: _red,
-          label: 'Address',
-          value: address,
-          actionAsset: AssetsName.lcNavigate,
-          onTap: mapQuery == null
-              ? null
-              : () => SocialLinks.open(
-                  Uri.https('www.google.com', '/maps/search/', {
-                    'api': '1',
-                    'query': mapQuery,
-                  }),
-                ),
-          addText: 'Add address',
-        ),
-      ]),
-      ...section('About', [
-        if (about != null)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              about,
-              style: TextStyle(
-                fontSize: 14.5,
-                height: 1.5,
-                color: ProfileTheme.textPrimary(context),
+      _InfoItem(
+        label: 'Category',
+        iconAsset: AssetsName.lcCategory,
+        value: r.category?.name,
+      ),
+      _InfoItem(
+        label: 'Opening hours',
+        iconAsset: AssetsName.lcClock,
+        value: opens != null && closes != null ? '$opens – $closes' : null,
+        trailing: r.isOpen == null ? null : OpenStatusPill(open: r.isOpen!),
+      ),
+      _InfoItem(
+        label: 'Service',
+        iconAsset: AssetsName.lcService,
+        value: r.serviceTypeLabel,
+      ),
+      _InfoItem(
+        label: 'Phone',
+        iconAsset: AssetsName.lcPhone,
+        value: phone,
+        actionAsset: AssetsName.lcPhone,
+        onTap: phone == null
+            ? null
+            : () => SocialLinks.open(
+                Uri(scheme: 'tel', path: phone.replaceAll(' ', '')),
               ),
-            ),
-          )
-        else if (editable)
-          _AddRow(text: 'Add a description', onTap: onEdit!),
-      ]),
-      if (showSocial)
-        ...section('Social', [
-          row(
-            asset: AssetsName.facebook,
-            label: 'Facebook',
-            value: facebook == null ? null : shortUrl(facebook),
-            actionIcon: Icons.open_in_new_rounded,
-            onTap: _opener(SocialLinks.facebook(facebook)),
-            addText: 'Add Facebook',
-          ),
-          row(
-            asset: AssetsName.tiktok,
-            label: 'TikTok',
-            value: tiktok == null ? null : handle(tiktok),
-            actionIcon: Icons.open_in_new_rounded,
-            onTap: _opener(SocialLinks.tiktok(tiktok)),
-            addText: 'Add TikTok',
-          ),
-          row(
-            asset: AssetsName.telegram,
-            label: 'Telegram',
-            value: telegram == null ? null : handle(telegram),
-            actionIcon: Icons.open_in_new_rounded,
-            onTap: _opener(SocialLinks.telegram(telegram)),
-            addText: 'Add Telegram',
-          ),
-        ]),
+      ),
+      _InfoItem(
+        label: 'Address',
+        iconAsset: AssetsName.lcPin,
+        value: address,
+        actionAsset: AssetsName.lcNavigate,
+        onTap: mapQuery == null
+            ? null
+            : () => SocialLinks.open(
+                Uri.https('www.google.com', '/maps/search/', {
+                  'api': '1',
+                  'query': mapQuery,
+                }),
+              ),
+      ),
+      _InfoItem(label: 'About', iconAsset: AssetsName.lcInfo, value: about),
+      if (showSocial) ...[
+        _InfoItem(
+          label: 'Facebook',
+          asset: AssetsName.facebook,
+          value: facebook == null ? null : shortUrl(facebook),
+          actionAsset: AssetsName.lcExternal,
+          onTap: _opener(SocialLinks.facebook(facebook)),
+        ),
+        _InfoItem(
+          label: 'TikTok',
+          asset: AssetsName.tiktok,
+          value: tiktok == null ? null : handle(tiktok),
+          actionAsset: AssetsName.lcExternal,
+          onTap: _opener(SocialLinks.tiktok(tiktok)),
+        ),
+        _InfoItem(
+          label: 'Telegram',
+          asset: AssetsName.telegram,
+          value: telegram == null ? null : handle(telegram),
+          actionAsset: AssetsName.lcExternal,
+          onTap: _opener(SocialLinks.telegram(telegram)),
+        ),
+      ],
     ];
+    final filled = items.where((i) => i.value != null).toList();
+    final missing = items.where((i) => i.value == null).toList();
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, topPadding, 16, 8),
-      child: children.isEmpty
-          ? Padding(
+      padding: EdgeInsets.fromLTRB(20, topPadding, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (editable && missing.isNotEmpty) ...[
+            _CompletionCard(
+              done: filled.length,
+              total: items.length,
+              missing: missing,
+              onEdit: onEdit!,
+            ),
+            const Gap(24),
+          ],
+          if (filled.isEmpty && !editable)
+            Padding(
               padding: const EdgeInsets.symmetric(vertical: 32),
               child: Text(
                 'No details yet.',
@@ -261,10 +189,20 @@ class RestaurantInfoPanel extends StatelessWidget {
                 ),
               ),
             )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: children,
-            ),
+          else if (filled.isNotEmpty) ...[
+            const _SectionLabel('Details'),
+            for (final (i, item) in filled.indexed) ...[
+              if (i > 0)
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: ProfileTheme.hairlineColor(context),
+                ),
+              _InfoRowTile(item: item),
+            ],
+          ],
+        ],
+      ),
     );
   }
 
@@ -272,21 +210,45 @@ class RestaurantInfoPanel extends StatelessWidget {
       uri == null ? null : () => SocialLinks.open(uri);
 }
 
-/// Small grey uppercase heading above each group.
-class InfoLabel extends StatelessWidget {
+class _InfoItem {
+  final String label;
+  final String? value;
+  final String? iconAsset;
+
+  /// Brand logo, drawn as-is.
+  final String? asset;
+  final Widget? trailing;
+  final String? actionAsset;
+  final VoidCallback? onTap;
+
+  /// What the "+ chip" opens; the owner's edit screen when null.
+  final VoidCallback? onAdd;
+  const _InfoItem({
+    required this.label,
+    required this.value,
+    this.iconAsset,
+    this.asset,
+    this.trailing,
+    this.actionAsset,
+    this.onTap,
+    this.onAdd,
+  });
+}
+
+/// Small grey heading above the list.
+class _SectionLabel extends StatelessWidget {
   final String text;
-  const InfoLabel(this.text, {super.key});
+  const _SectionLabel(this.text);
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 6, 6, 10),
+      padding: const EdgeInsets.only(bottom: 6),
       child: Text(
-        text.toUpperCase(),
+        text,
         style: TextStyle(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.1,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
           color: ProfileTheme.textSecondary(context),
         ),
       ),
@@ -294,186 +256,81 @@ class InfoLabel extends StatelessWidget {
   }
 }
 
-/// Soft rounded card: surface color, hairline border, a barely-there
-/// shadow, thin inset dividers between rows. 20px below it before the next
-/// heading.
-class InfoGroup extends StatelessWidget {
-  final List<Widget> children;
-  const InfoGroup({required this.children, super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final line = ProfileTheme.hairlineColor(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: line),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xff3B1C7A).withValues(alpha: 0.04),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            for (var i = 0; i < children.length; i++) ...[
-              if (i > 0)
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  indent: 70,
-                  endIndent: 16,
-                  color: line,
-                ),
-              children[i],
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Icon (tinted circle, or a brand logo), small label over the value, and
-/// an optional action icon. Unset values become a purple "Add …" link.
-class InfoRow extends StatelessWidget {
-  final IconData? icon;
-
-  /// Tinted line icon (PNG, black glyph recolored with [color]).
-  final String? iconAsset;
-
-  /// Brand logo, drawn as-is.
-  final String? asset;
-  final Color color;
-  final String label;
-  final String? value;
-  final Widget? trailing;
-  final IconData? actionIcon;
-  final String? actionAsset;
-  final VoidCallback? onTap;
-
-  /// Shown (as a purple link to [onAdd]) when [value] is null. Read-only
-  /// screens just don't build the row for unset values.
-  final String addText;
-  final VoidCallback? onAdd;
-
-  const InfoRow({
-    required this.label,
-    required this.value,
-    this.addText = '',
-    this.onAdd,
-    super.key,
-    this.icon,
-    this.iconAsset,
-    this.asset,
-    this.color = ProfileTheme.purple,
-    this.trailing,
-    this.actionIcon,
-    this.actionAsset,
-    this.onTap,
-  });
+/// Flat row: line icon, small label over the value, optional action button.
+class _InfoRowTile extends StatelessWidget {
+  final _InfoItem item;
+  const _InfoRowTile({required this.item});
 
   @override
   Widget build(BuildContext context) {
     final muted = ProfileTheme.textSecondary(context);
-    final isSet = value != null;
+    final primary = ProfileTheme.textPrimary(context);
+    final dpr = MediaQuery.devicePixelRatioOf(context);
     return InkWell(
-      onTap: isSet ? onTap : onAdd,
-      splashColor: color.withValues(alpha: 0.10),
-      highlightColor: color.withValues(alpha: 0.05),
+      onTap: item.onTap,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: asset != null
-                    ? muted.withValues(alpha: 0.08)
-                    : color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: asset != null
+            SizedBox(
+              width: 24,
+              child: item.asset != null
                   ? Image.asset(
-                      asset!,
+                      item.asset!,
                       width: 20,
                       height: 20,
-                      cacheWidth: (20 * MediaQuery.devicePixelRatioOf(context))
-                          .round(),
+                      cacheWidth: (20 * dpr).round(),
                     )
-                  : iconAsset != null
-                  ? Image.asset(iconAsset!, width: 19, height: 19, color: color)
-                  : Icon(icon, size: 19, color: color),
+                  : Image.asset(
+                      item.iconAsset!,
+                      width: 20,
+                      height: 20,
+                      color: primary,
+                    ),
             ),
-            const Gap(14),
+            const Gap(16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: muted,
-                    ),
+                    item.label,
+                    style: TextStyle(fontSize: 12.5, color: muted),
                   ),
-                  const Gap(3),
+                  const Gap(2),
                   Text(
-                    value ?? addText,
-                    maxLines: 3,
+                    item.value!,
+                    maxLines: 4,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 15,
                       height: 1.35,
-                      letterSpacing: -0.1,
-                      fontWeight: isSet ? FontWeight.w600 : FontWeight.w700,
-                      color: isSet
-                          ? ProfileTheme.textPrimary(context)
-                          : ProfileTheme.deepPurple,
+                      fontWeight: FontWeight.w700,
+                      color: primary,
                     ),
                   ),
                 ],
               ),
             ),
-            if (isSet && trailing != null) ...[const Gap(8), trailing!],
-            if (isSet &&
-                (actionIcon != null || actionAsset != null) &&
-                onTap != null) ...[
+            if (item.trailing != null) ...[const Gap(8), item.trailing!],
+            if (item.actionAsset != null && item.onTap != null) ...[
               const Gap(10),
-              // Reads as a button: what tapping the row does.
               Container(
-                width: 34,
-                height: 34,
+                width: 38,
+                height: 38,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.10),
+                  color: ProfileTheme.pink.withValues(alpha: 0.10),
                   shape: BoxShape.circle,
                 ),
-                child: actionAsset != null
-                    ? Image.asset(
-                        actionAsset!,
-                        width: 16,
-                        height: 16,
-                        color: color,
-                      )
-                    : Icon(actionIcon, size: 16, color: color),
+                child: Image.asset(
+                  item.actionAsset!,
+                  width: 17,
+                  height: 17,
+                  color: const Color(0xffC2185B),
+                ),
               ),
             ],
-            if (!isSet)
-              const Icon(
-                Icons.add_circle_outline_rounded,
-                size: 20,
-                color: ProfileTheme.deepPurple,
-              ),
           ],
         ),
       ),
@@ -481,36 +338,111 @@ class InfoRow extends StatelessWidget {
   }
 }
 
-/// Full-width "Add …" row for an empty group (e.g. no description yet).
-class _AddRow extends StatelessWidget {
-  final String text;
-  final VoidCallback onTap;
-  const _AddRow({required this.text, required this.onTap});
+/// "Finish your profile  3 of 10 done" with a progress bar and a "+ chip"
+/// for everything still empty.
+class _CompletionCard extends StatelessWidget {
+  final int done;
+  final int total;
+  final List<_InfoItem> missing;
+  final VoidCallback onEdit;
+  const _CompletionCard({
+    required this.done,
+    required this.total,
+    required this.missing,
+    required this.onEdit,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.add_circle_outline_rounded,
-              size: 20,
-              color: ProfileTheme.deepPurple,
-            ),
-            const Gap(10),
-            Text(
-              text,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: ProfileTheme.deepPurple,
-              ),
-            ),
+    final primary = ProfileTheme.textPrimary(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xffF0A6CE).withValues(alpha: 0.28),
+            const Color(0xffA9C1F5).withValues(alpha: 0.28),
           ],
         ),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Finish your profile',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: primary,
+                  ),
+                ),
+              ),
+              Text(
+                '$done of $total done',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: primary.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
+          const Gap(10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: done / total,
+              minHeight: 6,
+              color: ProfileTheme.ink,
+              backgroundColor: Colors.white.withValues(alpha: 0.75),
+            ),
+          ),
+          const Gap(12),
+          Text(
+            'Complete profiles get approved faster and show up more in '
+            'search.',
+            style: TextStyle(
+              fontSize: 13.5,
+              height: 1.35,
+              color: ProfileTheme.textSecondary(context),
+            ),
+          ),
+          const Gap(12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final m in missing)
+                GestureDetector(
+                  onTap: m.onAdd ?? onEdit,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Text(
+                      '+  ${m.label}',
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: ProfileTheme.ink,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -551,32 +483,6 @@ class OpenStatusPill extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Fade + short rise, delayed by [index] so sections cascade in.
-class _StaggerIn extends StatelessWidget {
-  final int index;
-  final Widget child;
-  const _StaggerIn({required this.index, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final delay = index * 60;
-    final total = 360 + delay;
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: total),
-      curve: Interval(delay / total, 1, curve: Curves.easeOutCubic),
-      builder: (context, t, child) => Opacity(
-        opacity: t,
-        child: Transform.translate(
-          offset: Offset(0, 12 * (1 - t)),
-          child: child,
-        ),
-      ),
-      child: child,
     );
   }
 }

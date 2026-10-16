@@ -43,7 +43,6 @@ class EditProfileScreen extends HookConsumerWidget {
     final emailCtr = useTextEditingController(text: user.email);
     final phoneCtr = useTextEditingController();
     final facebookCtr = useTextEditingController();
-    final tiktokCtr = useTextEditingController();
     final telegramCtr = useTextEditingController();
     useListenable(bioCtr);
     useListenable(emailCtr);
@@ -53,7 +52,6 @@ class EditProfileScreen extends HookConsumerWidget {
     final emailServerError = useState<String?>(null);
     final phoneError = useState<String?>(null);
     final facebookError = useState<String?>(null);
-    final tiktokError = useState<String?>(null);
     final telegramError = useState<String?>(null);
 
     final emailFormatError =
@@ -75,7 +73,6 @@ class EditProfileScreen extends HookConsumerWidget {
             if (cancelled) return;
             phoneCtr.text = data.phone ?? '';
             facebookCtr.text = data.socialLinks.facebook ?? '';
-            tiktokCtr.text = data.socialLinks.tiktok ?? '';
             telegramCtr.text = data.socialLinks.telegram ?? '';
           })
           .catchError((_) {
@@ -102,7 +99,6 @@ class EditProfileScreen extends HookConsumerWidget {
       emailServerError.value = null;
       phoneError.value = null;
       facebookError.value = null;
-      tiktokError.value = null;
       telegramError.value = null;
 
       String? orNull(String text) => text.trim().isEmpty ? null : text.trim();
@@ -117,7 +113,6 @@ class EditProfileScreen extends HookConsumerWidget {
               phone: orNull(phoneCtr.text),
               socialLinks: SocialLinks(
                 facebook: orNull(facebookCtr.text),
-                tiktok: orNull(tiktokCtr.text),
                 telegram: orNull(telegramCtr.text),
               ),
             );
@@ -136,7 +131,6 @@ class EditProfileScreen extends HookConsumerWidget {
           emailServerError.value = e.fieldError('email');
           phoneError.value = e.fieldError('phone');
           facebookError.value = e.fieldError('social_links.facebook');
-          tiktokError.value = e.fieldError('social_links.tiktok');
           telegramError.value = e.fieldError('social_links.telegram');
           AppService.showToast(
             'Please fix the highlighted field.',
@@ -240,13 +234,6 @@ class EditProfileScreen extends HookConsumerWidget {
                           asset: AssetsName.facebook,
                           keyboardType: TextInputType.url,
                           errorText: facebookError.value,
-                        ),
-                        const Gap(10),
-                        _InputField(
-                          controller: tiktokCtr,
-                          hint: 'TikTok @username',
-                          asset: AssetsName.tiktok,
-                          errorText: tiktokError.value,
                         ),
                         const Gap(10),
                         _InputField(
