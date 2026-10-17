@@ -20,11 +20,7 @@ const _accent = Color(0xffB0125A);
 const _green = Color(0xff1F7A4D);
 
 /// Pastel pink → blue wash: Save, and picked chips.
-const _wash = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: [Color(0xffF0A6CE), Color(0xffA9C1F5)],
-);
+const _wash = ProfileTheme.brandGradient;
 
 const _aboutMax = 1000;
 

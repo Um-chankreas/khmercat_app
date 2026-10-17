@@ -15,6 +15,13 @@ abstract class ProfileTheme {
     end: Alignment.bottomRight,
     colors: [pink, purple, blue],
   );
+
+  /// The logo's soft pink → blue, as on the Edit pill: avatar ring,
+  /// dividers and tab underlines.
+  static const brandPink = Color(0xffF0A6CE);
+  static const brandBlue = Color(0xffA9C1F5);
+  static const brandGradient = LinearGradient(colors: [brandPink, brandBlue]);
+
   static const pinkPurple = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,

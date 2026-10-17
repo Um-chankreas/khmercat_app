@@ -155,6 +155,12 @@ class AppLocalizationsKm extends AppLocalizations {
   String get switchTo => 'ប្ដូរទៅ';
 
   @override
+  String get switchButton => 'ប្ដូរ';
+
+  @override
+  String get switchingProfile => 'កំពុងប្ដូរប្រវត្តិរូប…';
+
+  @override
   String get profileTypePersonal => 'ផ្ទាល់ខ្លួន';
 
   @override

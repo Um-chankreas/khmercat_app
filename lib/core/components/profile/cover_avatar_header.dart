@@ -243,7 +243,7 @@ class ProfileRingAvatar extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
-            gradient: ProfileTheme.gradient,
+            gradient: ProfileTheme.brandGradient,
             shape: BoxShape.circle,
           ),
           child: Container(

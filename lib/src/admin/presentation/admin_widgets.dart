@@ -4,11 +4,7 @@ import 'package:gap/gap.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 
 /// Pastel pink → blue wash for the selected tab and primary actions.
-const adminWash = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: [Color(0xffF0A6CE), Color(0xffA9C1F5)],
-);
+const adminWash = ProfileTheme.brandGradient;
 const adminDanger = Color(0xffD6336C);
 
 /// Row of pill tabs (Pending / Approved / Rejected …).

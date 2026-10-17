@@ -7,6 +7,10 @@ class AssetsName {
   static final String closeEyePassword = "${iconsPath}close-eye.png";
   static final String openEyePassword = "${iconsPath}open-eye.png";
   static final String mail = "${iconsPath}mail.png";
+  static final String menu = "${iconsPath}menu.png";
+  static final String telephone = "${iconsPath}telephone.png";
+  static final String qrCode = "${iconsPath}qr-code.png";
+  static final String swap = "${iconsPath}swap.png";
   static final String back = "${iconsPath}left-arrow.png";
   static final navHome = '${iconsPath}home.png';
   static final navHome01 = '${iconsPath}home01.png';

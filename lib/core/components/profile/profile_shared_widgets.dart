@@ -14,10 +14,12 @@ class ProfileUnderlineTab {
     : assert((asset == null) != (icon == null));
 }
 
-/// Icon + label tabs sharing the width equally, a dark underline under the
-/// selected one and a hairline along the bottom. Labels shrink instead of
-/// overflowing on narrow screens or with large text.
+/// Icon + label tabs sharing the width equally, a soft pink → blue
+/// underline under the selected one and a softer one along the bottom. Labels
+/// shrink instead of overflowing on narrow screens or with large text.
 class ProfileUnderlineTabs extends StatelessWidget {
+  static const _lineGradient = ProfileTheme.brandGradient;
+
   final List<ProfileUnderlineTab> tabs;
   final int selected;
   final ValueChanged<int> onChanged;
@@ -34,72 +36,97 @@ class ProfileUnderlineTabs extends StatelessWidget {
     final muted = ProfileTheme.textSecondary(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: ProfileTheme.hairlineColor(context)),
+      child: Stack(
+        children: [
+          // Full-width line along the bottom: the same gradient as the
+          // selected tab's underline, thinner and softer so that one
+          // stands out.
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Opacity(
+              opacity: 0.6,
+              child: DecoratedBox(
+                decoration: BoxDecoration(gradient: _lineGradient),
+                child: SizedBox(height: 1),
+              ),
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            for (final (i, t) in tabs.indexed)
-              Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    if (i == selected) return;
-                    HapticFeedback.selectionClick();
-                    onChanged(i);
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    height: 48,
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(
-                          width: 2,
-                          color: i == selected ? primary : Colors.transparent,
-                        ),
-                      ),
-                    ),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Row(
-                        children: [
-                          if (t.asset != null)
-                            Image.asset(
-                              t.asset!,
-                              width: 17,
-                              height: 17,
-                              color: i == selected ? primary : muted,
-                            )
-                          else
-                            Icon(
-                              t.icon,
-                              size: 18,
-                              color: i == selected ? primary : muted,
-                            ),
-                          const Gap(7),
-                          Text(
-                            t.label,
-                            style: TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: i == selected
-                                  ? FontWeight.w700
-                                  : FontWeight.w600,
-                              color: i == selected ? primary : muted,
+          Row(
+            children: [
+              for (final (i, t) in tabs.indexed)
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      if (i == selected) return;
+                      HapticFeedback.selectionClick();
+                      onChanged(i);
+                    },
+                    child: Stack(
+                      children: [
+                        Container(
+                          height: 48,
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              children: [
+                                if (t.asset != null)
+                                  Image.asset(
+                                    t.asset!,
+                                    width: 17,
+                                    height: 17,
+                                    color: i == selected ? primary : muted,
+                                  )
+                                else
+                                  Icon(
+                                    t.icon,
+                                    size: 18,
+                                    color: i == selected ? primary : muted,
+                                  ),
+                                const Gap(7),
+                                Text(
+                                  t.label,
+                                  style: TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: i == selected
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
+                                    color: i == selected ? primary : muted,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 200),
+                            opacity: i == selected ? 1 : 0,
+                            child: const DecoratedBox(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(2),
+                                ),
+                                gradient: _lineGradient,
+                              ),
+                              child: SizedBox(height: 2.5),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -192,13 +219,7 @@ class ProfileGradientButton extends StatelessWidget {
         height: 48,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          gradient: filled
-              ? const LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [Color(0xffF0A6CE), Color(0xffA9C1F5)],
-                )
-              : null,
+          gradient: filled ? ProfileTheme.brandGradient : null,
           color: filled
               ? null
               : ProfileTheme.textSecondary(context).withValues(alpha: 0.12),
@@ -229,7 +250,14 @@ class ProfileGradientButton extends StatelessWidget {
 /// Round camera button laid on the cover photo (the owner's view).
 class ProfileChangeCoverButton extends StatelessWidget {
   final VoidCallback onTap;
-  const ProfileChangeCoverButton({required this.onTap, super.key});
+
+  /// Diameter; the icon is half of it.
+  final double size;
+  const ProfileChangeCoverButton({
+    required this.onTap,
+    this.size = 38,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -238,8 +266,8 @@ class ProfileChangeCoverButton extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          width: 38,
-          height: 38,
+          width: size,
+          height: size,
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.92),
             shape: BoxShape.circle,
@@ -247,11 +275,12 @@ class ProfileChangeCoverButton extends StatelessWidget {
           alignment: Alignment.center,
           child: Image.asset(
             AssetsName.cameraPhoto,
-            width: 19,
-            height: 19,
+            width: size / 2,
+            height: size / 2,
             color: ProfileTheme.ink,
             // A 512px PNG; decode it at its on-screen size.
-            cacheWidth: (19 * MediaQuery.devicePixelRatioOf(context)).round(),
+            cacheWidth: (size / 2 * MediaQuery.devicePixelRatioOf(context))
+                .round(),
           ),
         ),
       ),
@@ -259,8 +288,8 @@ class ProfileChangeCoverButton extends StatelessWidget {
   }
 }
 
-/// Posts · Reviews · … as evenly spaced stats, with a thin pink → purple →
-/// blue line between them and no background.
+/// Posts · Reviews · … as evenly spaced stats, with a thin soft pink → blue
+/// line between them and no background.
 class ProfileStatsRow extends StatelessWidget {
   /// (value, label) — shown in order.
   final List<(String, String)> stats;
@@ -281,7 +310,7 @@ class ProfileStatsRow extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [ProfileTheme.pink, ProfileTheme.purple, ProfileTheme.blue],
+          colors: [ProfileTheme.brandPink, ProfileTheme.brandBlue],
         ),
       ),
       child: SizedBox(width: 1.5, height: 34),

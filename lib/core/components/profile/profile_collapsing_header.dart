@@ -35,6 +35,10 @@ class ProfileCollapsingHeader extends StatelessWidget {
   /// Button on the cover photo, bottom-right (e.g. "Change cover").
   final Widget? coverAction;
 
+  /// Shown in the cover's top-left corner, fading out with the cover (e.g.
+  /// "Change cover"). Leave [onBack] unset when using it.
+  final Widget? topLeft;
+
   /// Centers the avatar under the cover.
   final bool centerAvatar;
 
@@ -63,6 +67,7 @@ class ProfileCollapsingHeader extends StatelessWidget {
     this.avatarBadge,
     this.belowFoldAction,
     this.coverAction,
+    this.topLeft,
     this.centerAvatar = false,
     this.belowFoldHeight = CoverAvatarHeader.actionHeight,
     this.lightControls = false,
@@ -158,6 +163,7 @@ class ProfileCollapsingHeader extends StatelessWidget {
                   avatarBadge: avatarBadge,
                   belowFoldAction: belowFoldAction,
                   coverAction: coverAction,
+                  topLeft: topLeft,
                   centerAvatar: centerAvatar,
                   belowFoldHeight: belowFoldHeight,
                 ),

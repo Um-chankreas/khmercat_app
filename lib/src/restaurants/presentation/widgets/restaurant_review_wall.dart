@@ -184,11 +184,7 @@ class _WriteButton extends StatelessWidget {
         height: 48,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [Color(0xffF5A6CF), Color(0xffA9C1F5)],
-          ),
+          gradient: ProfileTheme.brandGradient,
           borderRadius: BorderRadius.circular(24),
         ),
         child: const Row(
@@ -233,11 +229,7 @@ class _ReviewTile extends StatelessWidget {
             alignment: Alignment.center,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xffF0B6D8), Color(0xffA9C1F5)],
-              ),
+              gradient: ProfileTheme.brandGradient,
             ),
             child: Text(
               initial,

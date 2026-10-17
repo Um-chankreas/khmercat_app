@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -12,11 +11,13 @@ import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/core/settings/app_settings_controller.dart';
 import 'package:khmer_cat_app/core/themes/app_colors.dart';
+import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import 'package:khmer_cat_app/l10n/app_localizations.dart';
 import 'package:khmer_cat_app/src/addresses/presentation/addresses_controller.dart';
 import 'package:khmer_cat_app/src/auth/presentation/viewmodel/auth_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/my_restaurants_controller.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/widgets/profile_switching_screen.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/switch_password_sheet.dart';
 import 'package:khmer_cat_app/src/settings/presentation/widgets/account_action_sheet.dart';
 import 'package:khmer_cat_app/src/settings/presentation/widgets/menu_chrome.dart';
@@ -41,38 +42,37 @@ class SettingsScreen extends HookConsumerWidget {
     final myRestaurants = ref.watch(myRestaurantsControllerProvider);
     final user = ref.watch(currentUserProvider);
     final activeRestaurant = ref.watch(activeRestaurantProvider);
-    // Which restaurant card is mid-switch, if any.
-    final switching = useState<String?>(null);
 
-    /// Switches to [restaurant] (null = personal), confirms with a toast and
-    /// returns to the Profile tab, which animates to the new profile.
+    /// Switches to [restaurant] (null = personal) behind the full-screen
+    /// switching page, which then reloads the app on the Home tab.
     Future<void> switchTo(Restaurant? restaurant, String name) async {
-      if (switching.value != null) return;
       final isCurrent = restaurant?.id == activeRestaurant?.id;
       if (isCurrent) {
         Navigator.of(context).maybePop();
         return;
       }
-      final bool ok;
       if (restaurant == null) {
-        // Back to personal needs the password; the sheet shows its own
-        // loading and wrong-password errors, and false means cancelled.
+        // Back to personal needs the password; the sheet does the switch
+        // itself (with its own loading and errors), false = cancelled.
         if (!await confirmSwitchToPersonal(context)) return;
-        ok = true;
+        if (!context.mounted) return;
+        await showProfileSwitching(
+          context,
+          name: name,
+          imageUrl: user?.profilePicture,
+          isRestaurant: false,
+          run: () async => true,
+        );
       } else {
-        switching.value = restaurant.id;
-        ok = await ref
-            .read(myRestaurantsControllerProvider.notifier)
-            .switchTo(restaurant.id);
-      }
-      if (!context.mounted) return;
-      switching.value = null;
-      if (ok) {
-        HapticFeedback.lightImpact();
-        AppService.showToast(l.switchedTo(name));
-        Navigator.of(context).maybePop();
-      } else {
-        AppService.showToast(l.switchFailed, isError: true);
+        await showProfileSwitching(
+          context,
+          name: name,
+          imageUrl: restaurant.profilePicture,
+          isRestaurant: true,
+          run: () => ref
+              .read(myRestaurantsControllerProvider.notifier)
+              .switchTo(restaurant.id),
+        );
       }
     }
 
@@ -226,21 +226,22 @@ class SettingsScreen extends HookConsumerWidget {
                                     followers:
                                         '${_compact(r.followersCount ?? 0)} ${l.statFollowers.toLowerCase()}',
                                   ),
-                                  trailing: switching.value == r.id
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.2,
-                                            color: ProfileTheme.purple,
-                                          ),
-                                        )
-                                      : r.id == activeRestaurant?.id
+                                  // Only the owner can switch into the
+                                  // restaurant; anyone else just sees it.
+                                  trailing: r.id == activeRestaurant?.id
                                       ? _ActivePill(
                                           label: l.profileStatusActive,
                                         )
+                                      : r.myRole == 'owner'
+                                      ? _SwitchButton(
+                                          label: l.switchButton,
+                                          onTap: () => switchTo(r, r.name),
+                                        )
                                       : const SizedBox.shrink(),
-                                  onTap: () => switchTo(r, r.name),
+                                  onTap: () => AppRouter.router.pushNamed(
+                                    AppRoute.restaurantProfile.name,
+                                    pathParameters: {'id': r.id},
+                                  ),
                                 ),
                               MenuRow(
                                 leading: Container(
@@ -326,8 +327,9 @@ class SettingsScreen extends HookConsumerWidget {
                           MenuRow.icon(
                             icon: Icons.description_outlined,
                             title: l.termsOfService,
-                            // TODO: point at the real Terms of Service page/URL once it exists.
-                            onTap: () => AppService.showToast(l.comingSoon),
+                            onTap: () => AppRouter.router.pushNamed(
+                              AppRoute.termsOfService.name,
+                            ),
                           ),
                           MenuRow.icon(
                             icon: Icons.shield_outlined,
@@ -485,6 +487,45 @@ class SettingsScreen extends HookConsumerWidget {
 // =============================================================================
 
 /// "✓ Active" on the brand pink → blue wash.
+/// Round brand-gradient switch button on an owned restaurant's row; its
+/// own tap target, so tapping the rest of the row still opens the
+/// restaurant. [label] is the tooltip / screen-reader text.
+class _SwitchButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _SwitchButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: ProfileTheme.brandGradient,
+            ),
+            child: Image.asset(
+              AssetsName.swap,
+              width: 15,
+              height: 15,
+              color: ProfileTheme.ink,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ActivePill extends StatelessWidget {
   final String label;
   const _ActivePill({required this.label});

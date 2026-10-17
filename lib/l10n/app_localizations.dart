@@ -386,6 +386,18 @@ abstract class AppLocalizations {
   /// **'Switch to'**
   String get switchTo;
 
+  /// No description provided for @switchButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch'**
+  String get switchButton;
+
+  /// No description provided for @switchingProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Switching profile…'**
+  String get switchingProfile;
+
   /// No description provided for @profileTypePersonal.
   ///
   /// In en, this message translates to:

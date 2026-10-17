@@ -48,6 +48,10 @@ class AppRoute {
   );
   static AppRoute settings = AppRoute(name: 'settings', path: '/settings');
   static AppRoute addresses = AppRoute(name: 'addresses', path: '/addresses');
+  static AppRoute termsOfService = AppRoute(
+    name: 'terms-of-service',
+    path: '/terms-of-service',
+  );
   static AppRoute editProfile = AppRoute(
     name: 'edit-profile',
     path: '/edit-profile',

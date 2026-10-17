@@ -346,11 +346,7 @@ class _FollowButton extends StatelessWidget {
     required this.onTap,
   });
 
-  static const _wash = LinearGradient(
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
-    colors: [Color(0xffF5B5DC), Color(0xffA9C1F5)],
-  );
+  static const _wash = ProfileTheme.brandGradient;
 
   @override
   Widget build(BuildContext context) {

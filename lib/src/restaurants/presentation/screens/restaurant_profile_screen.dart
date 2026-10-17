@@ -813,13 +813,7 @@ class _AvatarPill extends StatelessWidget {
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          gradient: filled
-              ? const LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [Color(0xffF0A6CE), Color(0xffA9C1F5)],
-                )
-              : null,
+          gradient: filled ? ProfileTheme.brandGradient : null,
           color: filled ? null : scheme.surface,
           borderRadius: BorderRadius.circular(14),
           border: filled

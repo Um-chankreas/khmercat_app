@@ -26,6 +26,15 @@ class IndexScreen extends HookConsumerWidget {
     // The profile the user is acting as: a restaurant, or null = personal.
     final activeRestaurant = ref.watch(activeRestaurantProvider);
 
+    // After a profile switch, start again on Home (the switching screen
+    // has already dropped the cached data for the old profile).
+    ref.listen<String?>(activeRestaurantProvider.select((r) => r?.id), (
+      prev,
+      next,
+    ) {
+      if (prev != next) selectedIndex.value = 0;
+    });
+
     final upload = ref.watch(videoUploadViewModelProvider);
     final uploadBusy =
         upload.stage == UploadStage.compressing ||
@@ -85,7 +94,13 @@ class IndexScreen extends HookConsumerWidget {
       ),
       child: Scaffold(
         extendBody: true,
-        body: IndexedStack(index: selectedIndex.value, children: pages),
+        // Keyed by the active profile so every tab is rebuilt from scratch
+        // (scroll positions, loaded pages) after a switch.
+        body: IndexedStack(
+          key: ValueKey(activeRestaurant?.id),
+          index: selectedIndex.value,
+          children: pages,
+        ),
 
         bottomNavigationBar: AppBottomNavBar(
           currentIndex: selectedIndex.value,

@@ -16,11 +16,7 @@ extension AddressLabelText on AddressLabel {
 
 /// Pink → periwinkle wash on the address screens' main button and the
 /// selected label chip.
-const addressGradient = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: [Color(0xffF5B5DC), Color(0xffA9C1F5)],
-);
+const addressGradient = ProfileTheme.brandGradient;
 
 /// Full-width gradient button with dark text: "Save address",
 /// "+ Add new address". Shows a spinner and ignores taps while [loading].

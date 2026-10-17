@@ -67,6 +67,8 @@
     }
   },
   "switchTo": "Switch to",
+  "switchButton": "Switch",
+  "switchingProfile": "Switching profile…",
   "profileTypePersonal": "Personal",
   "profileTypeRestaurant": "Restaurant",
   "profileStatusActive": "Active",

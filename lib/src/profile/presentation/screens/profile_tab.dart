@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:khmer_cat_app/core/components/profile/profile_pinned_header.dart';
 import 'package:khmer_cat_app/core/components/profile/cover_avatar_header.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_action_buttons.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_collapsing_header.dart';
@@ -27,8 +28,8 @@ import 'package:khmer_cat_app/src/profile/presentation/widgets/profile_posts_gri
 
 /// The signed-in user's own profile (the Profile tab when not acting as a
 /// restaurant): cover with settings and change-cover buttons; the avatar
-/// with an Edit pill, name and @handle beside it, and a QR button; bio,
-/// phone / email with the social links; Posts · Likes · Followers ·
+/// with an Edit pill, name and @handle beside it, and a QR button; bio;
+/// phone / email and the social links; Posts · Likes · Followers ·
 /// Following; then Videos / Favorites grids.
 class ProfileTab extends HookConsumerWidget {
   const ProfileTab({super.key});
@@ -74,13 +75,16 @@ class ProfileTab extends HookConsumerWidget {
               avatarSize: _avatarSize,
               coverRadius: 0,
               lightControls: true,
-              coverAction: ProfileChangeCoverButton(
+              topLeft: ProfileChangeCoverButton(
+                size: 32,
                 onTap: () =>
                     changeProfileImage(context, ref, ProfileImageKind.cover),
               ),
               actions: [
                 ProfileCircleButton(
-                  icon: Icons.settings_outlined,
+                  iconAsset: AssetsName.menu,
+                  iconSize: 16,
+                  padding: 8,
                   onTap: () =>
                       AppRouter.router.pushNamed(AppRoute.settings.name),
                 ),
@@ -88,11 +92,11 @@ class ProfileTab extends HookConsumerWidget {
               ],
               // Name + @handle beside the avatar, the Edit pill under it,
               // and the QR button on the right.
-              belowFoldHeight: 54,
+              belowFoldHeight: 53,
               belowFoldAction: SizedBox(
                 // Screen width minus the side margins.
                 width: width - 40,
-                height: 54,
+                height: 53,
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -110,12 +114,12 @@ class ProfileTab extends HookConsumerWidget {
                       child: Center(child: _EditPill(onTap: openEdit)),
                     ),
                     Positioned(
-                      // Under the cover's camera button, 14px from the edge
-                      // (this row's edge is 20px in).
+                      // 14px from the screen edge (this row's edge is 20px
+                      // in), in line with the settings button above.
                       right: -6,
                       top: 0,
-                      child: _OutlinedCircleButton(
-                        icon: Icons.qr_code_2_rounded,
+                      child: _RaisedCircleButton(
+                        asset: AssetsName.qrCode,
                         tooltip: 'My QR code',
                         // TODO(backend): profiles have no public link to
                         // encode yet.
@@ -128,28 +132,38 @@ class ProfileTab extends HookConsumerWidget {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                // The header already leaves a gap under the Edit pill.
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: _ProfileDetails(user: user, bio: bio, summary: summary),
               ),
             ),
             const SliverToBoxAdapter(child: Gap(14)),
-            SliverToBoxAdapter(
-              child: ProfileUnderlineTabs(
-                tabs: [
-                  ProfileUnderlineTab(
-                    icon: Icons.play_circle_outline_rounded,
-                    label: l.profileTabVideos,
+            // Pinned under the collapsed header so the tabs stay reachable
+            // while scrolling through a long grid.
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: FixedSliverHeaderDelegate(
+                height: 48,
+                child: ColoredBox(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: ProfileUnderlineTabs(
+                    tabs: [
+                      ProfileUnderlineTab(
+                        icon: Icons.play_circle_outline_rounded,
+                        label: l.profileTabVideos,
+                      ),
+                      ProfileUnderlineTab(
+                        icon: Icons.favorite_border_rounded,
+                        label: l.profileTabFavorites,
+                      ),
+                    ],
+                    selected: tab.value,
+                    onChanged: (i) {
+                      tab.value = i;
+                      visited.value = {...visited.value, i};
+                    },
                   ),
-                  ProfileUnderlineTab(
-                    icon: Icons.favorite_border_rounded,
-                    label: l.profileTabFavorites,
-                  ),
-                ],
-                selected: tab.value,
-                onChanged: (i) {
-                  tab.value = i;
-                  visited.value = {...visited.value, i};
-                },
+                ),
               ),
             ),
             const SliverToBoxAdapter(child: Gap(12)),
@@ -250,7 +264,6 @@ class _ProfileDetails extends StatelessWidget {
     final links = s?.socialLinks;
     final socials = [
       (SocialLinks.facebook(links?.facebook), AssetsName.facebook, 'Facebook'),
-      (SocialLinks.tiktok(links?.tiktok), AssetsName.tiktok, 'TikTok'),
       (SocialLinks.telegram(links?.telegram), AssetsName.telegram, 'Telegram'),
     ].where((x) => x.$1 != null).toList();
 
@@ -271,33 +284,19 @@ class _ProfileDetails extends StatelessWidget {
           const Gap(14),
         ],
         if (phone != null || email.isNotEmpty || socials.isNotEmpty) ...[
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (phone != null)
-                      _ContactLine(icon: Icons.phone_outlined, text: phone),
-                    if (phone != null && email.isNotEmpty) const Gap(8),
-                    if (email.isNotEmpty)
-                      _ContactLine(
-                        icon: Icons.mail_outline_rounded,
-                        text: email,
-                      ),
-                  ],
-                ),
+          for (final (i, line) in [
+            if (phone != null)
+              _ContactLine(asset: AssetsName.telephone, text: phone),
+            if (email.isNotEmpty)
+              _ContactLine(asset: AssetsName.mail, text: email),
+            for (final (uri, asset, _) in socials)
+              _ContactLine(
+                asset: asset,
+                text: _displayLink(uri!),
+                isLink: true,
+                onTap: () => SocialLinks.open(uri),
               ),
-              for (final (uri, asset, label) in socials) ...[
-                const Gap(10),
-                _SocialCircle(
-                  asset: asset,
-                  tooltip: label,
-                  onTap: () => SocialLinks.open(uri!),
-                ),
-              ],
-            ],
-          ),
+          ].indexed) ...[if (i > 0) const Gap(8), line],
           const Gap(18),
         ],
         ProfileStatsRow(
@@ -325,63 +324,60 @@ class _ProfileDetails extends StatelessWidget {
   }
 }
 
-/// A small line icon and text: the phone number or email.
+/// A small icon and text: the phone number, email, or a social link.
+/// Links keep their brand-colored logo, show in purple and open on tap.
 class _ContactLine extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  const _ContactLine({required this.icon, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = ProfileTheme.textPrimary(context);
-    return Row(
-      children: [
-        Icon(icon, size: 17, color: primary),
-        const Gap(8),
-        Expanded(
-          child: Text(
-            text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 14, color: primary),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Grey circle with a platform icon, opening that profile.
-class _SocialCircle extends StatelessWidget {
   final String asset;
-  final String tooltip;
-  final VoidCallback onTap;
-  const _SocialCircle({
+  final String text;
+  final bool isLink;
+  final VoidCallback? onTap;
+  const _ContactLine({
     required this.asset,
-    required this.tooltip,
-    required this.onTap,
+    required this.text,
+    this.isLink = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          width: 42,
-          height: 42,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: ProfileTheme.textSecondary(context).withValues(alpha: 0.12),
+    final primary = ProfileTheme.textPrimary(context);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Row(
+        children: [
+          Image.asset(
+            asset,
+            width: 16,
+            height: 16,
+            color: isLink ? null : primary,
           ),
-          child: Image.asset(asset, width: 20, height: 20),
-        ),
+          const Gap(8),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isLink ? FontWeight.w600 : null,
+                color: isLink ? ProfileTheme.purple : primary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+/// [uri] without the scheme or "www.", e.g. "facebook.com/name".
+String _displayLink(Uri uri) {
+  final host = uri.host.startsWith('www.') ? uri.host.substring(4) : uri.host;
+  final path = uri.path.endsWith('/')
+      ? uri.path.substring(0, uri.path.length - 1)
+      : uri.path;
+  return '$host$path';
 }
 
 /// "✎ Edit" on the pastel wash, centered under the avatar.
@@ -400,11 +396,7 @@ class _EditPill extends StatelessWidget {
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: [Color(0xffF0A6CE), Color(0xffA9C1F5)],
-          ),
+          gradient: ProfileTheme.brandGradient,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -427,20 +419,20 @@ class _EditPill extends StatelessWidget {
   }
 }
 
-/// Round outlined button on the page (not the cover), e.g. QR.
-class _OutlinedCircleButton extends StatelessWidget {
-  final IconData icon;
+/// Round raised button on the page (not the cover), e.g. QR: a soft
+/// shadow instead of a border, and a soft pink → blue icon.
+class _RaisedCircleButton extends StatelessWidget {
+  final String asset;
   final String tooltip;
   final VoidCallback onTap;
-  const _OutlinedCircleButton({
-    required this.icon,
+  const _RaisedCircleButton({
+    required this.asset,
     required this.tooltip,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Tooltip(
       message: tooltip,
       child: GestureDetector(
@@ -449,14 +441,31 @@ class _OutlinedCircleButton extends StatelessWidget {
           onTap();
         },
         child: Container(
-          width: 38,
-          height: 38,
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: scheme.surface,
-            border: Border.all(color: scheme.onSurface.withValues(alpha: 0.14)),
+            color: Theme.of(context).colorScheme.surface,
+            boxShadow: [
+              BoxShadow(
+                color: ProfileTheme.purple.withValues(alpha: 0.10),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          child: Icon(icon, size: 20, color: ProfileTheme.textPrimary(context)),
+          alignment: Alignment.center,
+          // White icon used as a mask, filled with the brand gradient.
+          child: ShaderMask(
+            blendMode: BlendMode.srcIn,
+            shaderCallback: ProfileTheme.brandGradient.createShader,
+            child: Image.asset(
+              asset,
+              width: 16,
+              height: 16,
+              color: Colors.white,
+            ),
+          ),
         ),
       ),
     );

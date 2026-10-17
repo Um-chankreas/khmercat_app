@@ -155,6 +155,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get switchTo => 'Switch to';
 
   @override
+  String get switchButton => 'Switch';
+
+  @override
+  String get switchingProfile => 'Switching profile…';
+
+  @override
   String get profileTypePersonal => 'Personal';
 
   @override

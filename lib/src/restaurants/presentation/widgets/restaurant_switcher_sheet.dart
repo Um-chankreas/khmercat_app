@@ -4,11 +4,12 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:khmer_cat_app/core/components/image_network/image_user_circle_profile.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
-import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/core/themes/app_colors.dart';
 import 'package:khmer_cat_app/l10n/app_localizations.dart';
 import 'package:khmer_cat_app/src/auth/presentation/viewmodel/auth_controller.dart';
+import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/my_restaurants_controller.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/widgets/profile_switching_screen.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/switch_password_sheet.dart';
 
 Future<void> showRestaurantSwitcherSheet(BuildContext context) {
@@ -29,23 +30,35 @@ class RestaurantSwitcherSheet extends ConsumerWidget {
     final user = ref.watch(currentUserProvider);
     final l = AppLocalizations.of(context);
 
-    Future<void> switchTo(String? restaurantId, String name) async {
-      final bool ok;
-      if (restaurantId == null) {
+    Future<void> switchTo(Restaurant? restaurant, String name) async {
+      // Close the sheet, then switch behind the full-screen switching page
+      // (opened from the root navigator, so it outlives this sheet).
+      final nav = Navigator.of(context);
+      final rootContext = Navigator.of(context, rootNavigator: true).context;
+      if (restaurant == null) {
         // Back to personal needs the password (cancelled = stay put).
         if (!await confirmSwitchToPersonal(context)) return;
-        ok = true;
+        nav.pop();
+        if (!rootContext.mounted) return;
+        await showProfileSwitching(
+          rootContext,
+          name: name,
+          imageUrl: user?.profilePicture,
+          isRestaurant: false,
+          run: () async => true,
+        );
       } else {
-        ok = await ref
-            .read(myRestaurantsControllerProvider.notifier)
-            .switchTo(restaurantId);
+        nav.pop();
+        await showProfileSwitching(
+          rootContext,
+          name: name,
+          imageUrl: restaurant.profilePicture,
+          isRestaurant: true,
+          run: () => ref
+              .read(myRestaurantsControllerProvider.notifier)
+              .switchTo(restaurant.id),
+        );
       }
-      if (!context.mounted) return;
-      Navigator.of(context).pop();
-      AppService.showToast(
-        ok ? l.switchedTo(name) : l.switchFailed,
-        isError: !ok,
-      );
     }
 
     return SafeArea(
@@ -124,7 +137,7 @@ class RestaurantSwitcherSheet extends ConsumerWidget {
                                   color: AppColors.appPrimaryPink,
                                 )
                               : null,
-                          onTap: isActive ? null : () => switchTo(r.id, r.name),
+                          onTap: isActive ? null : () => switchTo(r, r.name),
                         );
                       }),
                     ],

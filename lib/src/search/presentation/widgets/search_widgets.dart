@@ -18,11 +18,7 @@ import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
 const searchAccent = Color(0xffB0125A);
 
 /// Pink → periwinkle wash behind the selected chip.
-const searchSoftGradient = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: [Color(0xffF5B5DC), Color(0xffA9C1F5)],
-);
+const searchSoftGradient = ProfileTheme.brandGradient;
 
 /// Soft shadow under the white search bar, chips and cards.
 List<BoxShadow> searchShadow() => [

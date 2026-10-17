@@ -16,6 +16,7 @@ import 'package:khmer_cat_app/src/restaurants/presentation/screens/restaurant_me
 import 'package:khmer_cat_app/src/profile/presentation/screens/edit_profile_screen.dart';
 import 'package:khmer_cat_app/src/search/presentation/restaurant_map_screen.dart';
 import 'package:khmer_cat_app/src/settings/presentation/settings_screen.dart';
+import 'package:khmer_cat_app/src/settings/presentation/terms_of_service_screen.dart';
 import 'package:khmer_cat_app/src/splash/splash_screen.dart';
 import 'package:khmer_cat_app/src/splash/welcome_screen.dart';
 import 'package:khmer_cat_app/src/users/presentation/user_profile_screen.dart';
@@ -120,6 +121,13 @@ class AppRouter {
         name: AppRoute.settings.name,
         pageBuilder: (context, state) =>
             const CupertinoPage(child: SettingsScreen()),
+      ),
+
+      GoRoute(
+        path: AppRoute.termsOfService.path,
+        name: AppRoute.termsOfService.name,
+        pageBuilder: (context, state) =>
+            const CupertinoPage(child: TermsOfServiceScreen()),
       ),
 
       GoRoute(

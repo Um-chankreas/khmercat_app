@@ -60,6 +60,8 @@
   "currentlyViewing": "កំពុងប្រើជា",
   "youAreViewingAs": "អ្នកកំពុងប្រើកម្មវិធីជា {name}",
   "switchTo": "ប្ដូរទៅ",
+  "switchButton": "ប្ដូរ",
+  "switchingProfile": "កំពុងប្ដូរប្រវត្តិរូប…",
   "profileTypePersonal": "ផ្ទាល់ខ្លួន",
   "profileTypeRestaurant": "ភោជនីយដ្ឋាន",
   "profileStatusActive": "សកម្ម",

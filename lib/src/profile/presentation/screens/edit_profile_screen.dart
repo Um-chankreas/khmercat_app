@@ -18,11 +18,7 @@ const _red = Color(0xffE5484D);
 const _accent = Color(0xffB0125A);
 
 /// Pastel pink → blue wash behind Save.
-const _wash = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: [Color(0xffF0A6CE), Color(0xffA9C1F5)],
-);
+const _wash = ProfileTheme.brandGradient;
 final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
 /// Edit profile: back · "Edit profile" · Save along the top, the photo with
