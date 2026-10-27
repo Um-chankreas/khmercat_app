@@ -1,4 +1,6 @@
 import 'package:khmer_cat_app/core/config/app_config.dart';
+import 'package:khmer_cat_app/src/holidays/domain/restaurant_holiday.dart';
+import 'package:khmer_cat_app/core/utils/assets_name.dart';
 
 class RestaurantCategory {
   final String id;
@@ -15,11 +17,44 @@ class RestaurantCategory {
       );
 }
 
+/// The delivery apps a restaurant can link to. [key] is what the API
+/// stores as a link's `name` (must match Restaurant::DELIVERY_APPS).
+enum DeliveryApp {
+  grab('grab', 'Grab'),
+  foodpanda('foodpanda', 'foodpanda'),
+  wownow('wownow', 'WOWNOW');
+
+  final String key;
+  final String label;
+  const DeliveryApp(this.key, this.label);
+
+  String get asset => switch (this) {
+    DeliveryApp.grab => AssetsName.grab,
+    DeliveryApp.foodpanda => AssetsName.foodpanda,
+    DeliveryApp.wownow => AssetsName.wownow,
+  };
+
+  static DeliveryApp? fromKey(String key) {
+    final k = key.toLowerCase();
+    for (final app in values) {
+      if (app.key == k) return app;
+    }
+    return null;
+  }
+}
+
 /// An order-delivery app the restaurant is listed on (Grab, foodpanda, …).
 class DeliveryLink {
   final String name;
   final String url;
   const DeliveryLink({required this.name, required this.url});
+
+  /// The known app this link is for, or null for an unrecognised name.
+  DeliveryApp? get app => DeliveryApp.fromKey(name);
+
+  String get label => app?.label ?? name;
+
+  Map<String, dynamic> toJson() => {'name': name, 'url': url};
 
   factory DeliveryLink.fromJson(Map<String, dynamic> json) => DeliveryLink(
     name: json['name'] as String? ?? '',
@@ -103,6 +138,12 @@ class Restaurant {
   /// Delivery apps; empty until the API sends them.
   final List<DeliveryLink> deliveryLinks;
 
+  /// Today's holiday notice: overrides the hours shown (and [isOpen]).
+  final RestaurantHoliday? todayHoliday;
+
+  /// The next notice from today on — its poster shows on the profile.
+  final RestaurantHoliday? upcomingHoliday;
+
   Restaurant({
     required this.id,
     required this.name,
@@ -140,6 +181,8 @@ class Restaurant {
     this.closingTime,
     this.openDaysLabel,
     this.deliveryLinks = const [],
+    this.todayHoliday,
+    this.upcomingHoliday,
   });
 
   String? get priceText =>
@@ -152,14 +195,6 @@ class Restaurant {
     if (lo == null || hi == null || lo == hi) return '${lo ?? hi} min';
     return '$lo-$hi min';
   }
-
-  String? get serviceTypeLabel => switch (serviceType) {
-    'dine_in' => 'Dine-in Only',
-    'delivery' => 'Delivery Only',
-    'dine_in_delivery' => 'Dine-in & Delivery',
-    'takeaway' => 'Takeaway',
-    _ => null,
-  };
 
   factory Restaurant.fromJson(Map<String, dynamic> json) => Restaurant(
     id: json['id'].toString(),
@@ -209,6 +244,8 @@ class Restaurant {
       for (final l in (json['delivery_links'] as List?) ?? const [])
         DeliveryLink.fromJson(l as Map<String, dynamic>),
     ],
+    todayHoliday: RestaurantHoliday.maybeFromJson(json['today_holiday']),
+    upcomingHoliday: RestaurantHoliday.maybeFromJson(json['upcoming_holiday']),
   );
 
   Restaurant copyWith({int? followersCount}) => Restaurant(
@@ -248,5 +285,7 @@ class Restaurant {
     closingTime: closingTime,
     openDaysLabel: openDaysLabel,
     deliveryLinks: deliveryLinks,
+    todayHoliday: todayHoliday,
+    upcomingHoliday: upcomingHoliday,
   );
 }

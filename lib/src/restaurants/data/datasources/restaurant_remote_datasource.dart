@@ -46,6 +46,95 @@ class RestaurantRemoteDataSource {
     return json.dataMap;
   }
 
+  /// GET /restaurants/{id}/reviews — public; `filter: 'video'` keeps
+  /// reviews with a video.
+  Future<Map<String, dynamic>> reviews(
+    String id, {
+    String? filter,
+    String? cursor,
+  }) async {
+    final json = await _client.get(
+      ApiRoute.restaurantReviews(id),
+      query: {'filter': ?filter, 'cursor': ?cursor},
+    );
+    return json.dataMap;
+  }
+
+  /// POST /restaurants/{id}/reviews — creates or updates the caller's one
+  /// review (text only; a review video goes through /reviews/upload).
+  Future<Map<String, dynamic>> postReview(
+    String id, {
+    required int rating,
+    required String comment,
+  }) async {
+    final json = await _client.post(
+      ApiRoute.restaurantReviews(id),
+      body: {'rating': rating, 'comment': comment},
+    );
+    return json.dataMap;
+  }
+
+  /// Returns the new like count.
+  Future<int> likeReview(String reviewId, {required bool like}) async {
+    final path = ApiRoute.reviewLike(reviewId);
+    final json = like ? await _client.post(path) : await _client.delete(path);
+    return (json.dataMap['likes_count'] as num?)?.toInt() ?? 0;
+  }
+
+  /// PUT /reviews/{id}/reply — the restaurant team only.
+  Future<Map<String, dynamic>> replyToReview(
+    String reviewId,
+    String text,
+  ) async {
+    final json = await _client.put(
+      ApiRoute.reviewReply(reviewId),
+      body: {'text': text},
+    );
+    return json.dataMap;
+  }
+
+  Future<void> deleteReviewReply(String reviewId) async {
+    await _client.delete(ApiRoute.reviewReply(reviewId));
+  }
+
+  /// POST /restaurants/holidays (multipart) — one notice per restaurant in
+  /// [restaurantIds]; returns them.
+  Future<List<dynamic>> postHoliday({
+    required List<String> restaurantIds,
+    required String date,
+    required int days,
+    required String title,
+    required String mode,
+    String? opensAt,
+    String? closesAt,
+    String? description,
+    File? image,
+    void Function(int sent, int total)? onProgress,
+  }) async {
+    final json = await _client.uploadMultipart(
+      ApiRoute.restaurantHolidays,
+      files: {'image': ?image},
+      fields: {
+        for (var i = 0; i < restaurantIds.length; i++)
+          'restaurant_ids[$i]': restaurantIds[i],
+        'date': date,
+        'days': days.toString(),
+        'title': title,
+        'mode': mode,
+        'opens_at': ?opensAt,
+        'closes_at': ?closesAt,
+        if (description != null && description.isNotEmpty)
+          'description': description,
+      },
+      onProgress: onProgress,
+    );
+    return json.dataList;
+  }
+
+  Future<void> deleteHoliday(String holidayId) async {
+    await _client.delete(ApiRoute.holiday(holidayId));
+  }
+
   /// GET /restaurants/{id}/menu — public.
   Future<Map<String, dynamic>> menu(String id) async {
     final json = await _client.get(ApiRoute.restaurantMenu(id));

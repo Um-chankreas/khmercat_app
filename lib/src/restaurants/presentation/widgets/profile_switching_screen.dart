@@ -9,6 +9,7 @@ import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/l10n/app_localizations.dart';
+import 'package:khmer_cat_app/src/auth/presentation/viewmodel/auth_controller.dart';
 import 'package:khmer_cat_app/src/feed/presentation/viewmodel/comments_controller.dart';
 import 'package:khmer_cat_app/src/feed/presentation/viewmodel/feed_controller.dart';
 import 'package:khmer_cat_app/src/feed/providers/feed_restaurant_provider.dart';
@@ -33,12 +34,18 @@ const _minShown = Duration(milliseconds: 1600);
 ///
 /// For a switch that already happened (back to personal, which the
 /// password sheet does itself), pass `run: () async => true`.
+///
+/// [status], [doneToast] and [failToast] replace the "Switching profile…"
+/// wording, e.g. for logging out.
 Future<void> showProfileSwitching(
   BuildContext context, {
   required String name,
   required String? imageUrl,
   required bool isRestaurant,
   required Future<bool> Function() run,
+  String? status,
+  String? doneToast,
+  String? failToast,
 }) {
   return Navigator.of(context, rootNavigator: true).push(
     PageRouteBuilder<void>(
@@ -50,10 +57,40 @@ Future<void> showProfileSwitching(
         imageUrl: imageUrl,
         isRestaurant: isRestaurant,
         run: run,
+        status: status,
+        doneToast: doneToast,
+        failToast: failToast,
       ),
       transitionsBuilder: (_, animation, _, child) =>
           FadeTransition(opacity: animation, child: child),
     ),
+  );
+}
+
+/// Logs out behind the same screen as a profile switch — the account's
+/// avatar in the spinning ring, "Logging out…" — then reloads everything
+/// and lands on Home, signed out. Used by both the app's and the admin
+/// area's Settings.
+Future<void> showLoggingOut(BuildContext context, WidgetRef ref) {
+  final l = AppLocalizations.of(context);
+  final user = ref.read(currentUserProvider);
+  final auth = ref.read(authControllerProvider.notifier);
+  return showProfileSwitching(
+    context,
+    name: user?.name ?? '',
+    imageUrl: user?.profilePicture,
+    isRestaurant: false,
+    status: l.loggingOut,
+    doneToast: l.loggedOut,
+    failToast: l.logOutFailed,
+    run: () async {
+      try {
+        await auth.logout();
+        return true;
+      } catch (_) {
+        return false;
+      }
+    },
   );
 }
 
@@ -80,11 +117,17 @@ class _ProfileSwitchingScreen extends HookConsumerWidget {
   final String? imageUrl;
   final bool isRestaurant;
   final Future<bool> Function() run;
+  final String? status;
+  final String? doneToast;
+  final String? failToast;
   const _ProfileSwitchingScreen({
     required this.name,
     required this.imageUrl,
     required this.isRestaurant,
     required this.run,
+    this.status,
+    this.doneToast,
+    this.failToast,
   });
 
   @override
@@ -111,9 +154,9 @@ class _ProfileSwitchingScreen extends HookConsumerWidget {
           refreshAfterProfileSwitch(ref);
           AppRouter.router.goNamed(AppRoute.index.name);
           HapticFeedback.lightImpact();
-          AppService.showToast(l.switchedTo(name));
+          AppService.showToast(doneToast ?? l.switchedTo(name));
         } else {
-          AppService.showToast(l.switchFailed, isError: true);
+          AppService.showToast(failToast ?? l.switchFailed, isError: true);
         }
       }
 
@@ -215,7 +258,7 @@ class _ProfileSwitchingScreen extends HookConsumerWidget {
                   ),
                   const Gap(6),
                   Text(
-                    l.switchingProfile,
+                    status ?? l.switchingProfile,
                     style: TextStyle(
                       fontSize: 14,
                       color: ProfileTheme.textSecondary(context),

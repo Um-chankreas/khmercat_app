@@ -12,7 +12,10 @@ const menuAccent = Color(0xffB0125A);
 /// Pale pink → lavender → blue wash with the logo's cat head faded into the
 /// top-right corner. Dark mode keeps the plain page color and a faint cat.
 class MenuBackdrop extends StatelessWidget {
-  const MenuBackdrop({super.key});
+  /// Plain white (the page color in dark mode) instead of the pink → blue
+  /// wash; just the faded cat.
+  final bool plain;
+  const MenuBackdrop({this.plain = false, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +24,12 @@ class MenuBackdrop extends StatelessWidget {
     return IgnorePointer(
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: isDark
+          color: plain
+              ? (isDark
+                    ? Theme.of(context).scaffoldBackgroundColor
+                    : Colors.white)
+              : null,
+          gradient: isDark || plain
               ? null
               : const LinearGradient(
                   begin: Alignment.topLeft,
@@ -52,6 +60,84 @@ class MenuBackdrop extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Off-white with three large, soft pastel circles — lavender top-left,
+/// pink on the right, pink → lavender bottom-left (as on New Post).
+class SoftCirclesBackdrop extends StatelessWidget {
+  const SoftCirclesBackdrop({super.key});
+
+  static const _pink = Color(0xffF4C6DC);
+  static const _lavender = Color(0xffD9D6F3);
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final alpha = isDark ? 0.10 : 0.35;
+
+    Widget circle({
+      required double size,
+      required List<Color> colors,
+      double? left,
+      double? right,
+      double? top,
+      double? bottom,
+    }) => Positioned(
+      left: left,
+      right: right,
+      top: top,
+      bottom: bottom,
+      width: size,
+      height: size,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [for (final c in colors) c.withValues(alpha: alpha)],
+          ),
+        ),
+      ),
+    );
+
+    return IgnorePointer(
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final w = box.maxWidth;
+          final h = box.maxHeight;
+          return ColoredBox(
+            color: isDark
+                ? Theme.of(context).scaffoldBackgroundColor
+                : const Color(0xffFAFAFB),
+            child: Stack(
+              clipBehavior: Clip.hardEdge,
+              children: [
+                circle(
+                  size: w * 1.15,
+                  left: -w * 0.5,
+                  top: -w * 0.42,
+                  colors: [_lavender, const Color(0xffDDE7F8)],
+                ),
+                circle(
+                  size: w * 0.8,
+                  right: -w * 0.45,
+                  top: h * 0.3,
+                  colors: [_pink, _lavender],
+                ),
+                circle(
+                  size: w * 1.1,
+                  left: -w * 0.48,
+                  bottom: -w * 0.55,
+                  colors: [_pink, _lavender],
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

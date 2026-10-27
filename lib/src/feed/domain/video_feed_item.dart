@@ -1,5 +1,6 @@
 // lib/src/feed/domain/video_feed_item.dart
 
+import 'package:khmer_cat_app/src/holidays/domain/restaurant_holiday.dart';
 import 'package:khmer_cat_app/core/config/app_config.dart';
 
 class FeedAuthor {
@@ -78,6 +79,10 @@ class VideoFeedItem {
   final DateTime? createdAt;
   final double? rating;
 
+  /// Set for a restaurant's holiday poster: an image card, not a video
+  /// ([videoUrl] is empty).
+  final RestaurantHoliday? holiday;
+
   /// Real server state (`is_following_restaurant` — every video always has
   /// a restaurant, both upload paths require one), not a client-side guess.
   final bool isFollowingRestaurant;
@@ -115,7 +120,10 @@ class VideoFeedItem {
     this.durationSeconds,
     this.localFilePath,
     this.localThumbnailPath,
+    this.holiday,
   });
+
+  bool get isPoster => holiday != null;
 
   /// "0:45", "1:20", "1:02:03", or null when the length is unknown.
   String? get durationText {
@@ -129,7 +137,7 @@ class VideoFeedItem {
   factory VideoFeedItem.fromJson(Map<String, dynamic> json) => VideoFeedItem(
     id: json['id'].toString(),
     caption: json['caption'] as String? ?? '',
-    videoUrl: AppConfig.fixMediaUrl(json['video_url'] as String),
+    videoUrl: AppConfig.fixMediaUrl(json['video_url'] as String? ?? ''),
     thumbnailUrl: (json['thumbnail_url'] as String?) != null
         ? AppConfig.fixMediaUrl(json['thumbnail_url'] as String)
         : null,
@@ -148,6 +156,7 @@ class VideoFeedItem {
     isFollowingRestaurant: json['is_following_restaurant'] == true,
     viewsCount: (json['views_count'] as num?)?.toInt() ?? 0,
     durationSeconds: (json['duration_seconds'] as num?)?.toInt(),
+    holiday: RestaurantHoliday.maybeFromJson(json['holiday']),
   );
 
   VideoFeedItem copyWith({
@@ -180,6 +189,7 @@ class VideoFeedItem {
       durationSeconds: durationSeconds,
       localFilePath: localFilePath,
       localThumbnailPath: localThumbnailPath ?? this.localThumbnailPath,
+      holiday: holiday,
     );
   }
 }

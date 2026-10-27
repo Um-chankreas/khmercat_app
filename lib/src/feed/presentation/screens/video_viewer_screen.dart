@@ -182,9 +182,7 @@ class VideoViewerScreen extends HookConsumerWidget {
             onPageChanged: (i) => index.value = i,
             itemBuilder: (context, i) {
               final item = items.value[i];
-              final overlayBottom =
-                  barBottom +
-                  (item.restaurant == null ? 0 : FeedRestaurantBar.height);
+              final overlayBottom = barBottom;
               return Stack(
                 fit: StackFit.expand,
                 children: [
@@ -215,47 +213,55 @@ class VideoViewerScreen extends HookConsumerWidget {
                       ),
                     ),
                   ),
-                  Positioned(
-                    right: 12,
-                    bottom: overlayBottom + context.sc(18),
-                    child: FeedActionRail(
-                      item: item,
-                      onLike: () => handleLike(item.id),
-                      onComment: () => showCommentsSheet(
-                        context,
-                        videoId: item.id,
-                        onCountChanged: (delta) {
-                          final current = byId(item.id);
-                          if (current == null) return;
-                          replace(
-                            current.copyWith(
-                              commentsCount: current.commentsCount + delta,
-                            ),
-                          );
-                        },
-                      ),
-                      onSave: () => handleSave(item.id),
-                      onShare: () => shareVideo(item),
-                      onFollowTap: () => handleFollow(item.id),
-                      onAvatarTap: () {},
-                    ),
-                  ),
+                  // The rail sits on top of the info block, so the
+                  // restaurant pill can run out to the rail's right edge.
                   Positioned(
                     left: context.sc(14),
-                    right: 90,
+                    right: 12,
                     bottom: overlayBottom + context.sc(12),
-                    child: FeedInfoOverlay(item: item, onUserTap: () {}),
-                  ),
-                  if (item.restaurant != null)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: barBottom,
-                      child: FeedRestaurantBar(
-                        item: item,
-                        onFollowTap: () => handleFollow(item.id),
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: FeedActionRail(
+                            item: item,
+                            onLike: () => handleLike(item.id),
+                            onComment: () => showCommentsSheet(
+                              context,
+                              videoId: item.id,
+                              onCountChanged: (delta) {
+                                final current = byId(item.id);
+                                if (current == null) return;
+                                replace(
+                                  current.copyWith(
+                                    commentsCount:
+                                        current.commentsCount + delta,
+                                  ),
+                                );
+                              },
+                            ),
+                            onSave: () => handleSave(item.id),
+                            onShare: () => shareVideo(item),
+                            onFollowTap: () => handleFollow(item.id),
+                            onAvatarTap: () {},
+                          ),
+                        ),
+                        SizedBox(height: context.sc(14)),
+                        FeedInfoOverlay(
+                          item: item,
+                          onUserTap: () {},
+                          restaurant: item.restaurant == null
+                              ? null
+                              : FeedRestaurantBar(
+                                  item: item,
+                                  onFollowTap: () => handleFollow(item.id),
+                                ),
+                        ),
+                      ],
                     ),
+                  ),
                 ],
               );
             },

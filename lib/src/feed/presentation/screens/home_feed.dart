@@ -420,12 +420,8 @@ class _TabFeedView extends HookConsumerWidget {
             );
           }
           final item = state.items[index];
-          // Where the nav bar (dome included) ends, and where the overlays
-          // start above the restaurant strip, if the video has one.
-          final barBottom = MediaQuery.paddingOf(context).bottom;
-          final overlayBottom =
-              barBottom +
-              (item.restaurant == null ? 0 : FeedRestaurantBar.height);
+          // Where the nav bar (raised button included) ends.
+          final overlayBottom = MediaQuery.paddingOf(context).bottom;
 
           // Each page gets its own compositing layer so a swipe transition
           // doesn't force neighboring pages' video textures to repaint, and
@@ -469,61 +465,63 @@ class _TabFeedView extends HookConsumerWidget {
                   ),
                 ),
 
+                // The video runs behind the glass nav bar; the overlays stay
+                // above it. The action rail sits on top of the info block, so
+                // the restaurant pill can run out to the rail's right edge.
                 Positioned(
+                  left: context.sc(14),
                   right: 12,
-                  // The video runs behind the glass nav bar; the overlays
-                  // stay above it and the restaurant strip.
-                  bottom: overlayBottom + context.sc(18),
-                  child: IgnorePointer(
-                    ignoring: item.isPending,
-                    child: Opacity(
-                      opacity: item.isPending ? 0.4 : 1,
-                      child: FeedActionRail(
+                  bottom: overlayBottom + context.sc(12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: IgnorePointer(
+                          ignoring: item.isPending,
+                          child: Opacity(
+                            opacity: item.isPending ? 0.4 : 1,
+                            child: FeedActionRail(
+                              item: item,
+                              onLike: () => handleLike(item.id),
+                              onComment: () => handleComment(item.id),
+                              onSave: () => handleSave(item.id),
+                              onShare: () => shareVideo(item),
+                              onFollowTap: () => handleFollow(item.id),
+                              onAvatarTap: () => AppRouter.router.pushNamed(
+                                AppRoute.userProfile.name,
+                                pathParameters: {
+                                  'username': item.user.username,
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: context.sc(14)),
+                      FeedInfoOverlay(
                         item: item,
-                        onLike: () => handleLike(item.id),
-                        onComment: () => handleComment(item.id),
-                        onSave: () => handleSave(item.id),
-                        onShare: () => shareVideo(item),
-                        onFollowTap: () => handleFollow(item.id),
-                        onAvatarTap: () => AppRouter.router.pushNamed(
+                        onUserTap: () => AppRouter.router.pushNamed(
                           AppRoute.userProfile.name,
                           pathParameters: {'username': item.user.username},
                         ),
+                        restaurant: item.restaurant == null
+                            ? null
+                            : FeedRestaurantBar(
+                                item: item,
+                                onFollowTap: () => handleFollow(item.id),
+                                onTap: () => AppRouter.router.pushNamed(
+                                  AppRoute.restaurantProfile.name,
+                                  pathParameters: {'id': item.restaurant!.id},
+                                ),
+                              ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
 
-                Positioned(
-                  left: context.sc(14),
-                  right: 90,
-                  bottom: overlayBottom + context.sc(12),
-                  child: FeedInfoOverlay(
-                    item: item,
-                    onUserTap: () => AppRouter.router.pushNamed(
-                      AppRoute.userProfile.name,
-                      pathParameters: {'username': item.user.username},
-                    ),
-                  ),
-                ),
-
-                // Restaurant strip, edge to edge just above the nav bar.
-                if (item.restaurant != null)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: barBottom,
-                    child: FeedRestaurantBar(
-                      item: item,
-                      onFollowTap: () => handleFollow(item.id),
-                      onTap: () => AppRouter.router.pushNamed(
-                        AppRoute.restaurantProfile.name,
-                        pathParameters: {'id': item.restaurant!.id},
-                      ),
-                    ),
-                  ),
-
-                // Playback bar: a line along the strip's bottom edge.
+                // Playback bar: a line just above the nav bar.
                 _ProgressBarSlot(
                   controller: videoManager.controllerFor(item.id),
                 ),

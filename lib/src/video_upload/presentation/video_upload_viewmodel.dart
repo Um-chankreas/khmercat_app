@@ -9,6 +9,8 @@ import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
 import 'package:khmer_cat_app/src/feed/presentation/viewmodel/feed_controller.dart';
 import 'package:khmer_cat_app/src/feed/providers/feed_providers.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/restaurant_profile_controller.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/restaurant_reviews_controller.dart';
 import 'package:khmer_cat_app/src/video_upload/provider/video_upload_providers.dart';
 import 'package:v_video_compressor/v_video_compressor.dart';
 import '../domain/video_upload_state.dart';
@@ -189,6 +191,9 @@ class VideoUploadViewModel extends Notifier<VideoUploadState> {
         uploadedVideoId: uploaded.id,
         uploadedVideoStatus: uploaded.status,
       );
+      // The upload also posted (or updated) the review on the restaurant's
+      // Reviews tab; its video appears there once processed.
+      if (!postAsRestaurant) _refreshReviews(restaurantId!);
       final pendingId = _pendingId;
       _pendingId = null;
       if (pendingId != null) _swapInWhenReady(uploaded.id, pendingId);
@@ -207,6 +212,14 @@ class VideoUploadViewModel extends Notifier<VideoUploadState> {
         errorMessage: e.toString(),
       );
     }
+  }
+
+  /// The Reviews tab and the profile's rating/count, if they're open.
+  void _refreshReviews(String restaurantId) {
+    final reviews = restaurantReviewsControllerProvider(restaurantId);
+    if (ref.exists(reviews)) ref.read(reviews.notifier).reload(quiet: true);
+    final profile = restaurantProfileControllerProvider(restaurantId);
+    if (ref.exists(profile)) ref.read(profile.notifier).refreshQuietly();
   }
 
   /// A small frame for the feed's posting indicator. Best effort — the

@@ -3,7 +3,7 @@
 enum Environment { dev, staging, production }
 
 class AppConfig {
-  static Environment environment = Environment.dev;
+  static Environment environment = Environment.staging;
 
   /// Override at build/run time with:
   ///   --dart-define=API_BASE_URL=https://staging.khmercat.com/api
@@ -23,6 +23,21 @@ class AppConfig {
         return 'https://api.khmercat.com/api';
     }
   }
+
+  /// Public website, for links people share or scan (e.g. profile QR
+  /// codes). Override with --dart-define=WEB_BASE_URL=https://...
+  static const String webBaseUrl = String.fromEnvironment(
+    'WEB_BASE_URL',
+    defaultValue: 'https://khmercat.com',
+  );
+
+  /// The link a profile's QR code opens.
+  static String profileLink(String username) =>
+      '$webBaseUrl/u/${Uri.encodeComponent(username)}';
+
+  /// The link a restaurant profile's QR code opens.
+  static String restaurantLink(String restaurantId) =>
+      '$webBaseUrl/restaurants/${Uri.encodeComponent(restaurantId)}';
 
   /// Override at build/run time with:
   ///   --dart-define=REVERB_APP_KEY=xxxxx

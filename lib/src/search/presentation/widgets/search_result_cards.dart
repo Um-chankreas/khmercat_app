@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/restaurant_labels.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:khmer_cat_app/core/components/image_network/image_user_circle_profile.dart';
@@ -360,11 +361,11 @@ class RecommendedRestaurantCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   NetImage(url: r.coverPicture ?? r.profilePicture),
-                  if (r.serviceTypeLabel != null)
+                  if (r.serviceTypeText(context) case final service?)
                     Positioned(
                       left: 8,
                       top: 8,
-                      child: _OverlayPill(child: Text(r.serviceTypeLabel!)),
+                      child: _OverlayPill(child: Text(service)),
                     ),
                   if (r.isHalal)
                     const Positioned(

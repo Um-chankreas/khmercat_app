@@ -7,10 +7,16 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:khmer_cat_app/core/components/rating/star_rating_input.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
+import 'package:khmer_cat_app/core/network/api_exception.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
+import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
+import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant_review.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/my_restaurants_controller.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/restaurant_profile_controller.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/restaurant_reviews_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/restaurant_logo.dart';
+import 'package:khmer_cat_app/src/restaurants/providers/restaurant_providers.dart';
 import 'package:video_player/video_player.dart';
 import 'widgets/upload_target_sheet.dart';
 import 'video_upload_viewmodel.dart';
@@ -25,26 +31,15 @@ abstract class _Brand {
   static const blue = Color(0xff74BFFF);
   static const ink = Color(0xff1F1B3A);
   static const muted = Color(0xff7A7896);
+  static const crimson = Color(0xffB0125A);
+
+  /// Flat grey for inputs, chips and the target card.
+  static const fill = Color(0xffF4F4F7);
 
   static const gradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [pink, purple, blue],
-  );
-  static const pinkPurple = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [pink, purple],
-  );
-  static const purpleBlue = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [purple, blue],
-  );
-  static const pinkBlue = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [pink, blue],
   );
 
   /// Soft shadow so white cards lift off the white background.
@@ -53,14 +48,6 @@ abstract class _Brand {
       color: const Color(0xff3B1C7A).withValues(alpha: 0.05),
       blurRadius: 12,
       offset: const Offset(0, 3),
-    ),
-  ];
-
-  static List<BoxShadow> softShadow(Color c, {double alpha = 0.14}) => [
-    BoxShadow(
-      color: c.withValues(alpha: alpha),
-      blurRadius: 24,
-      offset: const Offset(0, 8),
     ),
   ];
 }
@@ -73,17 +60,37 @@ const _suggestedHashtags = [
   'restaurant',
 ];
 
+/// "New Post": a video for the feed, or a review of a restaurant. A review
+/// needs a star rating plus a comment or a video (the video is optional) and
+/// lands on the restaurant's Reviews tab — one per restaurant, so posting
+/// again updates it.
 class VideoUploadScreen extends HookConsumerWidget {
   final File? initialVideoFile;
 
-  const VideoUploadScreen({this.initialVideoFile, super.key});
+  /// Opened from a restaurant's "Write a review": reviewing it is
+  /// preselected, and leaving returns to its profile instead of the feed.
+  final Restaurant? reviewRestaurant;
+
+  /// The viewer's current review of [reviewRestaurant], to edit.
+  final RestaurantReview? existingReview;
+
+  const VideoUploadScreen({
+    this.initialVideoFile,
+    this.reviewRestaurant,
+    this.existingReview,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(videoUploadViewModelProvider);
     final vm = ref.read(videoUploadViewModelProvider.notifier);
+    final fromProfile = reviewRestaurant != null;
 
-    final titleCtr = useTextEditingController();
+    final titleCtr = useTextEditingController(
+      text: existingReview?.comment ?? '',
+    );
+    useListenable(titleCtr);
 
     final hashtags = useState<List<String>>([]);
     final tagInputCtr = useTextEditingController();
@@ -91,15 +98,29 @@ class VideoUploadScreen extends HookConsumerWidget {
     // When the user is acting as a restaurant, post as it by default.
     final activeRestaurant = ref.watch(activeRestaurantProvider);
     final selectedTarget = useState<UploadTargetSelection?>(
-      activeRestaurant == null
+      reviewRestaurant != null
+          ? (mode: UploadMode.review, restaurant: reviewRestaurant!)
+          : activeRestaurant == null
           ? null
           : (mode: UploadMode.restaurantPost, restaurant: activeRestaurant),
     );
-    final rating = useState(0);
+    final rating = useState(existingReview?.rating ?? 0);
+    final postingText = useState(false);
+
+    final isProcessing =
+        state.stage == UploadStage.compressing ||
+        state.stage == UploadStage.uploading;
+
+    // Another video is still uploading in the background (the upload state
+    // is shared): this review can't take a video until it's done.
+    final videoLocked = useMemoized(() => fromProfile && isProcessing);
 
     useEffect(() {
       if (initialVideoFile != null) {
         Future.microtask(() => vm.setPickedFile(initialVideoFile!));
+      } else if (fromProfile && !videoLocked) {
+        // Don't carry over a video from an earlier, finished post.
+        Future.microtask(vm.reset);
       }
       return null;
     }, [initialVideoFile]);
@@ -107,7 +128,7 @@ class VideoUploadScreen extends HookConsumerWidget {
     // The restaurants list may still be loading on first build — pre-select
     // the active restaurant once it arrives, unless the user already picked.
     useEffect(() {
-      if (activeRestaurant != null) {
+      if (activeRestaurant != null && !fromProfile) {
         Future.microtask(() {
           selectedTarget.value ??= (
             mode: UploadMode.restaurantPost,
@@ -118,9 +139,11 @@ class VideoUploadScreen extends HookConsumerWidget {
       return null;
     }, [activeRestaurant?.id]);
 
-    final isProcessing =
-        state.stage == UploadStage.compressing ||
-        state.stage == UploadStage.uploading;
+    final videoPath = videoLocked ? null : state.originalPath;
+    final hasVideo = videoPath != null;
+    final target = selectedTarget.value;
+    final isReview = target?.mode != UploadMode.restaurantPost;
+    final comment = titleCtr.text.trim();
 
     void addTag(String raw) {
       final tag = raw.trim().replaceAll('#', '').replaceAll(RegExp(r'\s+'), '');
@@ -137,10 +160,9 @@ class VideoUploadScreen extends HookConsumerWidget {
     // Title + hashtags are two separate inputs but the backend takes a single
     // `caption` field, so they're combined on send (title, blank line, tags).
     String buildCaption() {
-      final title = titleCtr.text.trim();
       final tags = hashtags.value.map((t) => '#$t').join(' ');
       return [
-        if (title.isNotEmpty) title,
+        if (comment.isNotEmpty) comment,
         if (tags.isNotEmpty) tags,
       ].join('\n\n');
     }
@@ -150,338 +172,406 @@ class VideoUploadScreen extends HookConsumerWidget {
       if (picked != null) selectedTarget.value = picked;
     }
 
+    Future<void> pickVideo() async {
+      if (videoLocked) {
+        AppService.showToast(
+          'Your last video is still uploading — add one once it\'s done.',
+        );
+        return;
+      }
+      await vm.pickVideo();
+    }
+
+    /// The Reviews tab and the profile's rating/count, if they're open.
+    void refreshRestaurant(String restaurantId) {
+      final reviews = restaurantReviewsControllerProvider(restaurantId);
+      if (ref.exists(reviews)) ref.read(reviews.notifier).reload(quiet: true);
+      final profile = restaurantProfileControllerProvider(restaurantId);
+      if (ref.exists(profile)) ref.read(profile.notifier).refreshQuietly();
+    }
+
+    void leave() {
+      final nav = Navigator.of(context);
+      if (nav.canPop()) nav.pop(true);
+      // This screen was pushed imperatively (Navigator.push) on top of the
+      // camera route, so go_router alone can't dismiss it — pop it first,
+      // then return to the feed.
+      if (!fromProfile) AppRouter.router.goNamed(AppRoute.index.name);
+    }
+
+    /// A review without a video posts straight away (no upload).
+    Future<void> postTextReview() async {
+      final restaurant = target!.restaurant;
+      postingText.value = true;
+      try {
+        await ref
+            .read(restaurantRepositoryProvider)
+            .postReview(restaurant.id, rating: rating.value, comment: comment);
+        refreshRestaurant(restaurant.id);
+        AppService.showToast(
+          existingReview == null ? 'Review posted.' : 'Review updated.',
+        );
+        if (context.mounted) leave();
+      } on ApiException catch (e) {
+        AppService.showToast(
+          e.isValidationError ? e.allErrorsMessage : e.message,
+          isError: true,
+        );
+      } catch (_) {
+        AppService.showToast('Could not post your review.', isError: true);
+      } finally {
+        if (context.mounted) postingText.value = false;
+      }
+    }
+
     void handleUpload() {
-      final target = selectedTarget.value;
+      if (isReview && !hasVideo) {
+        postTextReview();
+        return;
+      }
       // Kick off the upload and immediately leave — compression + upload run
       // in the background and progress is shown on the bottom-nav create
       // button (see IndexScreen / AppBottomNavBar).
       vm.compressAndUpload(
         caption: buildCaption(),
-        postAsRestaurant: target?.mode == UploadMode.restaurantPost,
+        postAsRestaurant: !isReview,
         restaurantId: target?.restaurant.id,
         restaurant: target?.restaurant,
-        rating: target?.mode == UploadMode.restaurantPost ? null : rating.value,
+        rating: isReview ? rating.value : null,
       );
-      // This screen was pushed imperatively (Navigator.push) on top of the
-      // camera route, so go_router alone can't dismiss it — pop it first,
-      // then return to the feed.
-      final nav = Navigator.of(context);
-      if (nav.canPop()) nav.pop();
-      AppRouter.router.goNamed(AppRoute.index.name);
+      if (fromProfile) {
+        AppService.showToast('Posting your review…');
+      }
+      leave();
     }
 
     final canPost =
-        state.originalPath != null &&
-        selectedTarget.value != null &&
-        (selectedTarget.value!.mode == UploadMode.restaurantPost ||
-            rating.value > 0) &&
-        !isProcessing;
+        target != null &&
+        !postingText.value &&
+        (isReview
+            ? rating.value > 0 &&
+                  (hasVideo ? !isProcessing : comment.isNotEmpty)
+            : hasVideo && !isProcessing);
+
+    final hint = target == null
+        ? 'Choose a restaurant to post to'
+        : !isReview
+        ? 'Choose a video to post'
+        : hasVideo
+        ? 'Add a star rating to post'
+        : 'Add a star rating and a comment to post';
+
+    // Video posts in progress take over the screen only in the camera flow;
+    // a review opened from a profile always shows its form.
+    final showUploadStatus = !fromProfile;
 
     return GestureDetector(
       onTap: () => AppService.dismissKeyboard(context),
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        color: const Color(0xffF6F5FB),
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            centerTitle: true,
-            systemOverlayStyle: const SystemUiOverlayStyle(
-              statusBarColor: Colors.transparent,
-              statusBarIconBrightness: Brightness.dark, // Android
-              statusBarBrightness: Brightness.light, // iOS
-            ),
-            leading: Center(
-              child: _BackButton(
-                onTap: () {
-                  final nav = Navigator.of(context);
-                  if (nav.canPop()) nav.pop();
-                },
-              ),
-            ),
-            actions: [
-              if (!isProcessing && state.stage != UploadStage.success)
-                _PostAction(
-                  enabled: canPost,
-                  retry: state.stage == UploadStage.error,
-                  onTap: handleUpload,
-                ),
-            ],
-            title: const Text(
-              'New Post',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 17,
-                letterSpacing: -0.2,
-                color: _Brand.ink,
-              ),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+          systemOverlayStyle: const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark, // Android
+            statusBarBrightness: Brightness.light, // iOS
+          ),
+          leading: Center(
+            child: _BackButton(
+              onTap: () {
+                final nav = Navigator.of(context);
+                if (nav.canPop()) nav.pop();
+              },
             ),
           ),
-          body: SafeArea(
-            top: false,
-            child: Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _Card(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _VideoThumb(
-                                path: state.originalPath,
-                                onChange: vm.pickVideo,
-                              ),
-                              const Gap(14),
-                              Expanded(
-                                child: SizedBox(
-                                  height: _VideoThumb.height,
-                                  child: TextField(
-                                    controller: titleCtr,
-                                    maxLength: _maxTitleLength,
-                                    maxLines: null,
-                                    expands: true,
-                                    textAlignVertical: TextAlignVertical.top,
-                                    textCapitalization:
-                                        TextCapitalization.sentences,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16,
-                                      height: 1.4,
-                                      color: _Brand.ink,
-                                    ),
-                                    decoration: InputDecoration(
-                                      hintText:
-                                          'Write a caption...\nWhat makes it special?',
-                                      hintStyle: TextStyle(
-                                        color: _Brand.muted.withValues(
-                                          alpha: 0.55,
-                                        ),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      filled: false,
-                                      contentPadding: EdgeInsets.zero,
-                                      isDense: true,
-                                      counterStyle: TextStyle(
-                                        fontSize: 11.5,
-                                        color: _Brand.muted.withValues(
-                                          alpha: 0.8,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const Gap(14),
-
-                        const _SectionLabel('Hashtags'),
-                        // ---- Hashtags ------------------------------------
-                        _Card(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              TextField(
-                                controller: tagInputCtr,
-                                textInputAction: TextInputAction.done,
-                                autocorrect: false,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.deny(
-                                    RegExp(r'[#]'),
-                                  ),
-                                ],
-                                onSubmitted: addTag,
-                                // Space or comma commits the tag.
-                                onChanged: (v) {
-                                  if (v.endsWith(' ') || v.endsWith(',')) {
-                                    addTag(v.replaceAll(',', ''));
-                                  }
-                                },
-                                decoration: InputDecoration(
-                                  hintText: 'Add a hashtag',
-                                  filled: true,
-                                  fillColor: const Color(0xffF6F5FB),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(
-                                      color: _Brand.purple.withValues(
-                                        alpha: 0.5,
-                                      ),
-                                    ),
-                                  ),
-                                  prefixIconConstraints: const BoxConstraints(
-                                    minWidth: 40,
-                                  ),
-                                  prefixIcon: const Icon(
-                                    Icons.tag_rounded,
-                                    size: 18,
-                                    color: _Brand.purple,
-                                  ),
-                                  suffixIcon: ValueListenableBuilder(
-                                    valueListenable: tagInputCtr,
-                                    builder: (_, v, _) => v.text.trim().isEmpty
-                                        ? const SizedBox.shrink()
-                                        : IconButton(
-                                            icon: const Icon(
-                                              Icons.add_circle_rounded,
-                                              color: _Brand.purple,
-                                            ),
-                                            onPressed: () =>
-                                                addTag(tagInputCtr.text),
-                                          ),
-                                  ),
-                                  isDense: true,
-                                ),
-                              ),
-                              if (hashtags.value.isNotEmpty) ...[
-                                const Gap(12),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: hashtags.value
-                                      .map(
-                                        (tag) => _HashtagChip(
-                                          label: tag,
-                                          onRemove: () => removeTag(tag),
-                                        ),
-                                      )
-                                      .toList(),
-                                ),
-                              ],
-                              Builder(
-                                builder: (context) {
-                                  final suggestions = _suggestedHashtags
-                                      .where((t) => !hashtags.value.contains(t))
-                                      .toList();
-                                  if (suggestions.isEmpty) {
-                                    return const SizedBox.shrink();
-                                  }
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 12),
-                                    child: Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      crossAxisAlignment:
-                                          WrapCrossAlignment.center,
-                                      children: [
-                                        const Text(
-                                          'Suggested',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: _Brand.muted,
-                                          ),
-                                        ),
-                                        for (final tag in suggestions)
-                                          _SuggestedChip(
-                                            label: tag,
-                                            onTap: () => addTag(tag),
-                                          ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const Gap(14),
-
-                        // ---- Restaurant ------------------------------------
-                        const _SectionLabel('Post to'),
-                        _TargetCard(
-                          selection: selectedTarget.value,
-                          onTap: pickTarget,
-                        ),
-
-                        if (!canPost && !isProcessing) ...[
-                          const Gap(12),
-                          Center(
-                            child: Text(
-                              state.originalPath == null
-                                  ? 'Choose a video to continue'
-                                  : selectedTarget.value == null
-                                  ? 'Select a restaurant to enable Post'
-                                  : 'Add a star rating to enable Post',
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                color: _Brand.muted,
-                              ),
-                            ),
-                          ),
-                        ],
-
-                        // ---- Rating (reviews only) -------------------------
-                        if (selectedTarget.value != null &&
-                            selectedTarget.value!.mode !=
-                                UploadMode.restaurantPost) ...[
-                          const Gap(14),
-                          _Card(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const _SectionHeader(
-                                  icon: Icons.star_rounded,
-                                  gradient: LinearGradient(
-                                    colors: [Color(0xffFFB800), _Brand.pink],
-                                  ),
-                                  title: 'Your rating',
-                                  subtitle: 'How was your experience?',
-                                ),
-                                const Gap(16),
-                                Center(
-                                  child: StarRatingInput(
-                                    value: rating.value,
-                                    onChanged: (v) => rating.value = v,
-                                    enabled: !isProcessing,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-
-                        if (isProcessing) ...[
-                          const Gap(14),
-                          _Card(child: _ProgressSection(state: state)),
-                        ],
-
-                        if (state.stage == UploadStage.error) ...[
-                          const Gap(14),
-                          _ErrorBanner(
-                            message: state.errorMessage ?? 'Upload failed',
-                          ),
-                        ],
-
-                        if (state.stage == UploadStage.success) ...[
-                          const Gap(14),
-                          _SuccessBanner(status: state.uploadedVideoStatus),
-                        ],
-                      ],
-                    ),
+          actions: [
+            if (postingText.value)
+              const Padding(
+                padding: EdgeInsets.only(right: 28),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                 ),
+              )
+            else if (!showUploadStatus ||
+                (!isProcessing && state.stage != UploadStage.success))
+              _PostAction(
+                enabled: canPost,
+                retry: showUploadStatus && state.stage == UploadStage.error,
+                onTap: handleUpload,
+              ),
+          ],
+          title: const Text(
+            'New Post',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 17,
+              letterSpacing: -0.2,
+              color: _Brand.ink,
+            ),
+          ),
+        ),
+        body: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // ---- Video + review text ---------------------------
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _VideoThumb(
+                            path: videoPath,
+                            optional: isReview,
+                            onChange: pickVideo,
+                            onRemove: isReview ? vm.reset : null,
+                          ),
+                          const Gap(14),
+                          Expanded(
+                            child: SizedBox(
+                              height: _VideoThumb.height,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    isReview ? 'Your review' : 'Caption',
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: _Brand.crimson,
+                                    ),
+                                  ),
+                                  const Gap(6),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: titleCtr,
+                                      maxLength: _maxTitleLength,
+                                      maxLines: null,
+                                      expands: true,
+                                      textAlignVertical: TextAlignVertical.top,
+                                      textCapitalization:
+                                          TextCapitalization.sentences,
+                                      buildCounter:
+                                          (
+                                            _, {
+                                            required currentLength,
+                                            required isFocused,
+                                            maxLength,
+                                          }) => Text(
+                                            '$currentLength / $maxLength',
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              color: _Brand.muted,
+                                            ),
+                                          ),
+                                      style: const TextStyle(
+                                        fontSize: 15.5,
+                                        height: 1.45,
+                                        color: _Brand.ink,
+                                      ),
+                                      decoration: InputDecoration(
+                                        hintText: isReview
+                                            ? 'What did you order? How was it?'
+                                            : 'Write a caption...',
+                                        hintStyle: TextStyle(
+                                          color: _Brand.muted.withValues(
+                                            alpha: 0.6,
+                                          ),
+                                        ),
+                                        border: InputBorder.none,
+                                        enabledBorder: InputBorder.none,
+                                        focusedBorder: InputBorder.none,
+                                        filled: false,
+                                        contentPadding: EdgeInsets.zero,
+                                        isDense: true,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const Gap(20),
+
+                      // ---- Restaurant ------------------------------------
+                      _TargetCard(selection: target, onTap: pickTarget),
+
+                      // ---- Rating (reviews only) -------------------------
+                      if (isReview) ...[
+                        const Gap(22),
+                        Row(
+                          children: [
+                            const Expanded(child: _SectionLabel('Your rating')),
+                            Text(
+                              rating.value == 0
+                                  ? 'Tap a star'
+                                  : '${rating.value} of 5',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: _Brand.ink,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Gap(10),
+                        Center(
+                          child: StarRatingInput(
+                            value: rating.value,
+                            onChanged: (v) => rating.value = v,
+                            enabled: !postingText.value,
+                            size: 50,
+                            showFeedback: false,
+                          ),
+                        ),
+                      ],
+
+                      if (!canPost && !postingText.value) ...[
+                        const Gap(12),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.info_outline_rounded,
+                              size: 15,
+                              color: _Brand.muted,
+                            ),
+                            const Gap(6),
+                            Expanded(
+                              child: Text(
+                                hint,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  color: _Brand.muted,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      // ---- Hashtags (they tag the video) -----------------
+                      if (hasVideo) ...[
+                        const Gap(24),
+                        const _SectionLabel('Hashtags'),
+                        const Gap(10),
+                        TextField(
+                          controller: tagInputCtr,
+                          textInputAction: TextInputAction.done,
+                          autocorrect: false,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.deny(RegExp(r'[#]')),
+                          ],
+                          onSubmitted: addTag,
+                          // Space or comma commits the tag.
+                          onChanged: (v) {
+                            if (v.endsWith(' ') || v.endsWith(',')) {
+                              addTag(v.replaceAll(',', ''));
+                            }
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Add a hashtag',
+                            filled: true,
+                            fillColor: _Brand.fill,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(
+                                color: _Brand.purple.withValues(alpha: 0.5),
+                              ),
+                            ),
+                            prefixIconConstraints: const BoxConstraints(
+                              minWidth: 44,
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.tag_rounded,
+                              size: 19,
+                              color: _Brand.muted,
+                            ),
+                            suffixIcon: ValueListenableBuilder(
+                              valueListenable: tagInputCtr,
+                              builder: (_, v, _) => v.text.trim().isEmpty
+                                  ? const SizedBox.shrink()
+                                  : IconButton(
+                                      icon: const Icon(
+                                        Icons.add_circle_rounded,
+                                        color: _Brand.purple,
+                                      ),
+                                      onPressed: () => addTag(tagInputCtr.text),
+                                    ),
+                            ),
+                          ),
+                        ),
+                        const Gap(12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final tag in hashtags.value)
+                              _HashtagChip(
+                                label: tag,
+                                onRemove: () => removeTag(tag),
+                              ),
+                            for (final tag in _suggestedHashtags.where(
+                              (t) => !hashtags.value.contains(t),
+                            ))
+                              _SuggestedChip(
+                                label: tag,
+                                onTap: () => addTag(tag),
+                              ),
+                          ],
+                        ),
+                      ],
+
+                      if (showUploadStatus && isProcessing) ...[
+                        const Gap(18),
+                        _Card(child: _ProgressSection(state: state)),
+                      ],
+
+                      if (showUploadStatus &&
+                          state.stage == UploadStage.error) ...[
+                        const Gap(18),
+                        _ErrorBanner(
+                          message: state.errorMessage ?? 'Upload failed',
+                        ),
+                      ],
+
+                      if (showUploadStatus &&
+                          state.stage == UploadStage.success) ...[
+                        const Gap(18),
+                        _SuccessBanner(status: state.uploadedVideoStatus),
+                      ],
+
+                      if (isReview && target != null) ...[
+                        const Gap(28),
+                        const _ReviewsTabNote(),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              if (showUploadStatus)
                 _BottomAction(
                   state: state,
                   canPost: canPost,
@@ -491,8 +581,7 @@ class VideoUploadScreen extends HookConsumerWidget {
                     AppRoute.index.name,
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
@@ -538,10 +627,7 @@ class _BackButton extends StatelessWidget {
 
 class _Card extends StatelessWidget {
   final Widget child;
-
-  /// Draws a soft purple outline (used for a completed step).
-  final bool highlight;
-  const _Card({required this.child, this.highlight = false});
+  const _Card({required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -551,12 +637,6 @@ class _Card extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: highlight
-            ? Border.all(
-                color: _Brand.purple.withValues(alpha: 0.35),
-                width: 1.5,
-              )
-            : null,
         boxShadow: _Brand.cardShadow(),
       ),
       child: child,
@@ -564,7 +644,7 @@ class _Card extends StatelessWidget {
   }
 }
 
-/// Where the post is tagged: a bold dark tile with a gradient-ringed logo.
+/// Which restaurant the post is for: its logo, name, category · address.
 class _TargetCard extends StatelessWidget {
   final UploadTargetSelection? selection;
   final VoidCallback onTap;
@@ -573,93 +653,89 @@ class _TargetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sel = selection;
+    final r = sel?.restaurant;
     final isPost = sel?.mode == UploadMode.restaurantPost;
+    final details = [
+      r?.category?.name,
+      r?.address,
+    ].whereType<String>().where((s) => s.trim().isNotEmpty).join(' · ');
 
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: _Card(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: _Brand.fill,
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: Row(
           children: [
-            // Gradient ring around the logo / empty-state icon.
-            Container(
-              padding: const EdgeInsets.all(2.5),
-              decoration: const BoxDecoration(
-                gradient: _Brand.gradient,
-                shape: BoxShape.circle,
+            if (r != null)
+              RestaurantLogo(restaurant: r, size: 46, borderRadius: 12)
+            else
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.storefront_outlined,
+                  size: 22,
+                  color: _Brand.muted,
+                ),
               ),
-              child: sel != null
-                  ? RestaurantLogo(
-                      restaurant: sel.restaurant,
-                      size: 46,
-                      borderRadius: 23,
-                    )
-                  : Container(
-                      width: 46,
-                      height: 46,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.add_location_alt_rounded,
-                        size: 24,
-                        color: _Brand.purple,
-                      ),
-                    ),
-            ),
-            const Gap(14),
+            const Gap(12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    sel == null
-                        ? 'LOCATION'
-                        : (isPost ? 'POSTING AS' : 'REVIEWING'),
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.9,
-                      color: _Brand.muted,
+                    r == null
+                        ? 'Restaurant'
+                        : (isPost ? 'Posting as' : 'Reviewing'),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _Brand.crimson,
                     ),
                   ),
-                  const Gap(3),
+                  const Gap(1),
                   Text(
-                    sel?.restaurant.name ?? 'Choose a restaurant',
+                    r?.name ?? 'Choose a restaurant',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
-                      fontSize: 17,
+                      fontSize: 16,
                       letterSpacing: -0.2,
                       color: _Brand.ink,
                     ),
                   ),
-                  if (sel == null) ...[
+                  if (details.isNotEmpty) ...[
                     const Gap(1),
                     Text(
-                      'Tag where this was taken or created',
-                      style: TextStyle(fontSize: 12.5, color: _Brand.muted),
+                      details,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: _Brand.muted,
+                      ),
                     ),
                   ],
                 ],
               ),
             ),
             const Gap(8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: _Brand.purple.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                sel == null ? 'Select' : 'Change',
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: _Brand.purple,
-                ),
+            Text(
+              r == null ? 'Select' : 'Change',
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                color: _Brand.crimson,
               ),
             ),
           ],
@@ -669,105 +745,18 @@ class _TargetCard extends StatelessWidget {
   }
 }
 
-/// Small muted heading above a card, so each block is easy to scan.
 class _SectionLabel extends StatelessWidget {
   final String text;
   const _SectionLabel(this.text);
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 0, 0, 8),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: _Brand.muted,
-        ),
-      ),
-    );
-  }
-}
-
-/// Gradient icon badge + title/subtitle, used at the top of each card.
-class _SectionHeader extends StatelessWidget {
-  final IconData icon;
-  final Gradient gradient;
-  final String title;
-  final String subtitle;
-  const _SectionHeader({
-    required this.icon,
-    required this.gradient,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _IconBadge(icon: icon, gradient: gradient),
-        const Gap(12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16.5,
-                  letterSpacing: -0.2,
-                  color: _Brand.ink,
-                ),
-              ),
-              const Gap(1),
-              Text(
-                subtitle,
-                style: const TextStyle(fontSize: 12.5, color: _Brand.muted),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _IconBadge extends StatelessWidget {
-  final IconData icon;
-  final Gradient gradient;
-  const _IconBadge({required this.icon, required this.gradient});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(gradient: gradient, shape: BoxShape.circle),
-      child: Icon(icon, size: 19, color: Colors.white),
-    );
-  }
-}
-
-class _CircleIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  const _CircleIconButton({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: _Brand.purple.withValues(alpha: 0.12),
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Icon(icon, size: 20, color: _Brand.purple),
-        ),
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w800,
+        color: _Brand.ink,
       ),
     );
   }
@@ -780,39 +769,29 @@ class _HashtagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(13, 7, 9, 7),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            _Brand.pink.withValues(alpha: 0.12),
-            _Brand.purple.withValues(alpha: 0.16),
+    return GestureDetector(
+      onTap: onRemove,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 9, 10, 9),
+        decoration: BoxDecoration(
+          color: _Brand.fill,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '#$label',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: _Brand.ink,
+              ),
+            ),
+            const Gap(4),
+            const Icon(Icons.close_rounded, size: 14, color: _Brand.muted),
           ],
         ),
-        border: Border.all(color: _Brand.purple.withValues(alpha: 0.25)),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '#$label',
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-              color: Color(0xff6B4EFF),
-            ),
-          ),
-          const Gap(6),
-          GestureDetector(
-            onTap: onRemove,
-            child: const Icon(
-              Icons.close_rounded,
-              size: 16,
-              color: Color(0xff6B4EFF),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -825,30 +804,69 @@ class _SuggestedChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: _Brand.blue.withValues(alpha: 0.12),
+          color: _Brand.fill,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.add_rounded, size: 14, color: _Brand.blue),
-            const Gap(3),
-            Text(
-              '#$label',
-              style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: Color(0xff3E8FE0),
-              ),
-            ),
+        child: Text(
+          '+ #$label',
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: _Brand.muted,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Where a review shows up, and that there's one per restaurant.
+class _ReviewsTabNote extends StatelessWidget {
+  const _ReviewsTabNote();
+
+  @override
+  Widget build(BuildContext context) {
+    const style = TextStyle(fontSize: 12.5, height: 1.45, color: _Brand.ink);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 16, 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            _Brand.pink.withValues(alpha: 0.10),
+            _Brand.blue.withValues(alpha: 0.12),
           ],
         ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.star_outline_rounded, size: 22, color: _Brand.ink),
+          Gap(12),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: style,
+                children: [
+                  TextSpan(text: 'Shows in the restaurant\'s '),
+                  TextSpan(
+                    text: 'Reviews',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  TextSpan(
+                    text:
+                        ' tab. One rating per restaurant – posting again '
+                        'updates it.',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -864,15 +882,23 @@ String _fmt(Duration d) {
   return '$m:$s';
 }
 
-/// Compact 2:3 video thumbnail (muted autoplay loop). Tap to open the
-/// full-screen preview with sound; the corner button swaps the video.
+/// Compact video thumbnail (muted autoplay loop). Tap to open the
+/// full-screen preview with sound; the corner button swaps the video, or
+/// with [onRemove] takes it off. [optional] marks it as not required.
 class _VideoThumb extends HookWidget {
   final String? path;
+  final bool optional;
   final VoidCallback onChange;
-  const _VideoThumb({required this.path, required this.onChange});
+  final VoidCallback? onRemove;
+  const _VideoThumb({
+    required this.path,
+    required this.onChange,
+    this.optional = false,
+    this.onRemove,
+  });
 
-  static const double width = 132;
-  static const double height = 198;
+  static const double width = 112;
+  static const double height = 150;
 
   @override
   Widget build(BuildContext context) {
@@ -924,8 +950,20 @@ class _VideoThumb extends HookWidget {
 
     Widget body;
     if (path == null) {
-      body = const Center(
-        child: Icon(Icons.video_call_rounded, size: 36, color: _Brand.purple),
+      body = const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.video_call_outlined, size: 30, color: _Brand.muted),
+          Gap(6),
+          Text(
+            'Add video',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: _Brand.muted,
+            ),
+          ),
+        ],
       );
     } else if (!ready.value || player == null) {
       body = const Center(
@@ -986,31 +1024,44 @@ class _VideoThumb extends HookWidget {
           Positioned.fill(
             child: GestureDetector(
               onTap: path == null ? onChange : openPreview,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  gradient: _Brand.gradient,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: ColoredBox(
-                    color: path == null
-                        ? const Color(0xffF1ECFF)
-                        : Colors.black,
-                    child: body,
-                  ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: ColoredBox(
+                  color: path == null ? _Brand.fill : Colors.black,
+                  child: body,
                 ),
               ),
             ),
           ),
-          if (path != null)
+          if (optional)
             Positioned(
               top: 6,
               right: 6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Optional',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          if (path != null)
+            Positioned(
+              top: 6,
+              left: 6,
               child: _PreviewAction(
-                icon: Icons.swap_horiz_rounded,
-                onTap: onChange,
+                icon: onRemove != null
+                    ? Icons.close_rounded
+                    : Icons.swap_horiz_rounded,
+                onTap: onRemove ?? onChange,
               ),
             ),
         ],
@@ -1029,12 +1080,12 @@ class _PreviewAction extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.45),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 18, color: Colors.white),
+        child: Icon(icon, size: 15, color: Colors.white),
       ),
     );
   }

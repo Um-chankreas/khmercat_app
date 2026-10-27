@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:khmer_cat_app/l10n/app_localizations.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -19,6 +20,7 @@ class UnpublishedBanner extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final busy = useState(false);
     final muted = ProfileTheme.textSecondary(context);
+    final l = AppLocalizations.of(context);
 
     Future<void> publish() async {
       busy.value = true;
@@ -32,9 +34,9 @@ class UnpublishedBanner extends HookConsumerWidget {
         await ref
             .read(myRestaurantsControllerProvider.notifier)
             .reloadQuietly();
-        AppService.showToast('Restaurant is public again');
+        AppService.showToast(l.publishedAgain);
       } catch (_) {
-        AppService.showToast('Could not publish.', isError: true);
+        AppService.showToast(l.publishFailed, isError: true);
       } finally {
         if (context.mounted) busy.value = false;
       }
@@ -55,7 +57,7 @@ class UnpublishedBanner extends HookConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Hidden from customers',
+                  l.unpublishedTitle,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -63,7 +65,7 @@ class UnpublishedBanner extends HookConsumerWidget {
                   ),
                 ),
                 Text(
-                  'Only your team can see this restaurant.',
+                  l.unpublishedBody,
                   style: TextStyle(fontSize: 12.5, color: muted),
                 ),
               ],
@@ -81,7 +83,7 @@ class UnpublishedBanner extends HookConsumerWidget {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Publish'),
+                : Text(l.publishAction),
           ),
         ],
       ),

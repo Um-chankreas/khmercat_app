@@ -29,64 +29,34 @@ List<BoxShadow> searchShadow() => [
   ),
 ];
 
-/// The search tab's backdrop: plain white with the logo's cat head faded
-/// into the top-right and bottom-left corners. Dark mode keeps the plain
-/// page color and only a faint cat.
+/// The search tab's backdrop: the full-page cat illustration in light mode.
+/// Dark mode keeps the plain page color, since the artwork is light.
 class SearchBackdrop extends StatelessWidget {
   const SearchBackdrop({super.key});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final width = MediaQuery.sizeOf(context).width;
-    final cat = (width * 0.92).clamp(280.0, 480.0);
-    // Each is painted once; the boundary keeps it out of scroll repaints.
-    Widget logo({required double opacity}) {
-      return RepaintBoundary(
-        child: Image.asset(
-          AssetsName.appLogoTrsm,
-          opacity: AlwaysStoppedAnimation(opacity),
-          // Decoded at on-screen size, not the 1198px source.
-          cacheWidth: (cat * MediaQuery.devicePixelRatioOf(context)).round(),
-        ),
-      );
-    }
-
+    if (isDark) return const SizedBox.shrink();
+    final catWidth = MediaQuery.sizeOf(context).width * 0.9;
     return IgnorePointer(
-      child: DecoratedBox(
-        // Light mode: a soft pink wash at the top easing into lavender.
-        decoration: BoxDecoration(
-          gradient: isDark
-              ? null
-              : const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xffFEF4F9),
-                    Color(0xffFBF8FD),
-                    Color(0xffF7F8FE),
-                  ],
-                ),
-        ),
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: [
-            // Top-right and bottom-left, each hanging off its corner.
-            Positioned(
-              right: -cat * 0.16,
-              top: -cat * 0.04,
-              width: cat,
-              // Behind the search bar, chips and heading, so it's fainter
-              // to stay out of their way.
-              child: logo(opacity: isDark ? 0.05 : 0.06),
+      // Painted once; the boundary keeps it out of scroll repaints.
+      child: RepaintBoundary(
+        child: ColoredBox(
+          // Matches the artwork's own off-white so wide screens blend in.
+          color: const Color(0xffFBFBFC),
+          // Drawn narrower than the screen so the cat head is smaller; the
+          // artwork's plain edges blend into the matching color around it.
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: Image.asset(
+              AssetsName.searchBackground,
+              fit: BoxFit.fitWidth,
+              width: catWidth,
+              cacheWidth: (catWidth * MediaQuery.devicePixelRatioOf(context))
+                  .round(),
             ),
-            Positioned(
-              left: -cat * 0.16,
-              bottom: -cat * 0.10,
-              width: cat,
-              child: logo(opacity: isDark ? 0.06 : 0.08),
-            ),
-          ],
+          ),
         ),
       ),
     );

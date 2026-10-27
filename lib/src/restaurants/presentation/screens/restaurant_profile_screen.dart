@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:khmer_cat_app/src/holidays/presentation/holiday_labels.dart';
+import 'package:khmer_cat_app/l10n/app_localizations.dart';
+import 'package:khmer_cat_app/src/profile/presentation/screens/profile_qr_screen.dart';
+import 'package:khmer_cat_app/core/components/halal_badge.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
@@ -13,19 +17,25 @@ import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/core/location/location_provider.dart';
-import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import 'package:khmer_cat_app/core/utils/social_links.dart';
 import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
-import 'package:khmer_cat_app/src/restaurants/data/restaurant_profile_mock.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/widgets/delivery_app_logo.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/widgets/expandable_text.dart';
 import 'package:khmer_cat_app/src/search/presentation/discover_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/my_restaurants_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/restaurant_profile_controller.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/restaurant_reviews_controller.dart';
+import 'package:khmer_cat_app/src/video_upload/presentation/video_upload_screen.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/restaurant_info_panel.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/restaurant_review_wall.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/restaurant_videos_grid.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/unpublished_banner.dart';
+import 'package:khmer_cat_app/src/holidays/domain/restaurant_holiday.dart';
+import 'package:khmer_cat_app/src/holidays/presentation/holiday_poster_card.dart';
+import 'package:khmer_cat_app/src/restaurants/providers/restaurant_providers.dart';
+import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:khmer_cat_app/src/people/presentation/people_list_screen.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/approval_banner.dart';
@@ -43,6 +53,7 @@ class RestaurantProfileScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
     final scrollController = useScrollController();
     final tab = useState(0);
     final showTop = useState(false);
@@ -51,6 +62,14 @@ class RestaurantProfileScreen extends HookConsumerWidget {
         final show =
             scrollController.hasClients && scrollController.offset > 700;
         if (show != showTop.value) showTop.value = show;
+        // The Reviews tab pages in as its end comes near.
+        if (tab.value == 2 &&
+            scrollController.hasClients &&
+            scrollController.position.extentAfter < 600) {
+          ref
+              .read(restaurantReviewsControllerProvider(restaurantId).notifier)
+              .loadMore();
+        }
       }
 
       scrollController.addListener(onScroll);
@@ -73,8 +92,8 @@ class RestaurantProfileScreen extends HookConsumerWidget {
         appBar: AppBar(surfaceTintColor: Colors.transparent),
         body: ProfileEmptyTabBody(
           icon: Icons.storefront_outlined,
-          title: 'Restaurant unavailable',
-          message: state.errorMessage ?? 'Not found',
+          title: l.restaurantUnavailable,
+          message: state.errorMessage ?? l.notFound,
         ),
       );
     }
@@ -87,23 +106,20 @@ class RestaurantProfileScreen extends HookConsumerWidget {
     final opens = RestaurantInfoPanel.hm(r.openingTime);
     final closes = RestaurantInfoPanel.hm(r.closingTime);
     final hours = opens != null && closes != null
-        ? '${_h12(opens)} – ${_h12(closes)}, '
-              '${r.openDaysLabel ?? RestaurantProfileMock.openDaysLabel}'
+        ? '${holidayTime(context, opens)} – ${holidayTime(context, closes)}, '
+              '${r.openDaysLabel ?? l.hoursDaily}'
         : null;
 
     // Social links the restaurant has set (brand logo + link).
     final socialLinks = [
       (SocialLinks.facebook(r.facebookUrl), AssetsName.facebook, 'Facebook'),
-      (SocialLinks.tiktok(r.tiktokUrl), AssetsName.tiktok, 'TikTok'),
       (
         SocialLinks.telegram(r.telegramUsername),
         AssetsName.telegram,
         'Telegram',
       ),
     ].where((l) => l.$1 != null).map((l) => (l.$1!, l.$2, l.$3)).toList();
-    final deliveryLinks = r.deliveryLinks.isNotEmpty
-        ? r.deliveryLinks
-        : RestaurantProfileMock.deliveryLinks;
+    final deliveryLinks = r.deliveryLinks;
 
     // Visitor shortcuts: exact pin when we have one, else the address.
     final address = r.address?.trim();
@@ -121,13 +137,52 @@ class RestaurantProfileScreen extends HookConsumerWidget {
         ? r.distanceKm! * 1000
         : distanceTo(ref.watch(locationProvider), r);
 
-    final Widget? hoursRow = hours != null || r.isOpen != null
+    // A holiday notice for today replaces the usual hours.
+    final holidayToday = r.todayHoliday;
+    final Widget? hoursRow =
+        holidayToday != null || hours != null || r.isOpen != null
         ? _DetailRow(
             iconAsset: AssetsName.lcClock,
             trailing: r.isOpen == null ? null : OpenStatusPill(open: r.isOpen!),
-            child: Text(hours ?? '', style: _detailStyle(context)),
+            child: Text(
+              holidayToday?.todayText(context) ?? hours ?? '',
+              style: _detailStyle(context),
+            ),
           )
         : null;
+
+    Future<void> removePoster(RestaurantHoliday holiday) async {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: Text(l.removePosterTitle),
+          content: Text(l.removePosterMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, false),
+              child: Text(l.cancelAction),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, true),
+              child: Text(
+                l.removeAction,
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+      try {
+        await ref.read(restaurantRepositoryProvider).deleteHoliday(holiday.id);
+        await ref
+            .read(restaurantProfileControllerProvider(restaurantId).notifier)
+            .refreshQuietly();
+      } catch (_) {
+        AppService.showToast(l.removePosterFailed, isError: true);
+      }
+    }
+
     final Widget? addressRow = address != null && address.isNotEmpty
         ? _DetailRow(
             iconAsset: AssetsName.lcPin,
@@ -141,7 +196,7 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                 if (meters != null) ...[
                   const Gap(2),
                   Text(
-                    '${formatDistance(meters)} away',
+                    l.distanceAway(formatDistance(meters)),
                     style: TextStyle(
                       fontSize: 13.5,
                       color: ProfileTheme.textSecondary(context),
@@ -157,7 +212,7 @@ class RestaurantProfileScreen extends HookConsumerWidget {
       if (!await requireLogin(
         context,
         ref,
-        message: 'Sign in to follow this restaurant',
+        message: l.signInToFollowRestaurant,
       )) {
         return;
       }
@@ -167,14 +222,23 @@ class RestaurantProfileScreen extends HookConsumerWidget {
     }
 
     Future<void> onWriteReview() async {
-      if (!await requireLogin(
-        context,
-        ref,
-        message: 'Sign in to write a review',
-      )) {
+      if (!await requireLogin(context, ref, message: l.signInToWriteReview)) {
         return;
       }
-      AppService.showToast('Writing reviews is coming soon.');
+      if (!context.mounted) return;
+      // Prefilled with their current review: one per restaurant, posting
+      // again updates it.
+      final mine = ref
+          .read(restaurantReviewsControllerProvider(restaurantId))
+          .myReview;
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => VideoUploadScreen(
+            reviewRestaurant: restaurant,
+            existingReview: mine,
+          ),
+        ),
+      );
     }
 
     void openEdit() => AppRouter.router.pushNamed(
@@ -214,8 +278,9 @@ class RestaurantProfileScreen extends HookConsumerWidget {
               avatarSize: 86,
               coverRadius: 0,
               lightControls: true,
-              // Name + rating beside the avatar. Visitors also get the
-              // Follow pill under the avatar and a View menu button.
+              // The pill under the avatar (Edit for the team, Follow for
+              // visitors) and a View menu button; the name and rating
+              // follow below.
               belowFoldHeight: 54,
               belowFoldAction: SizedBox(
                 // Screen width minus the side margins.
@@ -224,13 +289,6 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    Positioned(
-                      // Right of the avatar (98px with its ring) + a gap.
-                      left: 110,
-                      right: 50,
-                      top: 0,
-                      child: _HeaderTitle(restaurant: r),
-                    ),
                     // Centered under the avatar, overlapping its edge: Edit
                     // for the team, Follow for visitors.
                     Positioned(
@@ -241,7 +299,7 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                         child: isOwner
                             ? _AvatarPill(
                                 icon: Icons.edit_outlined,
-                                label: 'Edit',
+                                label: l.editAction,
                                 onTap: openEdit,
                               )
                             : _AvatarPill(
@@ -249,20 +307,44 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                                     ? Icons.check_rounded
                                     : Icons.add_rounded,
                                 label: state.isFollowingLocally
-                                    ? 'Following'
-                                    : 'Follow',
+                                    ? l.followingAction
+                                    : l.followAction,
                                 filled: !state.isFollowingLocally,
                                 onTap: onFollow,
                               ),
                       ),
                     ),
+                    // Its QR code, like a person's profile has, left of the menu.
                     Positioned(
-                      // Lines up under the cover's camera button, which
-                      // sits 14px from the screen edge (this row's edge is
-                      // 20px in).
+                      right: 36,
+                      top: 0,
+                      child: ProfileRaisedCircleButton(
+                        asset: AssetsName.qrCode,
+                        tooltip: l.qrCodeTooltip,
+                        onTap: () => openRestaurantQr(
+                          context,
+                          name: r.name,
+                          restaurantId: restaurantId,
+                          category: r.category?.name,
+                          avatarUrl: r.profilePicture,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      // 14px from the screen edge (this row's edge is 20px
+                      // in), in line with the cover's buttons above.
                       right: -6,
                       top: 0,
-                      child: _MenuCircleButton(onTap: openMenu),
+                      child: ProfileRaisedCircleButton(
+                        asset: AssetsName.foodMenu,
+                        iconSize: 18,
+                        iconColor:
+                            Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                        tooltip: l.viewMenu,
+                        onTap: openMenu,
+                      ),
                     ),
                   ],
                 ),
@@ -271,7 +353,9 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                   ? ProfileChangeCoverButton(onTap: openEdit)
                   : null,
               onBack: () {
-                if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                }
               },
               actions: [
                 ProfileCircleButton(
@@ -279,9 +363,9 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                   onTap: () => SharePlus.instance.share(
                     ShareParams(
                       text: [
-                        '${r.name} on Khmer Cat',
+                        l.shareOnKhmerCat(r.name),
                         if (r.category != null) r.category!.name,
-                        if (r.menuUrl != null) 'Menu: ${r.menuUrl}',
+                        if (r.menuUrl != null) l.shareMenuLine(r.menuUrl!),
                       ].join('\n'),
                       subject: r.name,
                     ),
@@ -301,15 +385,17 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          _HeaderTitle(restaurant: r),
                           if (isPopular) ...[
+                            const Gap(12),
                             Wrap(
                               spacing: 8,
                               runSpacing: 8,
                               children: [
                                 if (isPopular)
-                                  const _Pill(
+                                  _Pill(
                                     icon: Icons.local_fire_department_rounded,
-                                    label: 'Popular',
+                                    label: l.popularTag,
                                     color: _orange,
                                   ),
                               ],
@@ -318,7 +404,7 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                           if (description != null &&
                               description.isNotEmpty) ...[
                             const Gap(12),
-                            _ExpandableText(
+                            ExpandableText(
                               text: description,
                               style: TextStyle(
                                 fontSize: 15.5,
@@ -330,6 +416,16 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                         ],
                       ),
                     ),
+                    if (r.upcomingHoliday != null) ...[
+                      const Gap(_section),
+                      HolidayPosterCard(
+                        holiday: r.upcomingHoliday!,
+                        restaurantName: r.name,
+                        onRemove: isOwner
+                            ? () => removePoster(r.upcomingHoliday!)
+                            : null,
+                      ),
+                    ],
                     const Gap(_section),
                     _FadeSlideIn(
                       index: 1,
@@ -378,7 +474,7 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                               iconAsset: AssetsName.lcClock,
                               trailing: _AddLink(onTap: openEdit),
                               child: Text(
-                                'Opening hours not added yet',
+                                l.hoursNotAdded,
                                 style: _detailStyle(context).copyWith(
                                   color: ProfileTheme.textSecondary(context),
                                 ),
@@ -394,8 +490,12 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                           delivery: [
                             for (final d in deliveryLinks)
                               _ChipLink(
-                                label: d.name,
-                                initial: d.name,
+                                label: d.label,
+                                initial: d.label,
+                                // The app's own icon.
+                                lead: d.app == null
+                                    ? null
+                                    : DeliveryAppLogo(app: d.app!, size: 36),
                                 onTap: () => SocialLinks.open(Uri.parse(d.url)),
                               ),
                           ],
@@ -424,18 +524,19 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                 child: ColoredBox(
                   color: Theme.of(context).scaffoldBackgroundColor,
                   child: ProfileUnderlineTabs(
+                    showBaseline: false,
                     tabs: [
                       ProfileUnderlineTab(
                         asset: AssetsName.feeds,
-                        label: 'Videos',
+                        label: l.profileTabPosts,
                       ),
                       ProfileUnderlineTab(
                         asset: AssetsName.review,
-                        label: 'Vlogs',
+                        label: l.restaurantTabReviews,
                       ),
                       ProfileUnderlineTab(
                         asset: AssetsName.comment,
-                        label: 'Reviews',
+                        label: l.restaurantTabComments,
                       ),
                     ],
                     selected: tab.value,
@@ -450,7 +551,13 @@ class RestaurantProfileScreen extends HookConsumerWidget {
               ),
             ),
             const SliverToBoxAdapter(child: Gap(16)),
-            SliverToBoxAdapter(
+            SliverFillBelowPinned(
+              pinnedHeight:
+                  // The collapsed app bar, the tabs and the gap above.
+                  MediaQuery.paddingOf(context).top +
+                  ProfileCollapsingHeader.pinnedHeaderHeight +
+                  48 +
+                  16,
               // The video grids stay alive once opened and are only shown or
               // hidden, so switching tabs doesn't refetch or flash a skeleton.
               // A hidden grid takes no space.
@@ -460,12 +567,10 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                     visible: tab.value == 0,
                     child: RestaurantVideosGrid(
                       restaurantId: restaurantId,
-                      emptyTitle: 'No videos yet',
-                      emptyMessage:
-                          'Videos posted by this restaurant show up here.',
+                      emptyTitle: l.restaurantNoPostsTitle,
+                      emptyMessage: l.restaurantPostsEmpty,
                       pillLabel: (v) =>
-                          '${formatCount(v.likesCount)} '
-                          'like${v.likesCount == 1 ? '' : 's'}',
+                          l.likesPill(formatCount(v.likesCount), v.likesCount),
                     ),
                   ),
                   if (visitedTabs.value.contains(1))
@@ -474,15 +579,16 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                       child: RestaurantVideosGrid(
                         restaurantId: restaurantId,
                         type: 'review',
-                        emptyTitle: 'No reviews yet',
-                        emptyMessage: 'Be the first to review this restaurant.',
+                        emptyTitle: l.noReviewersYet,
+                        emptyMessage: l.restaurantReviewsEmpty,
                         pillLabel: (v) => v.user.name,
                       ),
                     ),
                   if (tab.value == 2)
                     RestaurantReviewWall(
-                      summary: RestaurantProfileMock.reviewSummary,
-                      reviews: RestaurantProfileMock.reviews,
+                      restaurantId: restaurantId,
+                      restaurantName: r.name,
+                      isTeam: isOwner,
                       onWrite: onWriteReview,
                     ),
                 ],
@@ -499,80 +605,16 @@ class RestaurantProfileScreen extends HookConsumerWidget {
   }
 }
 
-/// Text clamped to [maxLines] with an inline "… more" that expands it.
-class _ExpandableText extends StatefulWidget {
-  final String text;
-  final TextStyle style;
-  const _ExpandableText({required this.text, required this.style});
+/// The restaurant name's style under the avatar.
+TextStyle _headerNameStyle(BuildContext context) => TextStyle(
+  fontSize: 18,
+  height: 1.15,
+  fontWeight: FontWeight.w800,
+  letterSpacing: -0.3,
+  color: ProfileTheme.textPrimary(context),
+);
 
-  static const maxLines = 3;
-
-  @override
-  State<_ExpandableText> createState() => _ExpandableTextState();
-}
-
-class _ExpandableTextState extends State<_ExpandableText> {
-  bool _expanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final more = widget.style.copyWith(
-      fontWeight: FontWeight.w700,
-      color: _crimson,
-    );
-    return LayoutBuilder(
-      builder: (context, c) {
-        final scaler = MediaQuery.textScalerOf(context);
-        final direction = Directionality.of(context);
-
-        TextPainter layout(String t, {bool withMore = false}) => TextPainter(
-          text: TextSpan(
-            style: widget.style,
-            children: [
-              TextSpan(text: t),
-              if (withMore) TextSpan(text: '… more', style: more),
-            ],
-          ),
-          textDirection: direction,
-          textScaler: scaler,
-          maxLines: _ExpandableText.maxLines,
-        )..layout(maxWidth: c.maxWidth);
-
-        if (_expanded || !layout(widget.text).didExceedMaxLines) {
-          return Text(widget.text, style: widget.style);
-        }
-        // Longest prefix that still fits, with "… more", in maxLines.
-        var lo = 0, hi = widget.text.length;
-        while (lo < hi) {
-          final mid = (lo + hi + 1) ~/ 2;
-          final fits = !layout(
-            widget.text.substring(0, mid).trimRight(),
-            withMore: true,
-          ).didExceedMaxLines;
-          if (fits) {
-            lo = mid;
-          } else {
-            hi = mid - 1;
-          }
-        }
-        return GestureDetector(
-          onTap: () => setState(() => _expanded = true),
-          child: Text.rich(
-            TextSpan(
-              style: widget.style,
-              children: [
-                TextSpan(text: widget.text.substring(0, lo).trimRight()),
-                TextSpan(text: '… more', style: more),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Name and rating line beside the avatar.
+/// Name under the avatar, then Halal · rating · category on one line.
 class _HeaderTitle extends StatelessWidget {
   final Restaurant restaurant;
   const _HeaderTitle({required this.restaurant});
@@ -582,22 +624,19 @@ class _HeaderTitle extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          restaurant.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 18,
-            height: 1.15,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.3,
-            color: ProfileTheme.textPrimary(context),
-          ),
-        ),
+        // Always the full name, wrapping if it's long.
+        Text(restaurant.name, style: _headerNameStyle(context)),
         const Gap(6),
-        _RatingCategoryLine(
-          rating: restaurant.avgRating,
-          category: restaurant.category?.name,
+        Row(
+          children: [
+            if (restaurant.isHalal) ...[const HalalBadge(), const Gap(8)],
+            Flexible(
+              child: _RatingCategoryLine(
+                rating: restaurant.avgRating,
+                category: restaurant.category?.name,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -614,11 +653,11 @@ class _AddLink extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: const Padding(
-        padding: EdgeInsets.symmetric(vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
         child: Text(
-          '+ Add',
-          style: TextStyle(
+          AppLocalizations.of(context).addLink,
+          style: const TextStyle(
             fontSize: 14.5,
             fontWeight: FontWeight.w700,
             color: _crimson,
@@ -649,7 +688,7 @@ class _LinksPanel extends StatelessWidget {
           ),
         ),
         const Gap(10),
-        Wrap(spacing: 8, runSpacing: 8, children: chips),
+        Wrap(spacing: 14, runSpacing: 12, children: chips),
       ],
     );
 
@@ -663,87 +702,72 @@ class _LinksPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (delivery.isNotEmpty) group('Order delivery', delivery),
+          if (delivery.isNotEmpty)
+            group(AppLocalizations.of(context).orderDelivery, delivery),
           if (delivery.isNotEmpty && social.isNotEmpty) const Gap(16),
-          if (social.isNotEmpty) group('Follow us', social),
+          if (social.isNotEmpty)
+            group(AppLocalizations.of(context).followUs, social),
         ],
       ),
     );
   }
 }
 
-/// White pill: a small circle with a logo or initial, then the name.
+/// Just the link's logo (an initial when it has none); the name is the
+/// tooltip / screen-reader label.
 class _ChipLink extends StatelessWidget {
   final String label;
   final String? asset;
   final String? initial;
+
+  /// Replaces the logo entirely (e.g. a delivery app's icon).
+  final Widget? lead;
   final VoidCallback onTap;
   const _ChipLink({
     required this.label,
     required this.onTap,
     this.asset,
     this.initial,
+    this.lead,
   });
+
+  static const _size = 36.0;
 
   @override
   Widget build(BuildContext context) {
-    final primary = ProfileTheme.textPrimary(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 40,
-        padding: const EdgeInsets.fromLTRB(5, 5, 14, 5),
+    final Widget logo;
+    if (lead != null) {
+      logo = lead!;
+    } else if (asset != null) {
+      logo = Image.asset(asset!, width: _size, height: _size);
+    } else {
+      logo = Container(
+        width: _size,
+        height: _size,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(20),
+          shape: BoxShape.circle,
+          color: ProfileTheme.textSecondary(context).withValues(alpha: 0.12),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 30,
-              height: 30,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: ProfileTheme.textSecondary(
-                  context,
-                ).withValues(alpha: 0.12),
-              ),
-              child: asset != null
-                  ? Image.asset(asset!, width: 16, height: 16)
-                  : Text(
-                      (initial ?? '?').characters.first.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w800,
-                        color: primary,
-                      ),
-                    ),
-            ),
-            const Gap(8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: primary,
-              ),
-            ),
-          ],
+        child: Text(
+          (initial ?? '?').characters.first.toUpperCase(),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            color: ProfileTheme.textPrimary(context),
+          ),
         ),
+      );
+    }
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: GestureDetector(onTap: onTap, child: logo),
       ),
     );
   }
-}
-
-/// "7:00" / "21:00" → "7:00 AM" / "9:00 PM".
-String _h12(String hm) {
-  final parts = hm.split(':');
-  final h = int.tryParse(parts[0]) ?? 0;
-  final m = parts.length > 1 ? parts[1] : '00';
-  final h12 = h % 12 == 0 ? 12 : h % 12;
-  return '$h12:$m ${h < 12 ? 'AM' : 'PM'}';
 }
 
 TextStyle _detailStyle(BuildContext context) => TextStyle(
@@ -840,45 +864,6 @@ class _AvatarPill extends StatelessWidget {
   }
 }
 
-/// Round outlined button that opens the menu.
-class _MenuCircleButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _MenuCircleButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Tooltip(
-      message: 'View menu',
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          onTap();
-        },
-        child: Container(
-          // Same size as the cover's camera button above it.
-          width: 38,
-          height: 38,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: scheme.surface,
-            border: Border.all(color: scheme.onSurface.withValues(alpha: 0.14)),
-          ),
-          child: Image.asset(
-            AssetsName.foodMenu,
-            width: 19,
-            height: 19,
-            color: ProfileTheme.textPrimary(context),
-            // A 512px PNG; decode it at its on-screen size.
-            cacheWidth: (19 * MediaQuery.devicePixelRatioOf(context)).round(),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// Lucide icon in the left gutter, content, optional trailing widget.
 class _DetailRow extends StatelessWidget {
   final String iconAsset;
@@ -924,13 +909,22 @@ class _DirectionsButton extends StatelessWidget {
         height: 44,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: const Color(0xffB0125A).withValues(alpha: 0.08),
+          color: Theme.of(context).colorScheme.surface,
+          boxShadow: [
+            BoxShadow(
+              color: ProfileTheme.purple.withValues(alpha: 0.10),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: const Center(
+        child: Center(
           child: Icon(
             Icons.directions_outlined,
             size: 22,
-            color: Color(0xffB0125A),
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : Colors.black,
           ),
         ),
       ),
@@ -996,6 +990,7 @@ class _StatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final r = restaurant;
     final followers = r.followersCount ?? 0;
 
@@ -1011,13 +1006,13 @@ class _StatsRow extends StatelessWidget {
       ),
     );
 
-    // Thin pink → purple → blue line between the stats.
+    // Thin line in the brand pink → blue between the stats.
     const divider = DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [ProfileTheme.pink, ProfileTheme.purple, ProfileTheme.blue],
+          colors: [ProfileTheme.brandPink, ProfileTheme.brandBlue],
         ),
       ),
       child: SizedBox(width: 1.5, height: 34),
@@ -1027,22 +1022,14 @@ class _StatsRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          stat(r.videosCount, r.videosCount == 1 ? 'Post' : 'Posts'),
+          stat(r.videosCount, l.statPostLabel(r.videosCount)),
           divider,
-          stat(
-            r.reviewsCount,
-            r.reviewsCount == 1 ? 'Review' : 'Reviews',
-            onReviewsTap,
-          ),
+          stat(r.reviewsCount, l.statReviewLabel(r.reviewsCount), onReviewsTap),
           divider,
-          stat(
-            followers,
-            followers == 1 ? 'Follower' : 'Followers',
-            onFollowersTap,
-          ),
+          stat(followers, l.statFollowerLabel(followers), onFollowersTap),
           divider,
           // People its team followed while acting as it.
-          stat(following, 'Following', onFollowingTap),
+          stat(following, l.statFollowing, onFollowingTap),
         ],
       ),
     );

@@ -6,7 +6,7 @@ import 'package:khmer_cat_app/src/auth/presentation/screens/login_screen.dart';
 import 'package:khmer_cat_app/src/auth/presentation/screens/otp_verify.dart';
 import 'package:khmer_cat_app/src/auth/presentation/screens/register_screen.dart';
 import 'package:khmer_cat_app/src/feed/presentation/screens/video_viewer_screen.dart';
-import 'package:khmer_cat_app/src/index/index_screen.dart';
+import 'package:khmer_cat_app/src/index/home_gate.dart';
 import 'package:khmer_cat_app/src/onboarding/presentation/screens/onboarding_screen_restaurant.dart';
 import 'package:khmer_cat_app/src/onboarding/presentation/screens/onboarding_screen_user.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/screens/create_restaurant.dart';
@@ -99,7 +99,7 @@ class AppRouter {
       GoRoute(
         path: AppRoute.index.path,
         name: AppRoute.index.name,
-        pageBuilder: (context, state) => CupertinoPage(child: IndexScreen()),
+        pageBuilder: (context, state) => const CupertinoPage(child: HomeGate()),
         routes: [
           GoRoute(
             path: AppRoute.cameraRecord.path,
@@ -126,8 +126,11 @@ class AppRouter {
       GoRoute(
         path: AppRoute.termsOfService.path,
         name: AppRoute.termsOfService.name,
-        pageBuilder: (context, state) =>
-            const CupertinoPage(child: TermsOfServiceScreen()),
+        // `extra: true` (from sign-up) adds Decline / Accept; the result is
+        // whether they accepted.
+        pageBuilder: (context, state) => CupertinoPage(
+          child: TermsOfServiceScreen(askToAccept: state.extra == true),
+        ),
       ),
 
       GoRoute(

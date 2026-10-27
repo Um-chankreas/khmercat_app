@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:khmer_cat_app/src/auth/data/model/user_model.dart';
 import 'package:khmer_cat_app/src/feed/data/feed_repository.dart' show FeedPage;
 import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
+import 'package:khmer_cat_app/src/holidays/domain/restaurant_holiday.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant_menu.dart';
+import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant_review.dart';
 
 import '../datasources/restaurant_remote_datasource.dart';
 
@@ -60,6 +62,71 @@ class RestaurantRepository {
       hasMore: meta['has_more'] == true,
     );
   }
+
+  Future<ReviewsPage> reviews(
+    String id, {
+    bool withVideoOnly = false,
+    String? cursor,
+  }) async => ReviewsPage.fromJson(
+    await _remote.reviews(
+      id,
+      filter: withVideoOnly ? 'video' : null,
+      cursor: cursor,
+    ),
+  );
+
+  Future<RestaurantReview> postReview(
+    String id, {
+    required int rating,
+    required String comment,
+  }) async => RestaurantReview.fromJson(
+    await _remote.postReview(id, rating: rating, comment: comment),
+  );
+
+  Future<int> likeReview(String reviewId, {required bool like}) =>
+      _remote.likeReview(reviewId, like: like);
+
+  Future<RestaurantReview> replyToReview(String reviewId, String text) async =>
+      RestaurantReview.fromJson(await _remote.replyToReview(reviewId, text));
+
+  Future<void> deleteReviewReply(String reviewId) =>
+      _remote.deleteReviewReply(reviewId);
+
+  Future<List<RestaurantHoliday>> postHoliday({
+    required List<String> restaurantIds,
+    required DateTime date,
+    int days = 1,
+    required String title,
+    required HolidayMode mode,
+    String? opensAt,
+    String? closesAt,
+    String? description,
+    File? image,
+    void Function(int sent, int total)? onProgress,
+  }) async {
+    final d = date;
+    final data = await _remote.postHoliday(
+      restaurantIds: restaurantIds,
+      date:
+          '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+          '${d.day.toString().padLeft(2, '0')}',
+      days: days,
+      title: title,
+      mode: mode.key,
+      opensAt: mode == HolidayMode.special ? opensAt : null,
+      closesAt: mode == HolidayMode.special ? closesAt : null,
+      description: description,
+      image: image,
+      onProgress: onProgress,
+    );
+    return data
+        .cast<Map<String, dynamic>>()
+        .map(RestaurantHoliday.fromJson)
+        .toList();
+  }
+
+  Future<void> deleteHoliday(String holidayId) =>
+      _remote.deleteHoliday(holidayId);
 
   Future<RestaurantMenu> menu(String id) async =>
       RestaurantMenu.fromJson(await _remote.menu(id));

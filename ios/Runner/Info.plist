@@ -74,6 +74,8 @@
 	<string>Angkor Property needs your location to show you nearby houses and apartments for rent or sale.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>This app needs access to your location while using the app to get location where your property</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>We need access to save images, like your profile QR code, to your photos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>We need access to your photo library to upload profile picture.</string>
 	<key>UIBackgroundModes</key>

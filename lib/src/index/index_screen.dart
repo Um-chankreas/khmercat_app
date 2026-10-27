@@ -7,7 +7,9 @@ import 'package:khmer_cat_app/core/components/dialogs/sign_in_prompt.dart';
 import 'package:khmer_cat_app/core/components/navigationbar/app_bottom_nav_bar.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
+import 'package:khmer_cat_app/src/auth/presentation/viewmodel/auth_controller.dart';
 import 'package:khmer_cat_app/src/feed/presentation/screens/home_feed.dart';
+import 'package:khmer_cat_app/src/holidays/presentation/new_poster_screen.dart';
 import 'package:khmer_cat_app/src/notifications/presentation/screens/notifications_screen.dart';
 import 'package:khmer_cat_app/src/profile/presentation/screens/profile_tab.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
@@ -126,6 +128,36 @@ class IndexScreen extends HookConsumerWidget {
               message: 'Sign in to upload a video',
             )) {
               return;
+            }
+            // Restaurant owners/managers can also post a holiday poster.
+            final runsRestaurant =
+                activeRestaurant != null ||
+                postableRestaurants(
+                  ref
+                          .read(myRestaurantsControllerProvider)
+                          .valueOrNull
+                          ?.restaurants ??
+                      const [],
+                ).isNotEmpty;
+            if (runsRestaurant && context.mounted) {
+              // Posts as the active restaurant, else as the person.
+              final me = ref.read(currentUserProvider);
+              final kind = await showCreateChooser(
+                context,
+                postingAs: activeRestaurant?.name ?? me?.name ?? '',
+                avatarUrl: activeRestaurant != null
+                    ? activeRestaurant.profilePicture
+                    : me?.profilePicture,
+              );
+              if (kind == null || !context.mounted) return;
+              if (kind == CreateKind.holidayPoster) {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const NewPosterScreen(),
+                  ),
+                );
+                return;
+              }
             }
             AppRouter.router.pushNamed(AppRoute.cameraRecord.name);
           },

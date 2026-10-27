@@ -21,9 +21,9 @@ import 'package:khmer_cat_app/src/restaurants/presentation/widgets/profile_switc
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/switch_password_sheet.dart';
 import 'package:khmer_cat_app/src/settings/presentation/widgets/account_action_sheet.dart';
 import 'package:khmer_cat_app/src/settings/presentation/widgets/menu_chrome.dart';
+import 'package:khmer_cat_app/src/search/presentation/widgets/search_widgets.dart';
 import 'package:khmer_cat_app/src/admin/data/admin_remote_datasource.dart';
-import 'package:khmer_cat_app/src/admin/presentation/admin_reports_screen.dart';
-import 'package:khmer_cat_app/src/admin/presentation/admin_restaurants_screen.dart';
+import 'package:khmer_cat_app/src/admin/presentation/admin_shell.dart';
 
 const _danger = Color(0xffE5484D);
 
@@ -95,7 +95,8 @@ class SettingsScreen extends HookConsumerWidget {
     return Scaffold(
       body: Stack(
         children: [
-          const Positioned.fill(child: MenuBackdrop()),
+          // The same cat backdrop as the search tab.
+          const Positioned.fill(child: SearchBackdrop()),
           SafeArea(
             bottom: false,
             child: Column(
@@ -135,6 +136,7 @@ class SettingsScreen extends HookConsumerWidget {
 
                       // ---- Your account --------------------------------
                       MenuCard(
+                        outlined: true,
                         title: l.yourAccount,
                         children: [
                           MenuRow(
@@ -170,6 +172,7 @@ class SettingsScreen extends HookConsumerWidget {
                               ? all
                               : all.take(_restaurantsShown).toList();
                           return MenuCard(
+                            outlined: true,
                             title: l.yourRestaurants,
                             action: all.length > _restaurantsShown
                                 ? (
@@ -271,6 +274,7 @@ class SettingsScreen extends HookConsumerWidget {
 
                       // ---- Address -------------------------------------
                       MenuCard(
+                        outlined: true,
                         title: l.addressSection,
                         children: [
                           MenuRow.icon(
@@ -290,6 +294,7 @@ class SettingsScreen extends HookConsumerWidget {
 
                       // ---- Preferences ---------------------------------
                       MenuCard(
+                        outlined: true,
                         title: l.preferences,
                         children: [
                           MenuRow.icon(
@@ -322,6 +327,7 @@ class SettingsScreen extends HookConsumerWidget {
 
                       // ---- Terms of Policy -----------------------------
                       MenuCard(
+                        outlined: true,
                         title: l.termsOfPolicy,
                         children: [
                           MenuRow.icon(
@@ -346,6 +352,7 @@ class SettingsScreen extends HookConsumerWidget {
                       if (user != null && activeRestaurant == null) ...[
                         const Gap(12),
                         MenuCard(
+                          outlined: true,
                           title: l.accountSection,
                           children: [
                             MenuRow.icon(
@@ -382,6 +389,7 @@ class SettingsScreen extends HookConsumerWidget {
                       // ---- Log out -------------------------------------
                       const Gap(12),
                       MenuCard(
+                        outlined: true,
                         children: [
                           MenuRow.icon(
                             icon: Icons.logout_rounded,
@@ -394,9 +402,7 @@ class SettingsScreen extends HookConsumerWidget {
                               message: l.logOutConfirmMessage,
                               confirmText: l.logOut,
                               isDestructive: true,
-                              onConfirm: () => ref
-                                  .read(authControllerProvider.notifier)
-                                  .logout(),
+                              onConfirm: () => showLoggingOut(context, ref),
                             ),
                           ),
                         ],
@@ -735,29 +741,26 @@ class _AdminCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final counts = ref.watch(adminCountsProvider).valueOrNull;
-    String? waiting(int? n, String noun) =>
-        n == null || n == 0 ? null : '$n $noun';
+    final s = ref.watch(adminSummaryProvider).valueOrNull;
+    final waiting = [
+      if ((s?.pendingRestaurants ?? 0) > 0)
+        '${s!.pendingRestaurants} to approve',
+      if ((s?.openReports ?? 0) > 0) '${s!.openReports} reports',
+    ];
     return MenuCard(
+      outlined: true,
       title: 'Admin',
       children: [
         MenuRow.icon(
-          icon: Icons.storefront_outlined,
-          title: 'Restaurant approvals',
-          subtitle: waiting(counts?.pendingRestaurants, 'waiting'),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const AdminRestaurantsScreen(),
-            ),
-          ),
-        ),
-        MenuRow.icon(
-          icon: Icons.flag_outlined,
-          title: 'Reported content',
-          subtitle: waiting(counts?.openReports, 'open'),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const AdminReportsScreen()),
-          ),
+          icon: Icons.admin_panel_settings_outlined,
+          title: 'Admin dashboard',
+          subtitle: waiting.isEmpty
+              ? 'Restaurants, reports and users'
+              : waiting.join(' · '),
+          onTap: () async {
+            await openAdmin(context);
+            ref.invalidate(adminSummaryProvider);
+          },
         ),
       ],
     );

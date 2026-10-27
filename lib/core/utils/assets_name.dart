@@ -4,6 +4,7 @@ class AssetsName {
   static final String appLogoBg = "${companyPath}app_logo.jpg";
   static final String appLogoTr = "${companyPath}app_logo_tr.png";
   static final String appLogoTrsm = "${companyPath}app_logo_small.png";
+  static const searchBackground = 'assets/images/search_background.png';
   static final String closeEyePassword = "${iconsPath}close-eye.png";
   static final String openEyePassword = "${iconsPath}open-eye.png";
   static final String mail = "${iconsPath}mail.png";
@@ -19,6 +20,7 @@ class AssetsName {
   static final shop = '${iconsPath}shop.png';
   static final navNotification = '${iconsPath}notification.png';
   static final navAdd = '${iconsPath}plus.png';
+  static final catCreate = '${iconsPath}khmercat_add.png';
   static const info = 'assets/messages/info.png';
   static const question = 'assets/messages/question.png';
   static final play = '${iconsPath}play.png';
@@ -35,9 +37,15 @@ class AssetsName {
   static final foodservice = '${iconsPath}food-service.png';
   static final review = '${iconsPath}review.png';
   static final settings = '${iconsPath}settings.png';
+  static final friends = '${iconsPath}friends.png';
+  static final redFlag = '${iconsPath}red-flag.png';
   static final facebook = '${iconsPath}facebook.png';
   static final tiktok = '${iconsPath}tik-tok.png';
   static final telegram = '${iconsPath}telegram.png';
+  // Delivery apps: full square app icons, shown with rounded corners.
+  static final grab = '${iconsPath}grab.jpg';
+  static final foodpanda = '${iconsPath}foodpanda.jpg';
+  static final wownow = '${iconsPath}wownow.png';
   static final cameraPhoto = '${iconsPath}photo-camera.png';
   static final foodMenu = '${iconsPath}food-menu.png';
 

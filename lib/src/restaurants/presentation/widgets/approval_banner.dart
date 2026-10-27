@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:khmer_cat_app/l10n/app_localizations.dart';
 import 'package:gap/gap.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
@@ -17,6 +18,7 @@ class ApprovalBanner extends StatelessWidget {
     final rejected = restaurant.status == 'rejected';
     final color = rejected ? const Color(0xffD6336C) : const Color(0xffB7791F);
     final reason = restaurant.rejectionReason?.trim();
+    final l = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
@@ -37,7 +39,7 @@ class ApprovalBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  rejected ? 'Not approved' : 'Waiting for approval',
+                  rejected ? l.approvalNotApproved : l.adminWaitingApproval,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -48,9 +50,9 @@ class ApprovalBanner extends StatelessWidget {
                 Text(
                   rejected
                       ? (reason == null || reason.isEmpty
-                            ? 'An admin didn\'t approve this restaurant, so customers can\'t see it.'
-                            : 'Reason: $reason')
-                      : 'Customers can\'t see it yet. It goes public once the Khmer Cat team approves it.',
+                            ? l.approvalRejectedBody
+                            : l.approvalReason(reason))
+                      : l.approvalPendingBody,
                   style: TextStyle(
                     fontSize: 12.5,
                     height: 1.35,

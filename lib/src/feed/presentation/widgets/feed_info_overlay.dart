@@ -1,34 +1,35 @@
 // lib/features/feed/presentation/widgets/feed_info_overlay.dart
+
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:khmer_cat_app/core/components/rating/rating_badge.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/core/themes/app_colors.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import '../../domain/video_feed_item.dart';
-import '../../providers/feed_restaurant_provider.dart';
 
 const _ink = Color(0xff1F1B3A);
 const _plum = Color(0xff3A3350);
 const _shadow = [Shadow(color: Colors.black54, blurRadius: 6)];
 
 /// Bottom-left overlay:
-///   1. Reviewer byline ("@username · time").
-///   2. The expandable caption (its own #hashtags stay tappable).
-/// The video's restaurant gets its own strip underneath: see
-/// [FeedRestaurantBar].
+///   1. The video's restaurant pill, if any (see [FeedRestaurantBar]).
+///   2. Reviewer byline ("@username · time").
+///   3. The expandable caption (its own #hashtags stay tappable).
 class FeedInfoOverlay extends StatelessWidget {
   final VideoFeedItem item;
   final VoidCallback onUserTap;
   final ValueChanged<String>? onHashtagTap;
 
+  /// Shown above the byline: the restaurant pill.
+  final Widget? restaurant;
+
   const FeedInfoOverlay({
     required this.item,
     required this.onUserTap,
     this.onHashtagTap,
+    this.restaurant,
     super.key,
   });
 
@@ -56,7 +57,11 @@ class FeedInfoOverlay extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 1. Reviewer byline — just "@username · time", no avatar (the
+          if (restaurant case final restaurant?) ...[
+            restaurant,
+            const SizedBox(height: 10),
+          ],
+          // 2. Reviewer byline — just "@username · time", no avatar (the
           // avatar moved onto the action rail on the right).
           GestureDetector(
             onTap: onUserTap,
@@ -111,11 +116,10 @@ class FeedInfoOverlay extends StatelessWidget {
   }
 }
 
-/// Full-width frosted strip along the bottom of a video for its restaurant:
-/// the shop icon in a gradient ring, name over rating · category, and a
-/// Follow pill. Tapping
-/// anywhere but the pill opens the restaurant.
-class FeedRestaurantBar extends ConsumerWidget {
+/// Frosted pill for the video's restaurant, above the byline: the shop
+/// icon in a gradient ring, the name, and a Follow pill. Tapping anywhere
+/// but the Follow pill opens the restaurant.
+class FeedRestaurantBar extends StatelessWidget {
   final VideoFeedItem item;
   final VoidCallback onFollowTap;
   final VoidCallback? onTap;
@@ -127,80 +131,47 @@ class FeedRestaurantBar extends ConsumerWidget {
     super.key,
   });
 
-  static const double height = 50;
+  /// Height with a one-line name; a long name wraps and grows it.
+  static const double height = 36;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final restaurant = item.restaurant!;
-    // The feed item only has the restaurant's name; its average rating and
-    // category arrive a moment later from the restaurant's own record.
-    // Until then (or if that fails) a review shows the review's rating.
-    final details = ref.watch(feedRestaurantProvider(restaurant.id)).value;
-    final rating = details?.avgRating ?? item.rating;
-    final category = details?.category?.name ?? restaurant.categoryName;
-    const meta = TextStyle(
-      color: Colors.white,
-      fontSize: 11.5,
-      fontWeight: FontWeight.w600,
-    );
+    final radius = BorderRadius.circular(8);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      // Frosted: the video shows through, blurred, under a dark plum tint.
-      child: ClipRect(
+      // Frosted: the video shows through, blurred, under a dark plum tint,
+      // with a thin light rim.
+      child: ClipRRect(
+        borderRadius: radius,
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
           child: Container(
-            height: height,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            color: _plum.withValues(alpha: 0.45),
+            constraints: const BoxConstraints(minHeight: height),
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+            decoration: BoxDecoration(
+              color: _plum.withValues(alpha: 0.45),
+              borderRadius: radius,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.12),
+                width: 0.5,
+              ),
+            ),
             child: Row(
               children: [
                 const _RestaurantIcon(),
                 const SizedBox(width: 10),
+                // Always the full name, wrapping if it's long.
                 Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        restaurant.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13.5,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                      if (rating != null || category != null) ...[
-                        const SizedBox(height: 1),
-                        Row(
-                          children: [
-                            if (rating != null)
-                              RatingBadge(
-                                rating: rating,
-                                iconSize: 13,
-                                style: meta.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            if (rating != null && category != null)
-                              const Text('  ·  ', style: meta),
-                            if (category != null)
-                              Flexible(
-                                child: Text(
-                                  category,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: meta,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ],
+                  child: Text(
+                    restaurant.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13.5,
+                      letterSpacing: -0.2,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -222,7 +193,7 @@ class FeedRestaurantBar extends ConsumerWidget {
 class _RestaurantIcon extends StatelessWidget {
   const _RestaurantIcon();
 
-  static const double _size = 30;
+  static const double _size = 24;
 
   @override
   Widget build(BuildContext context) {
@@ -239,11 +210,11 @@ class _RestaurantIcon extends StatelessWidget {
         decoration: const BoxDecoration(shape: BoxShape.circle, color: _plum),
         child: Image.asset(
           AssetsName.shop,
-          width: 16,
-          height: 16,
+          width: 13,
+          height: 13,
           color: Colors.white,
           // A 512px PNG; decode it at its on-screen size.
-          cacheWidth: (16 * MediaQuery.devicePixelRatioOf(context)).round(),
+          cacheWidth: (13 * MediaQuery.devicePixelRatioOf(context)).round(),
         ),
       ),
     );

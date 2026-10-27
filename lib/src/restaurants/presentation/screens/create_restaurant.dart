@@ -9,14 +9,13 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:khmer_cat_app/core/components/gradient/gradient_text.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/extensions/safe_area_extension.dart';
-import 'package:khmer_cat_app/core/go_router/app_route.dart';
-import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/core/location/location_provider.dart';
 import 'package:khmer_cat_app/core/network/api_exception.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/place_details.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/place_suggestion.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/screens/location_picker_screen.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/screens/restaurant_approval_steps.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/create_restaurant_viewmodel.dart';
 import 'package:khmer_cat_app/src/restaurants/providers/places_providers.dart';
 import '../widgets/cuisine_category_selector.dart';
@@ -69,9 +68,10 @@ class CreateRestaurant extends HookConsumerWidget {
           );
         },
         data: (created) {
+          // Submitted → Reviewing → Approved, then Home as the new
+          // restaurant (the steps screen does the navigation).
           if (created != null) {
-            AppService.showToast('Restaurant created!');
-            AppRouter.router.pushReplacementNamed(AppRoute.index.name);
+            showRestaurantApprovalSteps(context, created.restaurant);
           }
         },
       );

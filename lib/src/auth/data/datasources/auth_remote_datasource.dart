@@ -25,7 +25,13 @@ class AuthRemoteDataSource {
   }) async {
     final json = await _client.post(
       ApiRoute.register,
-      body: {'name': name, 'email': email, 'password': password},
+      // Only reachable once the sign-up screen's Terms box is ticked.
+      body: {
+        'name': name,
+        'email': email,
+        'password': password,
+        'terms_accepted': true,
+      },
     );
     return json.dataMap;
   }

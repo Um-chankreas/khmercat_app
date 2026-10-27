@@ -128,14 +128,14 @@ class _SourceSheet extends StatelessWidget {
             const Gap(14),
             _SourceTile(
               icon: Icons.photo_camera_rounded,
-              gradient: ProfileTheme.pinkPurple,
+              gradient: ProfileTheme.pinkBlueGradient,
               label: 'Take a photo',
               onTap: () => Navigator.pop(context, ImageSource.camera),
             ),
             const Gap(8),
             _SourceTile(
               icon: Icons.photo_library_rounded,
-              gradient: ProfileTheme.purpleBlue,
+              gradient: ProfileTheme.pinkBlueGradient,
               label: 'Choose from gallery',
               onTap: () => Navigator.pop(context, ImageSource.gallery),
             ),

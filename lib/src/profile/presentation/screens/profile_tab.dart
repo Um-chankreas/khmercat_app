@@ -1,5 +1,6 @@
 // lib/src/profile/presentation/screens/profile_tab.dart
 import 'package:flutter/material.dart';
+import 'package:khmer_cat_app/src/profile/presentation/screens/profile_qr_screen.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
@@ -14,7 +15,6 @@ import 'package:khmer_cat_app/core/components/profile/profile_shared_widgets.dar
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
-import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import 'package:khmer_cat_app/core/utils/social_links.dart';
 import 'package:khmer_cat_app/l10n/app_localizations.dart';
@@ -118,12 +118,15 @@ class ProfileTab extends HookConsumerWidget {
                       // in), in line with the settings button above.
                       right: -6,
                       top: 0,
-                      child: _RaisedCircleButton(
+                      child: ProfileRaisedCircleButton(
                         asset: AssetsName.qrCode,
                         tooltip: 'My QR code',
-                        // TODO(backend): profiles have no public link to
-                        // encode yet.
-                        onTap: () => AppService.showToast(l.comingSoon),
+                        onTap: () => openProfileQr(
+                          context,
+                          name: user.name,
+                          username: user.username,
+                          avatarUrl: user.profilePicture,
+                        ),
                       ),
                     ),
                   ],
@@ -147,6 +150,7 @@ class ProfileTab extends HookConsumerWidget {
                 child: ColoredBox(
                   color: Theme.of(context).scaffoldBackgroundColor,
                   child: ProfileUnderlineTabs(
+                    showBaseline: false,
                     tabs: [
                       ProfileUnderlineTab(
                         icon: Icons.play_circle_outline_rounded,
@@ -413,59 +417,6 @@ class _EditPill extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Round raised button on the page (not the cover), e.g. QR: a soft
-/// shadow instead of a border, and a soft pink → blue icon.
-class _RaisedCircleButton extends StatelessWidget {
-  final String asset;
-  final String tooltip;
-  final VoidCallback onTap;
-  const _RaisedCircleButton({
-    required this.asset,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          onTap();
-        },
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Theme.of(context).colorScheme.surface,
-            boxShadow: [
-              BoxShadow(
-                color: ProfileTheme.purple.withValues(alpha: 0.10),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          alignment: Alignment.center,
-          // White icon used as a mask, filled with the brand gradient.
-          child: ShaderMask(
-            blendMode: BlendMode.srcIn,
-            shaderCallback: ProfileTheme.brandGradient.createShader,
-            child: Image.asset(
-              asset,
-              width: 16,
-              height: 16,
-              color: Colors.white,
-            ),
-          ),
         ),
       ),
     );

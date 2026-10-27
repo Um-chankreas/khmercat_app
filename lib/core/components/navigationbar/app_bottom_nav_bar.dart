@@ -17,9 +17,9 @@ double navBarInset(BuildContext context) => math.max(
   MediaQuery.paddingOf(context).bottom - AppBottomNavBar.bumpHeight,
 );
 
-/// Floating frosted-glass bar with a round dome in the middle over the cat
-/// "create" button. The bar itself has no outline; only the icons are
-/// glowing pink → blue lines, and there are no labels.
+/// Floating frosted-glass pill with a thin light rim and a round notch in
+/// the middle, where the round cat "create" button sits, rising above the
+/// bar. The icons are glowing pink → blue lines, with no labels.
 ///
 /// The page is meant to show through it, so the Scaffold using it should
 /// set `extendBody: true`. Pages that shouldn't run under the bar can pad
@@ -64,16 +64,15 @@ class AppBottomNavBar extends StatelessWidget {
     super.key,
   });
 
-  /// Height of the flat part of the bar.
-  static const double barHeight = 50;
+  /// Height of the bar itself.
+  static const double barHeight = 54;
 
-  /// How far the center dome rises above the flat part.
-  static const double bumpHeight = 12;
+  /// How far the round create button rises above the bar.
+  static const double bumpHeight = 24;
 
   static const double _sideMargin = 10;
   static const double _bottomMargin = 8;
-  static const double _centerWidth = 76;
-  static const double _catBottomPadding = 8;
+  static const double _centerWidth = 84;
 
   @override
   Widget build(BuildContext context) {
@@ -138,12 +137,12 @@ class AppBottomNavBar extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Uses the full height, dome included; the padding lifts
-                // the cat a little so its head sits up in the dome.
+                // Uses the full height: the button's top rises above the
+                // bar and its bottom sits in the notch.
                 SizedBox(
                   width: _centerWidth,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: _catBottomPadding),
+                  child: Align(
+                    alignment: Alignment.topCenter,
                     child: CatCreateButton(
                       label: 'Create',
                       onTap: onCreateTap,
@@ -185,7 +184,7 @@ class AppBottomNavBar extends StatelessWidget {
   }
 }
 
-/// Keeps a side item inside the flat part of the bar (below the dome).
+/// Keeps a side item inside the bar (below the raised button).
 class _Flat extends StatelessWidget {
   final Widget child;
   const _Flat({required this.child});
@@ -197,27 +196,49 @@ class _Flat extends StatelessWidget {
   );
 }
 
-/// The bar's silhouette: a rounded rectangle whose top edge rises into a
-/// round dome in the middle, over the cat button.
+/// The bar's silhouette: a rounded pill whose top edge dips into a round
+/// notch in the middle, cradling the create button with a small gap.
 Path _barPath(Size size) {
-  const r = 22.0;
-  const bump = AppBottomNavBar.bumpHeight;
+  const r = 24.0;
+  const top = AppBottomNavBar.bumpHeight;
+  // The notch follows the button's circle, a few px wider.
+  const notchR = CatCreateButton.diameter / 2 + 2;
+  const notchCy = CatCreateButton.diameter / 2;
+  // Small rounding where the top edge turns down into the notch.
+  const fillet = 6.0;
   final w = size.width, h = size.height, cx = w / 2;
 
+  // The fillet circle touches the top edge and the notch circle.
+  const filletCy = top + fillet;
+  final dx = math.sqrt(
+    math.pow(notchR + fillet, 2) - math.pow(filletCy - notchCy, 2),
+  );
+  // Where the fillet meets the notch: on the line between their centers.
+  final k = notchR / (notchR + fillet);
+  final meetDx = dx * k;
+  final meetY = notchCy + (filletCy - notchCy) * k;
+
   return Path()
-    ..moveTo(r, bump)
-    ..lineTo(cx - 40, bump)
-    // One round dome over the cat button, eased into the flat edge.
-    ..cubicTo(cx - 27, bump, cx - 23, 0, cx, 0)
-    ..cubicTo(cx + 23, 0, cx + 27, bump, cx + 40, bump)
-    ..lineTo(w - r, bump)
-    ..arcToPoint(Offset(w, bump + r), radius: const Radius.circular(r))
+    ..moveTo(r, top)
+    ..lineTo(cx - dx, top)
+    ..arcToPoint(
+      Offset(cx - meetDx, meetY),
+      radius: const Radius.circular(fillet),
+    )
+    ..arcToPoint(
+      Offset(cx + meetDx, meetY),
+      radius: const Radius.circular(notchR),
+      clockwise: false,
+    )
+    ..arcToPoint(Offset(cx + dx, top), radius: const Radius.circular(fillet))
+    ..lineTo(w - r, top)
+    ..arcToPoint(Offset(w, top + r), radius: const Radius.circular(r))
     ..lineTo(w, h - r)
     ..arcToPoint(Offset(w - r, h), radius: const Radius.circular(r))
     ..lineTo(r, h)
     ..arcToPoint(Offset(0, h - r), radius: const Radius.circular(r))
-    ..lineTo(0, bump + r)
-    ..arcToPoint(const Offset(r, bump), radius: const Radius.circular(r))
+    ..lineTo(0, top + r)
+    ..arcToPoint(const Offset(r, top), radius: const Radius.circular(r))
     ..close();
 }
 

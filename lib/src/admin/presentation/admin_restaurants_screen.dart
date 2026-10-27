@@ -3,71 +3,34 @@ import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
+import 'package:khmer_cat_app/core/go_router/app_route.dart';
+import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
-import 'package:khmer_cat_app/src/feed/domain/video_feed_item.dart';
-import 'package:khmer_cat_app/src/search/presentation/widgets/search_widgets.dart';
-import 'package:khmer_cat_app/src/settings/presentation/widgets/menu_chrome.dart';
 
 import '../data/admin_remote_datasource.dart';
+import 'admin_paged.dart';
 import 'admin_widgets.dart';
 
-const _statuses = ['pending', 'approved', 'rejected'];
-const _labels = ['Pending', 'Approved', 'Rejected'];
+const _statuses = ['pending', 'active', 'deactivated'];
 
-/// Admin → Restaurant approvals. New restaurants wait here, hidden from
-/// customers, until approved. Approved ones can be rejected later, and
-/// rejected ones approved.
+/// Admin → Restaurants: approve or reject new ones, deactivate one that
+/// breaks the rules, and bring a deactivated one back.
 class AdminRestaurantsScreen extends HookConsumerWidget {
   const AdminRestaurantsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Read up front: the actions below use them after awaiting.
+    final l10n = context.l10n;
     final tab = useState(0);
-    final items = useState(const <AdminRestaurant>[]);
-    final page = useRef(0);
-    final hasMore = useState(true);
-    final loading = useState(false);
-    final failed = useState(false);
-    final busy = useState(const <String>{});
+    final busy = useState(<String>{});
     final scroll = useScrollController();
-    // Drops answers that arrive after the tab changed.
-    final seq = useRef(0);
     final admin = ref.read(adminRemoteDataSourceProvider);
-
-    Future<void> load({bool reset = false}) async {
-      if (!reset && (loading.value || !hasMore.value)) return;
-      final mySeq = reset ? ++seq.value : seq.value;
-      loading.value = true;
-      failed.value = false;
-      final next = reset ? 1 : page.value + 1;
-      try {
-        final result = await admin.restaurants(_statuses[tab.value], next);
-        if (!context.mounted || mySeq != seq.value) return;
-        page.value = next;
-        items.value = reset ? result.items : [...items.value, ...result.items];
-        hasMore.value = result.hasMore;
-      } catch (_) {
-        if (context.mounted && mySeq == seq.value) failed.value = true;
-      } finally {
-        if (context.mounted && mySeq == seq.value) loading.value = false;
-      }
-    }
-
-    useEffect(() {
-      items.value = const [];
-      hasMore.value = true;
-      load(reset: true);
-      return null;
-    }, [tab.value]);
-    useEffect(() {
-      void onScroll() {
-        if (scroll.hasClients && scroll.position.extentAfter < 400) load();
-      }
-
-      scroll.addListener(onScroll);
-      return () => scroll.removeListener(onScroll);
-    }, const []);
+    final list = useAdminPaged<AdminRestaurant>(
+      (page) => admin.restaurants(_statuses[tab.value], page),
+      [tab.value],
+    );
+    useLoadMoreOnScroll(scroll, list.loadMore);
 
     Future<void> act(
       AdminRestaurant r,
@@ -78,257 +41,395 @@ class AdminRestaurantsScreen extends HookConsumerWidget {
       try {
         await call();
         HapticFeedback.lightImpact();
-        if (!context.mounted) return;
-        // It's moved to another tab.
-        items.value = [
-          for (final x in items.value)
-            if (x.id != r.id) x,
-        ];
-        ref.invalidate(adminCountsProvider);
+        list.removeWhere((x) => x.id == r.id);
+        ref.invalidate(adminSummaryProvider);
         AppService.showToast(done);
       } catch (_) {
-        AppService.showToast('Something went wrong', isError: true);
+        AppService.showToast(l10n.adminSomethingWrong, isError: true);
       } finally {
         if (context.mounted) busy.value = {...busy.value}..remove(r.id);
       }
     }
 
     Future<void> reject(AdminRestaurant r) async {
-      final reason = await _askReason(context, r.name);
-      if (reason == null) return; // cancelled
+      final reason = await askAdminReason(
+        context,
+        title: context.l10n.adminRejectTitle(r.name),
+        hint: context.l10n.adminReasonForOwner,
+        confirm: context.l10n.adminReject,
+      );
+      if (reason == null) return;
       await act(
         r,
         () => admin.reject(r.id, reason: reason.isEmpty ? null : reason),
-        '${r.name} rejected',
+        l10n.adminRejected,
       );
     }
 
-    final Widget body;
-    if (items.value.isEmpty && loading.value) {
-      body = const Center(
-        child: CircularProgressIndicator(color: ProfileTheme.purple),
+    Future<void> deactivate(AdminRestaurant r) async {
+      final reason = await askAdminReason(
+        context,
+        title: context.l10n.adminDeactivateTitle(r.name),
+        hint: context.l10n.adminDeactivateHint,
+        confirm: context.l10n.adminDeactivate,
+        required: true,
       );
-    } else if (items.value.isEmpty && failed.value) {
+      if (reason == null) return;
+      await act(
+        r,
+        () => admin.deactivate(r.id, reason),
+        l10n.adminTabDeactivated,
+      );
+    }
+
+    final counts = list.counts;
+
+    final Widget body;
+    if (list.isEmptyLoading) {
+      body = Center(child: CircularProgressIndicator());
+    } else if (list.items.isEmpty && list.failed) {
       body = AdminMessage(
         icon: Icons.cloud_off_rounded,
-        text: 'Couldn\'t load restaurants.',
-        onRetry: () => load(reset: true),
+        text: context.l10n.adminRestaurantsLoadFailed,
+        onRetry: list.reload,
       );
-    } else if (items.value.isEmpty) {
+    } else if (list.items.isEmpty) {
       body = AdminMessage(
         icon: Icons.storefront_outlined,
         text: switch (tab.value) {
-          0 => 'Nothing waiting for approval.',
-          1 => 'No approved restaurants.',
-          _ => 'No rejected restaurants.',
+          0 => context.l10n.adminNoPending,
+          1 => context.l10n.adminNoActive,
+          _ => context.l10n.adminNoDeactivated,
         },
       );
     } else {
       body = ListView.separated(
         controller: scroll,
-        physics: const AlwaysScrollableScrollPhysics(),
+        physics: AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.fromLTRB(
+          20,
           16,
-          8,
-          16,
-          MediaQuery.paddingOf(context).bottom + 24,
+          20,
+          MediaQuery.paddingOf(context).bottom + 110,
         ),
-        itemCount: items.value.length,
-        separatorBuilder: (_, _) => const Gap(12),
-        itemBuilder: (context, i) {
-          final r = items.value[i];
+        itemCount: list.items.length,
+        separatorBuilder: (_, _) => Gap(12),
+        itemBuilder: (_, i) {
+          final r = list.items[i];
           final isBusy = busy.value.contains(r.id);
-          return _RestaurantCard(
-            restaurant: r,
-            onOpen: () => openRestaurant(r.id),
-            actions: [
-              if (tab.value != 1)
-                AdminActionButton(
-                  label: 'Approve',
-                  primary: true,
-                  busy: isBusy,
-                  onTap: () =>
-                      act(r, () => admin.approve(r.id), '${r.name} approved'),
-                ),
-              if (tab.value != 2)
-                AdminActionButton(
-                  label: 'Reject',
-                  danger: true,
-                  busy: isBusy,
-                  onTap: () => reject(r),
-                ),
-            ],
-          );
+          return switch (tab.value) {
+            0 => PendingRestaurantCard(
+              restaurant: r,
+              busy: isBusy,
+              onReject: () => reject(r),
+              onApprove: () =>
+                  act(r, () => admin.approve(r.id), context.l10n.adminApproved),
+            ),
+            1 => _ActiveCard(
+              restaurant: r,
+              busy: isBusy,
+              onDeactivate: () => deactivate(r),
+            ),
+            _ => _DeactivatedCard(
+              restaurant: r,
+              busy: isBusy,
+              onActivate: () => act(
+                r,
+                () => admin.activate(r.id),
+                context.l10n.adminActivatedAgain,
+              ),
+            ),
+          };
         },
       );
     }
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            const MenuTitleBar(title: 'Restaurant approvals'),
-            AdminTabs(
-              labels: _labels,
-              selected: tab.value,
-              onChanged: (i) => tab.value = i,
+    return Column(
+      children: [
+        AdminHeader(title: context.l10n.adminNavRestaurants),
+        AdminSegments(
+          segments: [
+            AdminSegment(
+              icon: Icons.schedule_rounded,
+              label: context.l10n.adminTabPending,
+              count: counts['pending'],
             ),
-            Expanded(
-              child: RefreshIndicator(
-                color: ProfileTheme.purple,
-                onRefresh: () async {
-                  ref.invalidate(adminCountsProvider);
-                  await load(reset: true);
-                },
-                child: body,
-              ),
+            AdminSegment(
+              icon: Icons.check_rounded,
+              label: context.l10n.adminTabActive,
+              count: counts['active'],
+            ),
+            AdminSegment(
+              icon: Icons.pause_circle_outline_rounded,
+              label: context.l10n.adminTabOff,
+              count: counts['deactivated'],
             ),
           ],
+          selected: tab.value,
+          onChanged: (i) => tab.value = i,
         ),
-      ),
+        Expanded(
+          child: RefreshIndicator(onRefresh: list.reload, child: body),
+        ),
+      ],
     );
   }
 }
 
-/// Asks why (optional). Null = cancelled; empty = rejected with no reason.
-Future<String?> _askReason(BuildContext context, String name) {
-  final controller = TextEditingController();
-  return showDialog<String>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text('Reject $name?'),
-      content: TextField(
-        controller: controller,
-        maxLength: 500,
-        maxLines: 3,
-        minLines: 1,
-        decoration: const InputDecoration(
-          hintText: 'Reason for the owner (optional)',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(
-            'Cancel',
-            style: TextStyle(color: ProfileTheme.textSecondary(context)),
-          ),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, controller.text.trim()),
-          child: const Text(
-            'Reject',
-            style: TextStyle(fontWeight: FontWeight.w800, color: adminDanger),
-          ),
-        ),
-      ],
-    ),
-  ).whenComplete(controller.dispose);
-}
+void _openRestaurant(AdminRestaurant r) => AppRouter.router.pushNamed(
+  AppRoute.restaurantProfile.name,
+  pathParameters: {'id': r.id},
+);
 
-/// Logo, name, category · owner · when, the rejection reason if any, and
-/// the actions.
-class _RestaurantCard extends StatelessWidget {
+/// Logo, name, "Category · address" and a trailing pill.
+class _RestaurantHeader extends StatelessWidget {
   final AdminRestaurant restaurant;
-  final VoidCallback onOpen;
-  final List<Widget> actions;
-  const _RestaurantCard({
+  final Widget? pill;
+  final List<String> extraLines;
+
+  /// Added to the "Category · address" line (e.g. "2h ago").
+  final String? subSuffix;
+  const _RestaurantHeader({
     required this.restaurant,
-    required this.onOpen,
-    required this.actions,
+    this.pill,
+    this.extraLines = const [],
+    this.subSuffix,
   });
 
   @override
   Widget build(BuildContext context) {
     final r = restaurant;
-    final primary = ProfileTheme.textPrimary(context);
-    final muted = ProfileTheme.textSecondary(context);
-    final meta = [
-      ?r.category,
-      if (r.ownerUsername != null) 'by @${r.ownerUsername}',
-      if (r.createdAt != null) timeAgo(r.createdAt!),
-    ].join(' · ');
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ProfileTheme.hairlineColor(context)),
-      ),
-      child: Column(
+    final sub = [
+      r.category,
+      r.address,
+      subSuffix,
+    ].whereType<String>().where((s) => s.trim().isNotEmpty).join(' · ');
+    return GestureDetector(
+      onTap: () => _openRestaurant(r),
+      behavior: HitTestBehavior.opaque,
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onOpen,
-            child: Row(
+          AdminAvatar(url: r.picture, name: r.name, size: 46, square: true),
+          Gap(12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    width: 52,
-                    height: 52,
-                    child: NetImage(url: r.picture, cacheWidth: 52),
-                  ),
-                ),
-                const Gap(12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
                         r.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w800,
-                          color: primary,
-                        ),
+                        style: adminTitleStyle(context),
                       ),
-                      const Gap(2),
-                      Text(
-                        meta,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12.5, color: muted),
-                      ),
-                      if (r.address != null && r.address!.trim().isNotEmpty)
-                        Text(
-                          r.address!.trim(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12.5, color: muted),
-                        ),
-                    ],
-                  ),
+                    ),
+                    if (pill != null) ...[Gap(8), pill!],
+                  ],
                 ),
-                Icon(Icons.chevron_right_rounded, color: muted),
+                if (sub.isNotEmpty)
+                  Text(
+                    sub,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: adminSubStyle(context),
+                  ),
+                for (final line in extraLines)
+                  Text(
+                    line,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: adminSubStyle(context),
+                  ),
               ],
             ),
           ),
-          if (r.rejectionReason != null) ...[
-            const Gap(8),
-            Text(
-              'Reason: ${r.rejectionReason}',
-              style: const TextStyle(fontSize: 12.5, color: adminDanger),
-            ),
-          ],
-          if (actions.isNotEmpty) ...[
-            const Gap(12),
-            Row(
-              children: [
-                for (final (i, a) in actions.indexed) ...[
-                  if (i > 0) const Gap(8),
-                  a,
-                ],
-              ],
-            ),
-          ],
         ],
       ),
+    );
+  }
+}
+
+/// A restaurant waiting for approval, with Reject / Approve. Shared with
+/// the dashboard.
+class PendingRestaurantCard extends StatelessWidget {
+  final AdminRestaurant restaurant;
+  final bool busy;
+  final VoidCallback onReject;
+  final VoidCallback onApprove;
+
+  /// Without its own card (inside a dashboard list).
+  final bool bare;
+  const PendingRestaurantCard({
+    required this.restaurant,
+    required this.busy,
+    required this.onReject,
+    required this.onApprove,
+    this.bare = false,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final r = restaurant;
+    final owner =
+        r.ownerName ?? (r.ownerUsername == null ? null : '@${r.ownerUsername}');
+    final content = Padding(
+      padding: EdgeInsets.symmetric(vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _RestaurantHeader(
+            restaurant: r,
+            pill: bare
+                ? null
+                : AdminPill(
+                    context.l10n.adminTabPending,
+                    tone: AdminPillTone.warning,
+                  ),
+            // The dashboard keeps it to one line, like the design.
+            subSuffix: bare ? adminAgo(context, r.createdAt) : null,
+            extraLines: bare
+                ? []
+                : [
+                    [
+                      if (owner != null) context.l10n.adminOwner(owner),
+                      if (r.createdAt != null) adminAgo(context, r.createdAt),
+                    ].join(' · '),
+                  ],
+          ),
+          Gap(12),
+          Row(
+            children: [
+              Expanded(
+                child: AdminButton(
+                  label: context.l10n.adminReject,
+                  icon: Icons.close_rounded,
+                  busy: busy,
+                  onTap: onReject,
+                ),
+              ),
+              Gap(8),
+              Expanded(
+                child: AdminButton(
+                  label: context.l10n.adminApprove,
+                  icon: Icons.check_rounded,
+                  style: AdminButtonStyle.primary,
+                  busy: busy,
+                  onTap: onApprove,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    return bare ? content : AdminCard(children: [content]);
+  }
+}
+
+class _ActiveCard extends StatelessWidget {
+  final AdminRestaurant restaurant;
+  final bool busy;
+  final VoidCallback onDeactivate;
+  const _ActiveCard({
+    required this.restaurant,
+    required this.busy,
+    required this.onDeactivate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final r = restaurant;
+    return AdminCard(
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _RestaurantHeader(restaurant: r),
+              Gap(10),
+              Row(
+                children: [
+                  AdminPill(
+                    context.l10n.adminTabActive,
+                    tone: AdminPillTone.success,
+                  ),
+                  if (r.openReportsCount > 0) ...[
+                    Gap(6),
+                    AdminPill(
+                      context.l10n.adminReportsCount(r.openReportsCount),
+                      tone: AdminPillTone.danger,
+                    ),
+                  ],
+                  Spacer(),
+                  AdminButton(
+                    label: context.l10n.adminDeactivate,
+                    style: AdminButtonStyle.dangerSoft,
+                    height: 34,
+                    busy: busy,
+                    onTap: onDeactivate,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DeactivatedCard extends StatelessWidget {
+  final AdminRestaurant restaurant;
+  final bool busy;
+  final VoidCallback onActivate;
+  const _DeactivatedCard({
+    required this.restaurant,
+    required this.busy,
+    required this.onActivate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final r = restaurant;
+    final when = r.deactivatedAt == null
+        ? context.l10n.adminTabDeactivated
+        : context.l10n.adminDeactivatedOn(adminDate(context, r.deactivatedAt!));
+    return AdminCard(
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _RestaurantHeader(
+                restaurant: r,
+                extraLines: [
+                  when,
+                  if (r.deactivationReason?.isNotEmpty ?? false)
+                    context.l10n.adminReasonValue(r.deactivationReason!),
+                ],
+              ),
+              Gap(12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: AdminButton(
+                  label: context.l10n.adminActivate,
+                  icon: Icons.refresh_rounded,
+                  style: AdminButtonStyle.primary,
+                  height: 34,
+                  busy: busy,
+                  onTap: onActivate,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

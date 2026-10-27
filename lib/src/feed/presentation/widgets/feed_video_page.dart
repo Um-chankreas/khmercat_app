@@ -1,7 +1,9 @@
 // lib/features/feed/presentation/widgets/feed_video_page.dart
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:khmer_cat_app/src/holidays/presentation/holiday_labels.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
+import 'package:khmer_cat_app/src/holidays/presentation/holiday_poster_art.dart';
 import 'package:khmer_cat_app/core/utils/size_responsive.dart';
 import 'package:video_player/video_player.dart';
 import '../../domain/video_feed_item.dart';
@@ -52,6 +54,54 @@ class _FeedVideoPageState extends State<FeedVideoPage> {
 
   @override
   Widget build(BuildContext context) {
+    // A restaurant's holiday poster: an image card, nothing to play.
+    final holiday = widget.item.holiday;
+    if (holiday != null) {
+      return GestureDetector(
+        onDoubleTapDown: _handleDoubleTapDown,
+        onDoubleTap: () {},
+        onLongPress: widget.onLongPress,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xff1F1B3A), Color(0xff3A1736)],
+                ),
+              ),
+            ),
+            Align(
+              // A little above center, clear of the caption and rail.
+              alignment: const Alignment(0, -0.25),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 44),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  child: HolidayPosterArt(
+                    restaurantName: widget.item.restaurant?.name ?? '',
+                    headline: holiday.headline,
+                    pillLabel: holiday.pillText(context),
+                    imageUrl: holiday.imageUrl,
+                  ),
+                ),
+              ),
+            ),
+            if (_burstPosition != null)
+              _HeartBurst(
+                key: ValueKey(_burstKey),
+                position: _burstPosition!,
+                onCompleted: () {
+                  if (mounted) setState(() => _burstPosition = null);
+                },
+              ),
+          ],
+        ),
+      );
+    }
+
     if (widget.failed) {
       return _ErrorPlaceholder(onRetry: widget.onRetry);
     }

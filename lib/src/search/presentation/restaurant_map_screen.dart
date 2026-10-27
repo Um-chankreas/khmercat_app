@@ -5,6 +5,9 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:khmer_cat_app/l10n/app_localizations.dart';
+import 'package:khmer_cat_app/src/addresses/presentation/address_widgets.dart';
+import 'package:khmer_cat_app/src/addresses/presentation/addresses_screen.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/components/rating/rating_badge.dart';
 import 'package:khmer_cat_app/core/location/location_provider.dart';
@@ -38,6 +41,8 @@ class RestaurantMapScreen extends HookConsumerWidget {
     final moved = useState<LatLng?>(null);
     // The address or place name of [moved], when it was picked by name.
     final movedLabel = useState<String?>(null);
+    // The saved address the search moved to, if it came from the list.
+    final movedAddressId = useState<String?>(null);
     final map = useState<GoogleMapController?>(null);
     final radiusKm = useState(_defaultKm);
     final selectedId = useState<String?>(null);
@@ -67,10 +72,34 @@ class RestaurantMapScreen extends HookConsumerWidget {
     void moveTo(LatLng point, {String? label}) {
       moved.value = point;
       movedLabel.value = label;
+      movedAddressId.value = null;
     }
 
-    // Search for a place by name, or pin one, on the location picker.
+    // Signed in: pick one of the saved addresses (or choose to search);
+    // otherwise search for a place by name, or pin one.
     Future<void> changeLocation() async {
+      if (ref.read(isAuthenticatedProvider)) {
+        final choice = await Navigator.of(context).push<AddressChoice>(
+          MaterialPageRoute(
+            builder: (_) => AddressesScreen(
+              choosing: true,
+              selectedId: movedAddressId.value,
+            ),
+          ),
+        );
+        if (choice == null || !context.mounted) return;
+        final a = choice.address;
+        if (a != null) {
+          // "Home", "Office" — shorter than the street address.
+          moveTo(
+            LatLng(a.latitude, a.longitude),
+            label: a.label.text(AppLocalizations.of(context)),
+          );
+          movedAddressId.value = a.id;
+          return;
+        }
+      }
+      if (!context.mounted) return;
       final picked = await Navigator.of(context).push<LocationPickResult>(
         MaterialPageRoute(
           builder: (_) => LocationPickerScreen(
@@ -174,7 +203,9 @@ class RestaurantMapScreen extends HookConsumerWidget {
               bottom:
                   safe.bottom + 64 + (inRadius.isEmpty ? 0 : _cardHeight + 10),
             ),
-            myLocationEnabled: here != null,
+            // The pin marks the user's own spot; Google's dot only shows
+            // once the search has moved elsewhere.
+            myLocationEnabled: here != null && moved.value != null,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
@@ -198,8 +229,8 @@ class RestaurantMapScreen extends HookConsumerWidget {
                   position: center,
                   draggable: true,
                   zIndexInt: 1,
-                  // The cat head is centered on the spot; the stock pin
-                  // (until it's drawn) points at it.
+                  // Both the pin's blue dot and the stock pin (until it's
+                  // drawn) mark the spot.
                   anchor: pins == null
                       ? const Offset(0.5, 1)
                       : MapPins.userAnchor,
@@ -271,6 +302,7 @@ class RestaurantMapScreen extends HookConsumerWidget {
                           if (moved.value == null) fitRadius();
                           moved.value = null;
                           movedLabel.value = null;
+                          movedAddressId.value = null;
                         },
                       ),
                     ],

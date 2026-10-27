@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:khmer_cat_app/src/profile/presentation/screens/profile_qr_screen.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -8,11 +9,11 @@ import 'package:khmer_cat_app/core/components/profile/profile_collapsing_header.
 import 'package:khmer_cat_app/core/components/profile/profile_empty_tab_body.dart';
 import 'package:khmer_cat_app/core/components/profile/cover_avatar_header.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_shared_widgets.dart';
+import 'package:khmer_cat_app/core/components/profile/profile_pinned_header.dart';
 import 'package:khmer_cat_app/src/profile/presentation/widgets/profile_image_flow.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
-import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import 'package:khmer_cat_app/core/utils/social_links.dart';
 import 'package:khmer_cat_app/src/auth/presentation/viewmodel/auth_controller.dart';
@@ -87,7 +88,6 @@ class UserProfileScreen extends HookConsumerWidget {
         AssetsName.facebook,
         'Facebook',
       ),
-      (SocialLinks.tiktok(profile.tiktokUrl), AssetsName.tiktok, 'TikTok'),
       (
         SocialLinks.telegram(profile.telegramUsername),
         AssetsName.telegram,
@@ -119,10 +119,9 @@ class UserProfileScreen extends HookConsumerWidget {
                     )
                   : null,
               avatarBadge: isMe
-                  ? ProfileEditIconButton(
-                      icon: Icons.photo_camera_rounded,
-                      size: 28,
-                      ringed: true,
+                  ? ProfileChangeCoverButton(
+                      size: 30,
+                      tooltip: 'Change photo',
                       onTap: () => changeImage(ProfileImageKind.avatar),
                     )
                   : null,
@@ -134,13 +133,16 @@ class UserProfileScreen extends HookConsumerWidget {
               },
               actions: [
                 ProfileCircleButton(
-                  icon: Icons.qr_code_2_rounded,
-                  // TODO(backend): a profile QR / deep link isn't available.
-                  onTap: () => AppService.showToast('Coming soon'),
+                  iconAsset: AssetsName.qrCode,
+                  onTap: () => openProfileQr(
+                    context,
+                    name: profile.name,
+                    username: profile.username,
+                    avatarUrl: profile.profilePicture,
+                  ),
                 ),
-                // The header already puts 8px between actions; this adds 8
-                // more between QR and share.
-                const SizedBox.shrink(),
+                // These go straight into the app bar, which adds no spacing.
+                const Gap(10),
                 ProfileCircleButton(
                   icon: Icons.ios_share_rounded,
                   onTap: share,
@@ -233,7 +235,6 @@ class UserProfileScreen extends HookConsumerWidget {
                     const Gap(_section),
                     // Follow (or Edit profile) and the social circles.
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: isMe
@@ -256,7 +257,7 @@ class UserProfileScreen extends HookConsumerWidget {
                                 ),
                         ),
                         for (final l in socialLinks) ...[
-                          const Gap(12),
+                          const Gap(16),
                           ProfileLinkCircle(
                             label: l.$3,
                             asset: l.$2,
@@ -270,29 +271,39 @@ class UserProfileScreen extends HookConsumerWidget {
               ),
             ),
             const SliverToBoxAdapter(child: Gap(_section)),
-            SliverToBoxAdapter(
-              child: ProfileUnderlineTabs(
-                tabs: [
-                  const ProfileUnderlineTab(
-                    icon: Icons.grid_view_rounded,
-                    label: 'Posts',
+            // Pinned under the app bar so the tabs stay reachable while
+            // scrolling through a long grid.
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: FixedSliverHeaderDelegate(
+                height: 48,
+                child: ColoredBox(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: ProfileUnderlineTabs(
+                    showBaseline: false,
+                    tabs: [
+                      ProfileUnderlineTab(
+                        asset: AssetsName.feeds,
+                        label: 'Posts',
+                      ),
+                      ProfileUnderlineTab(
+                        asset: AssetsName.review,
+                        label: 'Review',
+                      ),
+                      ProfileUnderlineTab(
+                        asset: AssetsName.bookmarkout,
+                        label: 'Saved',
+                      ),
+                    ],
+                    selected: tab.value,
+                    onChanged: (i) {
+                      tab.value = i;
+                      if (!visited.value.contains(i)) {
+                        visited.value = {...visited.value, i};
+                      }
+                    },
                   ),
-                  ProfileUnderlineTab(
-                    asset: AssetsName.review,
-                    label: 'Review videos',
-                  ),
-                  const ProfileUnderlineTab(
-                    icon: Icons.bookmark_border_rounded,
-                    label: 'Saved',
-                  ),
-                ],
-                selected: tab.value,
-                onChanged: (i) {
-                  tab.value = i;
-                  if (!visited.value.contains(i)) {
-                    visited.value = {...visited.value, i};
-                  }
-                },
+                ),
               ),
             ),
             const SliverToBoxAdapter(child: Gap(16)),

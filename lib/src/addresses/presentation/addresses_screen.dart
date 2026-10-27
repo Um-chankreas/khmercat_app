@@ -4,7 +4,6 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:khmer_cat_app/core/components/dialogs/app_dialog.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
-import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import 'package:khmer_cat_app/l10n/app_localizations.dart';
 import 'package:khmer_cat_app/src/settings/presentation/widgets/menu_chrome.dart';
 
@@ -17,8 +16,20 @@ enum _RowAction { edit, delete }
 
 /// Menu → Saved addresses: the user's addresses, each with Edit / Delete,
 /// over an "Add new address" button.
+/// What the Addresses screen returns in choose mode: a saved address, or
+/// a request to search for some other place ([address] null).
+class AddressChoice {
+  final SavedAddress? address;
+  const AddressChoice(this.address);
+}
+
+/// The saved addresses. With [choosing], tapping one picks it (the screen
+/// pops with an [AddressChoice]) instead of opening it to edit; edit and
+/// delete stay in the ⋮ menu. [selectedId] gets a tick.
 class AddressesScreen extends ConsumerWidget {
-  const AddressesScreen({super.key});
+  final bool choosing;
+  final String? selectedId;
+  const AddressesScreen({this.choosing = false, this.selectedId, super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -108,11 +119,35 @@ class AddressesScreen extends ConsumerWidget {
     return Scaffold(
       body: Stack(
         children: [
-          const Positioned.fill(child: _Backdrop()),
+          const Positioned.fill(child: SoftCirclesBackdrop()),
           SafeArea(
             child: Column(
               children: [
-                MenuTitleBar(title: l.addressesTitle),
+                MenuTitleBar(
+                  title: choosing ? 'Choose an address' : l.addressesTitle,
+                ),
+                // Any other place: the search / pin picker.
+                if (choosing)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                    child: MenuCard(
+                      outlined: true,
+                      children: [
+                        MenuRow.icon(
+                          icon: Icons.search_rounded,
+                          title: 'Search another place',
+                          subtitle: 'Find a street, area or landmark',
+                          trailing: Icon(
+                            Icons.chevron_right_rounded,
+                            color: muted,
+                          ),
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pop(const AddressChoice(null)),
+                        ),
+                      ],
+                    ),
+                  ),
                 Expanded(
                   child: addresses.when(
                     skipLoadingOnReload: true,
@@ -144,15 +179,32 @@ class AddressesScreen extends ConsumerWidget {
                                       icon: Icons.place_outlined,
                                       title: a.label.text(l),
                                       subtitle: a.fullAddress,
-                                      trailing: _RowMenu(
-                                        onSelected: (action) =>
-                                            switch (action) {
-                                              _RowAction.edit => openForm(a),
-                                              _RowAction.delete =>
-                                                confirmDelete(a),
-                                            },
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (choosing && a.id == selectedId)
+                                            const Icon(
+                                              Icons.check_circle_rounded,
+                                              color: menuAccent,
+                                              size: 22,
+                                            ),
+                                          _RowMenu(
+                                            onSelected: (action) =>
+                                                switch (action) {
+                                                  _RowAction.edit => openForm(
+                                                    a,
+                                                  ),
+                                                  _RowAction.delete =>
+                                                    confirmDelete(a),
+                                                },
+                                          ),
+                                        ],
                                       ),
-                                      onTap: () => openForm(a),
+                                      onTap: choosing
+                                          ? () => Navigator.of(
+                                              context,
+                                            ).pop(AddressChoice(a))
+                                          : () => openForm(a),
                                     ),
                                 ],
                               ),
@@ -172,43 +224,6 @@ class AddressesScreen extends ConsumerWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Plain white with the logo's cat head faded into the top-left corner.
-/// Dark mode keeps the page color and a fainter cat.
-class _Backdrop extends StatelessWidget {
-  const _Backdrop();
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cat = (MediaQuery.sizeOf(context).width * 0.8).clamp(260.0, 420.0);
-    return IgnorePointer(
-      child: ColoredBox(
-        color: isDark ? Colors.transparent : Colors.white,
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: [
-            // Hanging off the corner.
-            Positioned(
-              left: -cat * 0.22,
-              top: -cat * 0.12,
-              width: cat,
-              child: RepaintBoundary(
-                child: Image.asset(
-                  AssetsName.appLogoTrsm,
-                  opacity: AlwaysStoppedAnimation(isDark ? 0.05 : 0.10),
-                  // Decoded at on-screen size, not the 1198px source.
-                  cacheWidth: (cat * MediaQuery.devicePixelRatioOf(context))
-                      .round(),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

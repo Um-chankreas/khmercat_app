@@ -110,6 +110,8 @@ class VideoControllerManager extends ChangeNotifier {
   }
 
   void _load(VideoFeedItem item) {
+    // Holiday posters are images: nothing to play.
+    if (item.isPoster) return;
     if (_players.containsKey(item.id) || _failed.contains(item.id)) return;
 
     // A pending upload plays straight from the file on this device.

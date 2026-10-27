@@ -36,6 +36,36 @@ class FixedSliverHeaderDelegate extends SliverPersistentHeaderDelegate {
       height != old.height || child != old.child;
 }
 
+/// A box sliver for the content under pinned tabs, at least tall enough to
+/// fill the viewport below everything pinned ([pinnedHeight]). Without it,
+/// a tab with only a few items ends the page early, so it can't scroll far
+/// enough for the tabs to reach the top and stick.
+class SliverFillBelowPinned extends StatelessWidget {
+  final double pinnedHeight;
+  final Widget child;
+
+  const SliverFillBelowPinned({
+    required this.pinnedHeight,
+    required this.child,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverLayoutBuilder(
+      builder: (context, constraints) => SliverToBoxAdapter(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: (constraints.viewportMainAxisExtent - pinnedHeight)
+                .clamp(0, double.infinity),
+          ),
+          child: Align(alignment: Alignment.topCenter, child: child),
+        ),
+      ),
+    );
+  }
+}
+
 // A previous version of this file also had `flexibleSpaceCollapseFraction`
 // and `flexibleSpaceCrossfade`, driven by [FlexibleSpaceBarSettings] — the
 // InheritedWidget FlexibleSpaceBar uses internally for its own `title` fade.

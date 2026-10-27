@@ -50,6 +50,15 @@ abstract class ApiRoute {
       '/admin/reports/$videoId/remove';
   static String adminDismissReports(String videoId) =>
       '/admin/reports/$videoId/dismiss';
+  static const String adminSummary = '/admin/summary';
+  static const String adminActivity = '/admin/activity';
+  static const String adminUsers = '/admin/users';
+  static String adminDeactivateRestaurant(String id) =>
+      '/admin/restaurants/$id/deactivate';
+  static String adminActivateRestaurant(String id) =>
+      '/admin/restaurants/$id/activate';
+  static String adminBanUser(String id) => '/admin/users/$id/ban';
+  static String adminUnbanUser(String id) => '/admin/users/$id/unban';
 
   // saved addresses
   static const String addresses = '/addresses';
@@ -66,10 +75,20 @@ abstract class ApiRoute {
   static String restaurantMenu(String id) => '/restaurants/$id/menu';
   static String restaurantMenuPage(String id, String pageId) =>
       '/restaurants/$id/menu/$pageId';
+  // holiday posters
+  static const String restaurantHolidays = '/restaurants/holidays';
+  static String holiday(String id) => '/holidays/$id';
+
   static String restaurantVideo(String id, String videoId) =>
       '/restaurants/$id/videos/$videoId';
   static String restaurantDeletedVideos(String id) =>
       '/restaurants/$id/videos/deleted';
+
+  // Reviews tab: rating + comment (one per person), likes, owner reply
+  static String restaurantReviews(String id) => '/restaurants/$id/reviews';
+  static String review(String id) => '/reviews/$id';
+  static String reviewLike(String id) => '/reviews/$id/like';
+  static String reviewReply(String id) => '/reviews/$id/reply';
 
   // uploads
   static const String uploadReviewVideo = '/reviews/upload';

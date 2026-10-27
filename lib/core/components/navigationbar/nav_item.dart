@@ -71,8 +71,9 @@ class NavGlow extends StatelessWidget {
   }
 }
 
-/// One icon on the bottom bar. No label: the active tab is brighter, a
-/// little larger, and has a glowing dot under it.
+/// One icon on the bottom bar. No label: the active tab is the glowing
+/// gradient outline, a little larger, with a dot under it; the others are
+/// a light white outline.
 class NavItem extends StatelessWidget {
   final String imagePath;
 
@@ -104,16 +105,41 @@ class NavItem extends StatelessWidget {
       isActive: isActive,
       onLight: onLight,
       onTap: onTap,
-      child: NavGlow(
-        onLight: onLight,
-        strength: 0.65,
-        child: Image.asset(
-          imagePath,
-          width: iconSize,
-          height: iconSize,
-          cacheWidth: cache,
-        ),
-      ),
+      // Active: the glowing pink → blue outline. Others: a light white
+      // outline, with a faint shadow so it still reads over a light page.
+      child: isActive
+          ? NavGlow(
+              onLight: onLight,
+              strength: 0.65,
+              child: Image.asset(
+                imagePath,
+                width: iconSize,
+                height: iconSize,
+                cacheWidth: cache,
+              ),
+            )
+          : Stack(
+              alignment: Alignment.center,
+              children: [
+                ImageFiltered(
+                  imageFilter: ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
+                  child: Image.asset(
+                    imagePath,
+                    width: iconSize,
+                    height: iconSize,
+                    cacheWidth: cache,
+                    color: Colors.black.withValues(alpha: onLight ? 0.35 : 0.2),
+                  ),
+                ),
+                Image.asset(
+                  imagePath,
+                  width: iconSize,
+                  height: iconSize,
+                  cacheWidth: cache,
+                  color: Colors.white.withValues(alpha: 0.92),
+                ),
+              ],
+            ),
     );
   }
 }

@@ -164,5 +164,604 @@
   "peopleLoadFailed": "Couldn't load this list.",
   "signInToFollow": "Sign in to follow people",
   "followFailed": "Couldn't update follow. Please try again.",
-  "profileTabVideos": "Videos"
+  "profileTabVideos": "Videos",
+  "adminNavHome": "Home",
+  "adminNavRestaurants": "Restaurants",
+  "adminNavReports": "Reports",
+  "adminNavSettings": "Settings",
+  "adminHi": "Hi {name}",
+  "@adminHi": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminDashboardLoadFailed": "Couldn't load the dashboard.",
+  "adminTileToApprove": "Restaurants to approve",
+  "adminTileOpenReports": "Open reports",
+  "adminUsers": "Users",
+  "adminTileUsersWeek": "Users · +{count} this week",
+  "@adminTileUsersWeek": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminTileActiveRestaurants": "Active restaurants",
+  "adminWaitingApproval": "Waiting for approval",
+  "adminSeeAll": "See all {count}",
+  "@adminSeeAll": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminNoRestaurantsWaiting": "No restaurants waiting.",
+  "adminLatestReports": "Latest reports",
+  "adminNoOpenReports": "No open reports.",
+  "adminVideoBy": "Video by @{username}",
+  "@adminVideoBy": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminReportsCount": "{count, plural, =1{1 report} other{{count} reports}}",
+  "@adminReportsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminVideosCount": "{count, plural, =1{1 video} other{{count} videos}}",
+  "@adminVideosCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminSomethingWrong": "Something went wrong",
+  "adminReject": "Reject",
+  "adminRejectTitle": "Reject {name}?",
+  "@adminRejectTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminReasonForOwner": "Reason for the owner (optional)",
+  "adminRejected": "Rejected",
+  "adminApprove": "Approve",
+  "adminApproved": "Approved",
+  "adminDelete": "Delete",
+  "adminTabPending": "Pending",
+  "adminTabActive": "Active",
+  "adminTabDeactivated": "Deactivated",
+  "adminDeactivateTitle": "Deactivate {name}?",
+  "@adminDeactivateTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminDeactivateHint": "Why? e.g. fake photos, many reports",
+  "adminDeactivate": "Deactivate",
+  "adminActivate": "Activate",
+  "adminActivatedAgain": "Activated again",
+  "adminRestaurantsLoadFailed": "Couldn't load restaurants.",
+  "adminNoPending": "No restaurants waiting for approval.",
+  "adminNoActive": "No active restaurants.",
+  "adminNoDeactivated": "No deactivated restaurants.",
+  "adminOwner": "Owner {name}",
+  "@adminOwner": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminDeactivatedOn": "Deactivated {date}",
+  "@adminDeactivatedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "adminReasonValue": "Reason: {reason}",
+  "@adminReasonValue": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "adminVideoTakenDown": "This video was taken down.",
+  "adminDeleteVideoTitle": "Delete this video?",
+  "adminDeleteVideoMessage": "It's taken down for everyone and its reports are closed. {author} can still see it in their Deleted tab for 30 days.",
+  "@adminDeleteVideoMessage": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "adminTheAuthor": "The author",
+  "adminVideoDeleted": "Video deleted",
+  "adminReportsLoadFailed": "Couldn't load reports.",
+  "adminAllClear": "No open reports. All clear!",
+  "adminNothingResolved": "Nothing resolved yet.",
+  "adminReportsDismissed": "Reports dismissed",
+  "adminTabOpen": "Open",
+  "adminTabResolved": "Resolved",
+  "adminTapToView": "Tap to view",
+  "adminAuthorBanned": "Author banned",
+  "adminDismiss": "Dismiss",
+  "adminBan": "Ban",
+  "adminByYou": "by you",
+  "adminByName": "by {name}",
+  "@adminByName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUserBanned": "User banned",
+  "adminDeleted": "Deleted",
+  "adminDismissed": "Dismissed",
+  "adminBannedToast": "@{username} banned",
+  "@adminBannedToast": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminBannedWithVideos": "@{username} banned · {count, plural, =1{1 video} other{{count} videos}} deleted",
+  "@adminBannedWithVideos": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminBanFailed": "Couldn't ban this user.",
+  "adminBanTitle": "Ban {name}?",
+  "@adminBanTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "adminHowLong": "How long",
+  "adminDays": "{count} days",
+  "@adminDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminForever": "Forever",
+  "adminReason": "Reason",
+  "adminAlsoDeleteVideos": "Also delete reported videos",
+  "adminAlsoDeleteVideosSub": "Their videos with open reports",
+  "adminBanNote": "They can't log in, post or comment while banned, and are told why when they try to log in.",
+  "adminBanUser": "Ban user",
+  "adminBanReasonSexual": "Nudity or sexual content",
+  "adminBanReasonSpam": "Spam or scam",
+  "adminBanReasonHate": "Hate or harassment",
+  "adminBanReasonFake": "Fake account",
+  "adminUnbanTitle": "Unban @{username}?",
+  "@adminUnbanTitle": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUnbanMessage": "They can log in, post and comment again.",
+  "adminUnban": "Unban",
+  "adminUnbannedToast": "@{username} unbanned",
+  "@adminUnbannedToast": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUnbanFailed": "Couldn't unban.",
+  "adminUsersLoadFailed": "Couldn't load users.",
+  "adminNoMatch": "No one matches \"{query}\".",
+  "@adminNoMatch": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "adminNoReported": "No one has open reports.",
+  "adminNoBanned": "No one is banned.",
+  "adminNoUsers": "No users yet.",
+  "adminSearchUsers": "Search name, @username or phone",
+  "adminFilterAll": "All",
+  "adminFilterReported": "Reported",
+  "adminFilterBanned": "Banned",
+  "adminBannedForGood": "Banned for good",
+  "adminBannedUntil": "Banned until {date}",
+  "@adminBannedUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "adminRoleAdmin": "Admin",
+  "adminViewProfile": "View profile",
+  "adminPeople": "People",
+  "adminUsersRowSub": "Search, see reported and banned, ban or unban",
+  "adminActivity": "Activity",
+  "adminActivityLog": "Admin activity log",
+  "adminActivityLogSub": "Every approve, ban and delete",
+  "adminAccount": "Account",
+  "adminBackToApp": "Back to KhmerCat",
+  "adminBackToAppSub": "Leave the admin area",
+  "adminLogLoadFailed": "Couldn't load the log.",
+  "adminNothingDone": "Nothing done yet.",
+  "adminActivityTitle": "Activity log",
+  "adminActApprove": "Approved {target}",
+  "@adminActApprove": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "adminActReject": "Rejected {target}",
+  "@adminActReject": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "adminActDeactivate": "Deactivated {target}",
+  "@adminActDeactivate": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "adminActActivate": "Activated {target}",
+  "@adminActActivate": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "adminActRemoveVideo": "Deleted {target}",
+  "@adminActRemoveVideo": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "adminActDismiss": "Dismissed reports on {target}",
+  "@adminActDismiss": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "adminActBan": "Banned {target}",
+  "@adminActBan": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "adminActUnban": "Unbanned {target}",
+  "@adminActUnban": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "adminYou": "You",
+  "adminAnAdmin": "An admin",
+  "adminNow": "now",
+  "adminMinutesAgo": "{count}m ago",
+  "@adminMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminHoursAgo": "{count}h ago",
+  "@adminHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminYesterday": "Yesterday",
+  "adminDaysAgo": "{count}d ago",
+  "@adminDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "adminReasonViolence": "Violence or abuse",
+  "adminReasonChildSafety": "Child safety",
+  "adminReasonMisleading": "False or misleading information",
+  "adminReasonAi": "Problematic AI content",
+  "adminReasonSelfHarm": "Suicide and self-harm",
+  "adminReasonBranded": "Undisclosed branded content",
+  "adminReasonCopyright": "Copyright or someone else's content",
+  "adminReasonInappropriate": "Inappropriate",
+  "adminReasonOther": "Something else",
+  "adminShortNudity": "Nudity",
+  "adminShortHarassment": "Harassment",
+  "adminShortViolence": "Violence",
+  "adminShortChildSafety": "Child safety",
+  "adminShortMisleading": "Misleading",
+  "adminShortAi": "AI content",
+  "adminShortSelfHarm": "Self-harm",
+  "adminShortBranded": "Branded",
+  "adminShortSpam": "Spam",
+  "adminShortCopyright": "Copyright",
+  "adminShortOther": "Other",
+  "adminTabOff": "Off",
+  "restaurantTabReviews": "Reviews",
+  "restaurantTabInfo": "Info",
+  "statReviews": "Reviews",
+  "qrCodeTooltip": "QR code",
+  "restaurantUnavailable": "Restaurant unavailable",
+  "notFound": "Not found",
+  "removePosterTitle": "Remove holiday poster?",
+  "removePosterMessage": "It comes off your profile and the feed, and your usual hours show again that day.",
+  "removeAction": "Remove",
+  "removePosterFailed": "Could not remove the poster.",
+  "restaurantNoPostsTitle": "No posts yet",
+  "restaurantNoPostsOwner": "Tap + to post your first video as this restaurant.",
+  "restaurantReviewsEmpty": "Videos from diners who visited show up here.",
+  "holidayToday": "TODAY",
+  "holidayNotice": "HOLIDAY NOTICE",
+  "removePoster": "Remove poster",
+  "holidayClosedOn": "Closed · {dates}",
+  "@holidayClosedOn": {
+    "placeholders": {
+      "dates": {
+        "type": "String"
+      }
+    }
+  },
+  "holidayOpenOn": "Open · {dates}",
+  "@holidayOpenOn": {
+    "placeholders": {
+      "dates": {
+        "type": "String"
+      }
+    }
+  },
+  "holidayClosedToday": "Closed today · {title}",
+  "@holidayClosedToday": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "holidayOpenHoursToday": "Open {opens} – {closes} today · {title}",
+  "@holidayOpenHoursToday": {
+    "placeholders": {
+      "opens": {
+        "type": "String"
+      },
+      "closes": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "holidayOpenToday": "Open today · {title}",
+  "@holidayOpenToday": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "infoMenuPages": "{count, plural, =1{1 page} other{{count} pages}} · QR code",
+  "@infoMenuPages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "infoCategory": "Category",
+  "infoOpeningHours": "Opening hours",
+  "infoService": "Service",
+  "infoPhone": "Phone",
+  "infoAbout": "About",
+  "infoNoDetails": "No details yet.",
+  "infoDetails": "Details",
+  "infoFinishProfile": "Finish your profile",
+  "infoDoneOfTotal": "{done} of {total} done",
+  "@infoDoneOfTotal": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "infoCompleteHint": "Complete profiles get approved faster and show up more in search.",
+  "openNow": "Open now",
+  "closedStatus": "Closed",
+  "serviceDineIn": "Dine-in Only",
+  "serviceDelivery": "Delivery Only",
+  "serviceDineInDelivery": "Dine-in & Delivery",
+  "serviceTakeaway": "Takeaway",
+  "approvalNotApproved": "Not approved",
+  "approvalRejectedBody": "An admin didn't approve this restaurant, so customers can't see it.",
+  "approvalReason": "Reason: {reason}",
+  "@approvalReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "approvalPendingBody": "Customers can't see it yet. It goes public once the Khmer Cat team approves it.",
+  "unpublishedTitle": "Hidden from customers",
+  "unpublishedBody": "Only your team can see this restaurant.",
+  "publishAction": "Publish",
+  "publishedAgain": "Restaurant is public again",
+  "publishFailed": "Could not publish.",
+  "deleteVideoTitle": "Delete video?",
+  "deleteVideoMessage": "It will be moved to Delete for 30 days, then removed permanently.",
+  "videoDeleteFailed": "Failed to delete video.",
+  "addVideo": "Add video",
+  "videosLoadFailed": "Couldn't load videos.",
+  "textMore": "more",
+
+  "distanceAway": "{distance} away",
+  "@distanceAway": {"placeholders": {"distance": {"type": "String"}}},
+  "signInToFollowRestaurant": "Sign in to follow this restaurant",
+  "signInToWriteReview": "Sign in to write a review",
+  "viewMenu": "View menu",
+  "shareOnKhmerCat": "{name} on Khmer Cat",
+  "@shareOnKhmerCat": {"placeholders": {"name": {"type": "String"}}},
+  "shareMenuLine": "Menu: {url}",
+  "@shareMenuLine": {"placeholders": {"url": {"type": "String"}}},
+  "popularTag": "Popular",
+  "hoursNotAdded": "Opening hours not added yet",
+  "hoursDaily": "daily",
+  "restaurantTabComments": "Comments",
+  "restaurantPostsEmpty": "Videos posted by this restaurant show up here.",
+  "likesPill": "{formatted} {count, plural, =1{like} other{likes}}",
+  "@likesPill": {"placeholders": {"formatted": {"type": "String"}, "count": {"type": "int"}}},
+  "addLink": "+ Add",
+  "orderDelivery": "Order delivery",
+  "followUs": "Follow us",
+  "statPostLabel": "{count, plural, =1{Post} other{Posts}}",
+  "@statPostLabel": {"placeholders": {"count": {"type": "int"}}},
+  "statReviewLabel": "{count, plural, =1{Review} other{Reviews}}",
+  "@statReviewLabel": {"placeholders": {"count": {"type": "int"}}},
+  "statFollowerLabel": "{count, plural, =1{Follower} other{Followers}}",
+  "@statFollowerLabel": {"placeholders": {"count": {"type": "int"}}},
+  "reviewsEmptyTeam": "Reviews from your customers show up here.",
+  "reviewsEmptyVisitor": "Be the first to review this restaurant.",
+  "writeReview": "Write a review",
+  "editYourReview": "Edit your review",
+  "filterAll": "All · {count}",
+  "@filterAll": {"placeholders": {"count": {"type": "int"}}},
+  "filterWithVideo": "With video · {count}",
+  "@filterWithVideo": {"placeholders": {"count": {"type": "int"}}},
+  "noVideoReviewsYet": "No video reviews yet.",
+  "signInToLikeReviews": "Sign in to like reviews",
+  "ratingsCount": "{count, plural, =1{1 rating} other{{count} ratings}}",
+  "@ratingsCount": {"placeholders": {"count": {"type": "int"}}},
+  "replyAction": "Reply",
+  "editReply": "Edit reply",
+  "agoShortMinutes": "{count}m",
+  "@agoShortMinutes": {"placeholders": {"count": {"type": "int"}}},
+  "agoShortHours": "{count}h",
+  "@agoShortHours": {"placeholders": {"count": {"type": "int"}}},
+  "agoShortDays": "{count}d",
+  "@agoShortDays": {"placeholders": {"count": {"type": "int"}}},
+  "agoShortWeeks": "{count}w",
+  "@agoShortWeeks": {"placeholders": {"count": {"type": "int"}}},
+  "agoShortMonths": "{count}mo",
+  "@agoShortMonths": {"placeholders": {"count": {"type": "int"}}},
+  "agoShortYears": "{count}y",
+  "@agoShortYears": {"placeholders": {"count": {"type": "int"}}},
+  "videoUnavailable": "This video isn't available.",
+  "replyFrom": "Reply from {name}",
+  "@replyFrom": {"placeholders": {"name": {"type": "String"}}},
+  "reviewsLoadFailed": "Couldn't load reviews.",
+  "replyTo": "Reply to {name}",
+  "@replyTo": {"placeholders": {"name": {"type": "String"}}},
+  "replyHint": "Thank them, or answer their question…",
+  "replyRemoved": "Reply removed.",
+  "replyPosted": "Reply posted.",
+  "saveAction": "Save",
+  "posterTitlePlaceholder": "Your holiday title",
+  "posterPosted": "Holiday poster posted.",
+  "posterPostedMany": "Holiday poster posted to {count} restaurants.",
+  "@posterPostedMany": {"placeholders": {"count": {"type": "int"}}},
+  "posterPostFailed": "Could not post the poster.",
+  "posterYourHoliday": "your holiday",
+  "posterTitleLabel": "Title",
+  "posterTitleHint": "e.g. Happy Independence Day",
+  "posterDescriptionLabel": "Description",
+  "posterDescriptionHint": "e.g. We're closed on {date}. Back the next day!",
+  "@posterDescriptionHint": {"placeholders": {"date": {"type": "String"}}},
+  "posterApplyTo": "Apply to",
+  "chosenOfTotal": "{chosen} of {total}",
+  "@chosenOfTotal": {"placeholders": {"chosen": {"type": "int"}, "total": {"type": "int"}}},
+  "clearAction": "Clear",
+  "selectAll": "Select all",
+  "posterActingAs": "You're acting as this restaurant, so the poster is for it only.",
+  "posterNoRestaurants": "You don't own or manage a restaurant yet.",
+  "posterOpeningOnHoliday": "Opening on the holiday",
+  "posterStarts": "Starts",
+  "changeAction": "Change",
+  "posterUntil": "Until {date}",
+  "@posterUntil": {"placeholders": {"date": {"type": "String"}}},
+  "posterOpens": "Opens",
+  "posterCloses": "Closes",
+  "modeSpecial": "Special",
+  "modeOpen": "Open",
+  "newPosterTitle": "New poster",
+  "postAction": "Post",
+  "addPhoto": "Add photo",
+  "posterSeePrefix": "Customers will see ",
+  "posterSeeSuffix": " on your profile and in search that day.",
+  "daysCount": "{count, plural, =1{1 day} other{{count} days}}",
+  "@daysCount": {"placeholders": {"count": {"type": "int"}}},
+  "createTitle": "Create",
+  "postingAs": "Posting as ",
+  "createVideoTitle": "Video",
+  "createVideoSub": "Record or upload",
+  "createPosterTitle": "Holiday poster",
+  "createPosterSub": "Closed or special hours",
+  "loggingOut": "Logging out…",
+  "loggedOut": "Logged out",
+  "logOutFailed": "Couldn't log out. Please try again.",
+  "approvalStepSubmitted": "Submitted",
+  "approvalStepReviewing": "Reviewing…",
+  "approvalStepReviewed": "Reviewed",
+  "approvalWorkingTitle": "Getting {name} ready…",
+  "@approvalWorkingTitle": {"placeholders": {"name": {"type": "String"}}},
+  "approvalLiveTitle": "Your restaurant is live!"
 }

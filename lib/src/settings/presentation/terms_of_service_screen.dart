@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/l10n/app_localizations.dart';
@@ -6,12 +7,31 @@ import 'package:khmer_cat_app/src/settings/presentation/terms_content.dart';
 import 'package:khmer_cat_app/src/settings/presentation/widgets/menu_chrome.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Terms of Service, opened from the Menu screen's "Terms of Policy" card.
-class TermsOfServiceScreen extends StatelessWidget {
-  const TermsOfServiceScreen({super.key});
+/// Terms of Service, opened from the Menu screen's "Terms of Policy" card,
+/// or from sign-up with [askToAccept]: Decline / Accept buttons that pop
+/// with whether they accepted.
+class TermsOfServiceScreen extends HookWidget {
+  final bool askToAccept;
+  const TermsOfServiceScreen({this.askToAccept = false, super.key});
 
   @override
   Widget build(BuildContext context) {
+    final scroll = useScrollController();
+    // Accept unlocks once they've scrolled to the end (and stays unlocked).
+    final reachedEnd = useState(false);
+    useEffect(() {
+      if (!askToAccept) return null;
+      void check() {
+        if (reachedEnd.value || !scroll.hasClients) return;
+        if (scroll.position.extentAfter < 40) reachedEnd.value = true;
+      }
+
+      scroll.addListener(check);
+      // Content that already fits on screen counts as read.
+      WidgetsBinding.instance.addPostFrameCallback((_) => check());
+      return () => scroll.removeListener(check);
+    }, [scroll, askToAccept]);
+
     final l = AppLocalizations.of(context);
     final primary = ProfileTheme.textPrimary(context);
     final secondary = ProfileTheme.textSecondary(context);
@@ -20,7 +40,7 @@ class TermsOfServiceScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          const Positioned.fill(child: MenuBackdrop()),
+          const Positioned.fill(child: SoftCirclesBackdrop()),
           SafeArea(
             bottom: false,
             child: Column(
@@ -28,11 +48,14 @@ class TermsOfServiceScreen extends StatelessWidget {
                 MenuTitleBar(title: l.termsOfService),
                 Expanded(
                   child: ListView(
+                    controller: scroll,
                     padding: EdgeInsets.fromLTRB(
                       12,
                       4,
                       12,
-                      MediaQuery.paddingOf(context).bottom + 20,
+                      askToAccept
+                          ? 20
+                          : MediaQuery.paddingOf(context).bottom + 20,
                     ),
                     children: [
                       MenuCard(
@@ -86,8 +109,119 @@ class TermsOfServiceScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (askToAccept) _AcceptBar(canAccept: reachedEnd.value),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Decline (pops false) / Accept (pops true), pinned under the terms.
+/// Accept stays greyed out until [canAccept] (scrolled to the end).
+class _AcceptBar extends StatelessWidget {
+  final bool canAccept;
+  const _AcceptBar({required this.canAccept});
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = ProfileTheme.textPrimary(context);
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        12 + MediaQuery.paddingOf(context).bottom,
+      ),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            child: canAccept
+                ? const SizedBox(width: double.infinity)
+                : Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.keyboard_double_arrow_down_rounded,
+                          size: 16,
+                          color: ProfileTheme.textSecondary(context),
+                        ),
+                        const Gap(4),
+                        Text(
+                          'Scroll to the end to accept',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: ProfileTheme.textSecondary(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    foregroundColor: primary,
+                    side: BorderSide(color: primary.withValues(alpha: 0.2)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                  child: const Text(
+                    'Decline',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const Gap(10),
+              Expanded(
+                child: GestureDetector(
+                  onTap: canAccept
+                      ? () => Navigator.of(context).pop(true)
+                      : null,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    height: 48,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      gradient: canAccept ? ProfileTheme.brandGradient : null,
+                      color: canAccept ? null : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Text(
+                      'I Accept',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: canAccept
+                            ? ProfileTheme.ink
+                            : Colors.grey.shade500,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

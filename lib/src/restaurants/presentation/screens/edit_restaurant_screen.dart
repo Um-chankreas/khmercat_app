@@ -10,6 +10,7 @@ import 'package:khmer_cat_app/core/network/api_exception.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/core/utils/assets_name.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
+import 'package:khmer_cat_app/src/restaurants/presentation/widgets/delivery_app_logo.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/my_restaurants_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/restaurant_profile_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/cuisine_category_selector.dart';
@@ -32,9 +33,9 @@ const _serviceTypes = <(String, String)>[
 ];
 
 /// Owner/manager form for a restaurant's details: name, category, about,
-/// contact, opening hours, services, Halal and social links, saved with the
-/// Save pill; then Published and (for the owner) Delete, which apply right
-/// away.
+/// contact, opening hours, services, social links and delivery apps, saved
+/// with the Save pill; then Halal, Published and (for the owner) Delete,
+/// which apply right away.
 class EditRestaurantScreen extends HookConsumerWidget {
   final String restaurantId;
   const EditRestaurantScreen({required this.restaurantId, super.key});
@@ -70,11 +71,24 @@ class _EditForm extends HookConsumerWidget {
     final phone = useTextEditingController(text: r.phone ?? '');
     final address = useTextEditingController(text: r.address ?? '');
     final facebook = useTextEditingController(text: r.facebookUrl ?? '');
-    final tiktok = useTextEditingController(text: r.tiktokUrl ?? '');
     final telegram = useTextEditingController(text: r.telegramUsername ?? '');
+    // One link field per delivery app, prefilled from what's saved.
+    final delivery = {
+      for (final app in DeliveryApp.values)
+        app: useTextEditingController(
+          text:
+              r.deliveryLinks
+                  .where((d) => d.app == app)
+                  .map((d) => d.url)
+                  .firstOrNull ??
+              '',
+        ),
+    };
+    // Which delivery app each sent link (by position) belongs to, to map
+    // the API's "delivery_links.N.url" errors back to the right field.
+    final sentDelivery = useRef<List<DeliveryApp>>(const []);
     final category = useState<String?>(r.category?.name);
     final service = useState<String?>(r.serviceType);
-    final halal = useState(r.isHalal);
     final opens = useState<String?>(_hm(r.openingTime));
     final closes = useState<String?>(_hm(r.closingTime));
     final saving = useState(false);
@@ -162,6 +176,17 @@ class _EditForm extends HookConsumerWidget {
 
       // The fields this form edits; price level and delivery time aren't
       // sent, so any values already stored are left untouched.
+      // Filled-in delivery links; a link typed without "https://" gets it.
+      final links = <DeliveryLink>[
+        for (final app in DeliveryApp.values)
+          if (text(delivery[app]!) case final url?)
+            DeliveryLink(
+              name: app.key,
+              url: url.startsWith(RegExp('https?://')) ? url : 'https://$url',
+            ),
+      ];
+      sentDelivery.value = [for (final l in links) l.app!];
+
       final fields = <String, dynamic>{
         'name': name.text.trim(),
         if (category.value != null)
@@ -170,12 +195,11 @@ class _EditForm extends HookConsumerWidget {
         'phone': text(phone),
         'address': text(address),
         'facebook_url': text(facebook),
-        'tiktok_url': text(tiktok),
         'telegram_username': text(telegram),
         'service_type': service.value,
-        'is_halal': halal.value,
         'opening_time': opens.value,
         'closing_time': closes.value,
+        'delivery_links': [for (final l in links) l.toJson()],
       };
 
       saving.value = true;
@@ -353,16 +377,6 @@ class _EditForm extends HookConsumerWidget {
                           ),
                       ],
                     ),
-                    const Gap(20),
-                    // Shown as a badge on its cards, and matched by search's
-                    // Halal filter.
-                    _SwitchRow(
-                      title: 'Halal',
-                      subtitle:
-                          'Show a Halal badge and appear in the Halal filter',
-                      value: halal.value,
-                      onChanged: (v) => halal.value = v,
-                    ),
                     const _SectionDivider(),
 
                     // ---- Social links
@@ -377,15 +391,6 @@ class _EditForm extends HookConsumerWidget {
                     ),
                     const Gap(10),
                     _Input(
-                      controller: tiktok,
-                      hint: 'TikTok @username',
-                      asset: AssetsName.tiktok,
-                      keyboardType: TextInputType.url,
-                      maxLength: 255,
-                      errorText: err('tiktok_url'),
-                    ),
-                    const Gap(10),
-                    _Input(
                       controller: telegram,
                       hint: 'Telegram username',
                       asset: AssetsName.telegram,
@@ -394,7 +399,28 @@ class _EditForm extends HookConsumerWidget {
                     ),
                     const _SectionDivider(),
 
-                    // ---- Applies right away (not via Save).
+                    // ---- Delivery apps
+                    const _SectionTitle('Delivery apps'),
+                    const _Label('Your link on each app', optional: true),
+                    for (final (i, app) in DeliveryApp.values.indexed) ...[
+                      if (i > 0) const Gap(10),
+                      _Input(
+                        controller: delivery[app]!,
+                        hint: '${app.label} link',
+                        lead: DeliveryAppLogo(app: app),
+                        keyboardType: TextInputType.url,
+                        maxLength: 500,
+                        errorText: switch (sentDelivery.value.indexOf(app)) {
+                          -1 => null,
+                          final n => err('delivery_links.$n.url'),
+                        },
+                      ),
+                    ],
+                    const _SectionDivider(),
+
+                    // ---- Apply right away (not via Save).
+                    _HalalSwitch(restaurant: r),
+                    const Gap(20),
                     _VisibilityCard(restaurant: r),
                     if (isOwner) ...[
                       const Gap(28),
@@ -627,6 +653,10 @@ class _Input extends StatelessWidget {
   final String hint;
   final IconData? icon;
   final String? asset;
+
+  /// A ready-made leading widget (e.g. a delivery app's icon), in place of
+  /// [icon] / [asset].
+  final Widget? lead;
   final int maxLines;
   final int minLines;
   final int? maxLength;
@@ -638,6 +668,7 @@ class _Input extends StatelessWidget {
     required this.hint,
     this.icon,
     this.asset,
+    this.lead,
     this.maxLines = 1,
     this.minLines = 1,
     this.maxLength,
@@ -654,7 +685,7 @@ class _Input extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = ProfileTheme.textPrimary(context);
-    final hasLead = icon != null || asset != null;
+    final hasLead = icon != null || asset != null || lead != null;
     final multiline = maxLines > 1;
     return TextField(
       controller: controller,
@@ -675,7 +706,9 @@ class _Input extends StatelessWidget {
             ? null
             : Padding(
                 padding: const EdgeInsets.fromLTRB(14, 0, 10, 0),
-                child: asset != null
+                child: lead != null
+                    ? lead!
+                    : asset != null
                     ? Container(
                         width: 28,
                         height: 28,
@@ -872,6 +905,60 @@ class _SwitchRow extends StatelessWidget {
               onChanged: onChanged,
             ),
       ],
+    );
+  }
+}
+
+/// Halal switch, saved as soon as it's flipped (like Published). Shows a
+/// Halal badge on the restaurant's cards and matches search's Halal filter.
+class _HalalSwitch extends HookConsumerWidget {
+  final Restaurant restaurant;
+  const _HalalSwitch({required this.restaurant});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final halal = useState(restaurant.isHalal);
+    final busy = useState(false);
+
+    Future<void> apply(bool value) async {
+      if (busy.value) return;
+      busy.value = true;
+      halal.value = value;
+      try {
+        final updated = await ref.read(restaurantRepositoryProvider).update(
+          restaurant.id,
+          {'is_halal': value},
+        );
+        ref
+            .read(restaurantProfileControllerProvider(restaurant.id).notifier)
+            .replace(updated);
+        AppService.showToast(value ? 'Marked as Halal' : 'Halal badge removed');
+      } catch (_) {
+        halal.value = !value;
+        AppService.showToast('Could not update Halal.', isError: true);
+      } finally {
+        if (context.mounted) busy.value = false;
+      }
+    }
+
+    return _SwitchRow(
+      title: 'Halal',
+      subtitle: 'Show a Halal badge and appear in the Halal filter',
+      value: halal.value,
+      onChanged: apply,
+      busy: busy.value
+          ? const Padding(
+              padding: EdgeInsets.all(14),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: ProfileTheme.purple,
+                ),
+              ),
+            )
+          : null,
     );
   }
 }

@@ -77,72 +77,83 @@ class AuthScaffold extends StatelessWidget {
           resizeToAvoidBottomInset: true,
           body: DecoratedBox(
             decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
-            child: SafeArea(
-              child: Stack(
-                children: [
-                  const Positioned.fill(child: AuthCatBackdrop()),
-                  LayoutBuilder(
-                    builder: (context, constraints) => SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: context.sc(20),
-                        vertical: context.sc(72),
-                      ),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: (constraints.maxHeight - context.sc(144))
-                              .clamp(0, double.infinity),
-                        ),
-                        child: Align(
-                          alignment: cardAlignment,
-                          child: Form(
-                            key: formKey,
-                            child: AuthCard(
-                              children: [
-                                if (showBrand) ...[
-                                  const AuthLogo(),
-                                  Gap(context.sc(12)),
-                                  const AuthWordmark(),
-                                  Gap(context.sc(4)),
-                                  Text(
-                                    'FOOD & LIFESTYLE EXPRESS',
-                                    style: theme.textTheme.labelSmall!.copyWith(
-                                      color: muted,
-                                      letterSpacing: 1.6,
-                                      fontWeight: FontWeight.w600,
+            // The backdrop sits outside the SafeArea so the cat starts at
+            // the very top of the screen, like the search tab.
+            child: Stack(
+              children: [
+                const Positioned.fill(child: AuthCatBackdrop()),
+                SafeArea(
+                  child: Stack(
+                    children: [
+                      LayoutBuilder(
+                        builder: (context, constraints) =>
+                            SingleChildScrollView(
+                              physics: const ClampingScrollPhysics(),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: context.sc(20),
+                                vertical: context.sc(72),
+                              ),
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minHeight:
+                                      (constraints.maxHeight - context.sc(144))
+                                          .clamp(0, double.infinity),
+                                ),
+                                child: Align(
+                                  alignment: cardAlignment,
+                                  child: Form(
+                                    key: formKey,
+                                    child: AuthCard(
+                                      children: [
+                                        if (showBrand) ...[
+                                          const AuthLogo(),
+                                          Gap(context.sc(12)),
+                                          const AuthWordmark(),
+                                          Gap(context.sc(4)),
+                                          Text(
+                                            'FOOD & LIFESTYLE EXPRESS',
+                                            style: theme.textTheme.labelSmall!
+                                                .copyWith(
+                                                  color: muted,
+                                                  letterSpacing: 1.6,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                          ),
+                                          Gap(context.sc(24)),
+                                        ] else
+                                          Gap(context.sc(8)),
+                                        titleWidget ??
+                                            Text(
+                                              title,
+                                              style: authTitleStyle(context),
+                                            ),
+                                        if (subtitle != null) ...[
+                                          Gap(context.sc(4)),
+                                          Text(
+                                            subtitle!,
+                                            textAlign: TextAlign.center,
+                                            style: theme.textTheme.bodySmall!
+                                                .copyWith(color: muted),
+                                          ),
+                                        ],
+                                        Gap(context.sc(24)),
+                                        ...children,
+                                      ],
                                     ),
                                   ),
-                                  Gap(context.sc(24)),
-                                ] else
-                                  Gap(context.sc(8)),
-                                titleWidget ??
-                                    Text(title, style: authTitleStyle(context)),
-                                if (subtitle != null) ...[
-                                  Gap(context.sc(4)),
-                                  Text(
-                                    subtitle!,
-                                    textAlign: TextAlign.center,
-                                    style: theme.textTheme.bodySmall!.copyWith(
-                                      color: muted,
-                                    ),
-                                  ),
-                                ],
-                                Gap(context.sc(24)),
-                                ...children,
-                              ],
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
                       ),
-                    ),
+                      Positioned(
+                        left: context.sc(16),
+                        top: context.sc(8),
+                        child: AuthBackButton(onTap: () => context.pop()),
+                      ),
+                    ],
                   ),
-                  Positioned(
-                    left: context.sc(16),
-                    top: context.sc(8),
-                    child: AuthBackButton(onTap: () => context.pop()),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -203,14 +214,15 @@ class AuthCatBackdrop extends StatelessWidget {
     return IgnorePointer(
       child: LayoutBuilder(
         builder: (context, c) {
-          // Most of the screen's width, hanging a little off the left edge.
-          final width = math.min(c.maxWidth * 0.92, 480.0);
+          // Same size and spot as the search tab's cat: wider than the
+          // screen, hanging off the top-left corner.
+          final width = c.maxWidth * 1.19;
           return Stack(
             clipBehavior: Clip.hardEdge,
             children: [
               Positioned(
-                left: -width * 0.16,
-                top: c.maxHeight * 0.09,
+                left: -width * 0.25,
+                top: -width * 0.07,
                 width: width,
                 height: width / _logoAspect,
                 child: TweenAnimationBuilder<double>(
@@ -745,7 +757,7 @@ class AuthGradientButton extends HookWidget {
   Widget build(BuildContext context) {
     final pressed = useState(false);
     final label = Theme.of(context).textTheme.titleMedium!.copyWith(
-      color: Colors.white,
+      color: _disabled ? Colors.grey.shade500 : Colors.white,
       fontWeight: FontWeight.w700,
     );
     return GestureDetector(
@@ -767,16 +779,23 @@ class AuthGradientButton extends HookWidget {
     );
   }
 
+  /// Not tappable for a reason other than loading (e.g. a required box
+  /// isn't ticked) — shown greyed out.
+  bool get _disabled => onTap == null && !isLoading;
+
   Widget _body(BuildContext context, TextStyle label) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
       width: double.infinity,
       height: context.sc(52),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(30),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: _buttonGradient,
+          colors: _disabled
+              ? [Colors.grey.shade300, Colors.grey.shade300]
+              : _buttonGradient,
         ),
       ),
       child: Center(
@@ -798,9 +817,9 @@ class AuthGradientButton extends HookWidget {
                   children: [
                     Text(this.label, style: label),
                     const Gap(8),
-                    const Icon(
+                    Icon(
                       Icons.arrow_forward_rounded,
-                      color: Colors.white,
+                      color: label.color,
                       size: 20,
                     ),
                   ],

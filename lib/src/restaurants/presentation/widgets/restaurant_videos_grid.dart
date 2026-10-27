@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:khmer_cat_app/l10n/app_localizations.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gap/gap.dart';
@@ -102,22 +103,25 @@ class RestaurantVideosGrid extends HookConsumerWidget {
       return null;
     }, [restaurantId, type, deleted]);
 
+    final l = AppLocalizations.of(context);
+
     Future<void> handleDelete(VideoFeedItem video) async {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Delete video?'),
-          content: const Text(
-            'It will be moved to Delete for 30 days, then removed permanently.',
-          ),
+          title: Text(l.deleteVideoTitle),
+          content: Text(l.deleteVideoMessage),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+              child: Text(l.cancelAction),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              child: Text(
+                l.deleteAction,
+                style: const TextStyle(color: Colors.red),
+              ),
             ),
           ],
         ),
@@ -131,11 +135,11 @@ class RestaurantVideosGrid extends HookConsumerWidget {
             .read(restaurantRepositoryProvider)
             .deleteVideo(restaurantId, video.id);
         onDeleted?.call();
-        if (context.mounted) AppService.showToast('Video deleted.');
+        if (context.mounted) AppService.showToast(l.adminVideoDeleted);
       } catch (_) {
         if (!context.mounted) return;
         items.value = previous;
-        AppService.showToast('Failed to delete video.', isError: true);
+        AppService.showToast(l.videoDeleteFailed, isError: true);
       }
     }
 
@@ -197,7 +201,7 @@ class RestaurantVideosGrid extends HookConsumerWidget {
                     ? () => showVideoTileActions(context, [
                         VideoTileAction(
                           icon: Icons.delete_outline_rounded,
-                          label: 'Delete',
+                          label: l.deleteAction,
                           destructive: true,
                           onTap: () => handleDelete(video),
                         ),
@@ -315,15 +319,15 @@ class _AddVideoTile extends StatelessWidget {
           radius: VideoGrid.radius,
           fill: color.withValues(alpha: 0.07),
         ),
-        child: const Center(
+        child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add_rounded, size: 30, color: color),
-              Gap(6),
+              const Icon(Icons.add_rounded, size: 30, color: color),
+              const Gap(6),
               Text(
-                'Add video',
-                style: TextStyle(
+                AppLocalizations.of(context).addVideo,
+                style: const TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w800,
                   color: color,
@@ -381,15 +385,15 @@ class _RetryBox extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 28),
       child: Column(
         children: [
-          const Text(
-            'Couldn\'t load videos.',
-            style: TextStyle(color: ProfileTheme.muted),
+          Text(
+            AppLocalizations.of(context).videosLoadFailed,
+            style: const TextStyle(color: ProfileTheme.muted),
           ),
           const Gap(8),
           TextButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('Try again'),
+            label: Text(AppLocalizations.of(context).tryAgain),
             style: TextButton.styleFrom(
               foregroundColor: ProfileTheme.deepPurple,
             ),

@@ -23,6 +23,7 @@ class RegisterScreen extends HookConsumerWidget {
     final userNameCtr = useTextEditingController();
     final passwordCtr = useTextEditingController();
     final isObscure = useState(true);
+    final acceptedTerms = useState(false);
     final formKey = useMemoized(() => GlobalKey<FormState>());
     final registerState = ref.watch(registerViewModelProvider);
     useListenable(emailCtr);
@@ -50,7 +51,20 @@ class RegisterScreen extends HookConsumerWidget {
       );
     });
 
+    /// Opens the Terms with Decline / Accept; accepting ticks the box.
+    Future<void> openTerms() async {
+      final accepted = await AppRouter.router.pushNamed<bool>(
+        AppRoute.termsOfService.name,
+        extra: true,
+      );
+      if (accepted != null) acceptedTerms.value = accepted;
+    }
+
     void handleRegister() {
+      if (!acceptedTerms.value) {
+        AppService.showToast('Please accept the Terms of Service to sign up.');
+        return;
+      }
       if (formKey.currentState?.validate() ?? false) {
         AppService.dismissKeyboard(context);
         ref
@@ -143,17 +157,91 @@ class RegisterScreen extends HookConsumerWidget {
             ),
           ),
         ),
-        Gap(context.sc(28)),
+        Gap(context.sc(16)),
+        _TermsCheckbox(
+          accepted: acceptedTerms.value,
+          // Ticking means reading them first; unticking is direct.
+          onToggle: () =>
+              acceptedTerms.value ? acceptedTerms.value = false : openTerms(),
+          onOpenTerms: openTerms,
+        ),
+        Gap(context.sc(20)),
         AuthGradientButton(
           label: 'Get Started',
           isLoading: registerState.isLoading,
-          onTap: registerState.isLoading ? null : handleRegister,
+          onTap: registerState.isLoading || !acceptedTerms.value
+              ? null
+              : handleRegister,
         ),
         Gap(context.sc(20)),
         AuthFooterLink(
           prompt: 'Already have an account?',
           action: 'Login',
           onTap: () => AppRouter.router.pushNamed(AppRoute.login.name),
+        ),
+      ],
+    );
+  }
+}
+
+/// "☐ I agree to the Terms of Service" — the link opens them.
+class _TermsCheckbox extends StatelessWidget {
+  final bool accepted;
+  final VoidCallback onToggle;
+  final VoidCallback onOpenTerms;
+  const _TermsCheckbox({
+    required this.accepted,
+    required this.onToggle,
+    required this.onOpenTerms,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall!;
+    return Row(
+      children: [
+        SizedBox(
+          width: 24,
+          height: 24,
+          child: Checkbox(
+            value: accepted,
+            onChanged: (_) => onToggle(),
+            activeColor: authAccentPink,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(5),
+            ),
+            side: BorderSide(color: authMuted(context), width: 1.5),
+          ),
+        ),
+        Gap(context.sc(10)),
+        Expanded(
+          child: GestureDetector(
+            onTap: onToggle,
+            child: Text.rich(
+              TextSpan(
+                style: style.copyWith(color: authMuted(context)),
+                children: [
+                  const TextSpan(text: 'I have read and agree to the '),
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.baseline,
+                    baseline: TextBaseline.alphabetic,
+                    child: GestureDetector(
+                      onTap: onOpenTerms,
+                      child: Text(
+                        'Terms of Service',
+                        style: style.copyWith(
+                          color: authAccentPink,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ],
     );
