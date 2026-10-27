@@ -7,6 +7,10 @@ abstract class ProfileTheme {
   static const purple = Color(0xff9B6BFF);
   static const blue = Color(0xff74BFFF);
   static const ink = Color(0xff1F1B3A);
+
+  /// One size for the round buttons on a profile header (back, share,
+  /// camera, QR, menu), so they line up.
+  static const double headerButtonSize = 38;
   static const muted = Color(0xff7A7896);
   static const deepPurple = Color(0xff6B4EFF);
 

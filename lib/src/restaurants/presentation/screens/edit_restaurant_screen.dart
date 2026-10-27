@@ -34,8 +34,8 @@ const _serviceTypes = <(String, String)>[
 
 /// Owner/manager form for a restaurant's details: name, category, about,
 /// contact, opening hours, services, social links and delivery apps, saved
-/// with the Save pill; then Halal, Published and (for the owner) Delete,
-/// which apply right away.
+/// with the Save pill (Halal sits with the category); then Published and
+/// (for the owner) Delete, which apply right away.
 class EditRestaurantScreen extends HookConsumerWidget {
   final String restaurantId;
   const EditRestaurantScreen({required this.restaurantId, super.key});
@@ -88,6 +88,7 @@ class _EditForm extends HookConsumerWidget {
     // the API's "delivery_links.N.url" errors back to the right field.
     final sentDelivery = useRef<List<DeliveryApp>>(const []);
     final category = useState<String?>(r.category?.name);
+    final halal = useState(r.isHalal);
     final service = useState<String?>(r.serviceType);
     final opens = useState<String?>(_hm(r.openingTime));
     final closes = useState<String?>(_hm(r.closingTime));
@@ -200,6 +201,7 @@ class _EditForm extends HookConsumerWidget {
         'opening_time': opens.value,
         'closing_time': closes.value,
         'delivery_links': [for (final l in links) l.toJson()],
+        'is_halal': halal.value,
       };
 
       saving.value = true;
@@ -281,6 +283,14 @@ class _EditForm extends HookConsumerWidget {
                             hasError: err('category_id') != null,
                             onTap: () => category.value = c,
                           ),
+                        // Alongside the cuisine, not instead of it.
+                        HalalChip(
+                          selected: halal.value,
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            halal.value = !halal.value;
+                          },
+                        ),
                       ],
                     ),
                     const Gap(18),
@@ -418,9 +428,7 @@ class _EditForm extends HookConsumerWidget {
                     ],
                     const _SectionDivider(),
 
-                    // ---- Apply right away (not via Save).
-                    _HalalSwitch(restaurant: r),
-                    const Gap(20),
+                    // ---- Applies right away (not via Save).
                     _VisibilityCard(restaurant: r),
                     if (isOwner) ...[
                       const Gap(28),
@@ -905,60 +913,6 @@ class _SwitchRow extends StatelessWidget {
               onChanged: onChanged,
             ),
       ],
-    );
-  }
-}
-
-/// Halal switch, saved as soon as it's flipped (like Published). Shows a
-/// Halal badge on the restaurant's cards and matches search's Halal filter.
-class _HalalSwitch extends HookConsumerWidget {
-  final Restaurant restaurant;
-  const _HalalSwitch({required this.restaurant});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final halal = useState(restaurant.isHalal);
-    final busy = useState(false);
-
-    Future<void> apply(bool value) async {
-      if (busy.value) return;
-      busy.value = true;
-      halal.value = value;
-      try {
-        final updated = await ref.read(restaurantRepositoryProvider).update(
-          restaurant.id,
-          {'is_halal': value},
-        );
-        ref
-            .read(restaurantProfileControllerProvider(restaurant.id).notifier)
-            .replace(updated);
-        AppService.showToast(value ? 'Marked as Halal' : 'Halal badge removed');
-      } catch (_) {
-        halal.value = !value;
-        AppService.showToast('Could not update Halal.', isError: true);
-      } finally {
-        if (context.mounted) busy.value = false;
-      }
-    }
-
-    return _SwitchRow(
-      title: 'Halal',
-      subtitle: 'Show a Halal badge and appear in the Halal filter',
-      value: halal.value,
-      onChanged: apply,
-      busy: busy.value
-          ? const Padding(
-              padding: EdgeInsets.all(14),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: ProfileTheme.purple,
-                ),
-              ),
-            )
-          : null,
     );
   }
 }

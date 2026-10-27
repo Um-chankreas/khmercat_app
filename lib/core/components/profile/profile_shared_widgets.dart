@@ -195,12 +195,16 @@ class ProfileRaisedCircleButton extends StatelessWidget {
 
   /// A solid icon colour instead of the brand gradient.
   final Color? iconColor;
+
+  /// The circle's diameter.
+  final double size;
   const ProfileRaisedCircleButton({
     required this.asset,
     required this.tooltip,
     required this.onTap,
-    this.iconSize = 16,
+    this.iconSize = 20,
     this.iconColor,
+    this.size = ProfileTheme.headerButtonSize,
     super.key,
   });
 
@@ -214,8 +218,8 @@ class ProfileRaisedCircleButton extends StatelessWidget {
           onTap();
         },
         child: Container(
-          width: 32,
-          height: 32,
+          width: size,
+          height: size,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
@@ -376,7 +380,7 @@ class ProfileChangeCoverButton extends StatelessWidget {
   final String tooltip;
   const ProfileChangeCoverButton({
     required this.onTap,
-    this.size = 38,
+    this.size = ProfileTheme.headerButtonSize,
     this.tooltip = 'Change cover',
     super.key,
   });

@@ -6,6 +6,7 @@ import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 import 'package:khmer_cat_app/core/service/app_service.dart';
 import 'package:khmer_cat_app/l10n/app_localizations.dart';
 import 'package:khmer_cat_app/src/settings/presentation/widgets/menu_chrome.dart';
+import 'package:khmer_cat_app/src/search/presentation/widgets/search_widgets.dart';
 
 import '../domain/saved_address.dart';
 import 'address_form_screen.dart';
@@ -119,7 +120,8 @@ class AddressesScreen extends ConsumerWidget {
     return Scaffold(
       body: Stack(
         children: [
-          const Positioned.fill(child: SoftCirclesBackdrop()),
+          // The same cat backdrop as the search tab and Settings.
+          const Positioned.fill(child: SearchBackdrop()),
           SafeArea(
             child: Column(
               children: [

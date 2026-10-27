@@ -87,11 +87,11 @@ class _DropZone extends StatelessWidget {
                 width: 68,
                 height: 68,
                 decoration: BoxDecoration(
-                  gradient: ProfileTheme.gradient,
+                  gradient: ProfileTheme.brandGradient,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: ProfileTheme.purple.withValues(alpha: 0.28),
+                      color: ProfileTheme.brandBlue.withValues(alpha: 0.45),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),
@@ -99,7 +99,7 @@ class _DropZone extends StatelessWidget {
                 ),
                 child: const Icon(
                   Icons.add_photo_alternate_rounded,
-                  color: Colors.white,
+                  color: ProfileTheme.ink,
                   size: 32,
                 ),
               ),
@@ -156,7 +156,7 @@ class _Preview extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(3),
             decoration: const BoxDecoration(
-              gradient: ProfileTheme.gradient,
+              gradient: ProfileTheme.brandGradient,
               shape: BoxShape.circle,
             ),
             child: Container(

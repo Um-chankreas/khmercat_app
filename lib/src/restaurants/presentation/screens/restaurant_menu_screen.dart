@@ -17,16 +17,18 @@ import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/my_restaura
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/restaurant_menu_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/viewmodel/restaurant_profile_controller.dart';
 import 'package:khmer_cat_app/src/restaurants/presentation/widgets/menu_qr_sheet.dart';
+import 'package:khmer_cat_app/src/settings/presentation/widgets/menu_chrome.dart';
 
 /// Must match the API's limit (RestaurantMenuController::MAX_PAGES).
 const _maxPages = 20;
 
 /// A restaurant's menu, as photos of its pages.
 ///
-/// Everyone: scroll the pages; tap one for a full-screen, swipeable,
-/// pinch-to-zoom viewer; the QR button shows the scan-for-menu code.
-/// Owners/managers also get a QR banner, "Add pages" (multi-select, with
-/// upload progress) and a delete button on each page.
+/// Everyone: the pages in a two-column grid; tap one (or Preview) for a
+/// full-screen, swipeable, pinch-to-zoom viewer; the QR button in the
+/// header shows the scan-for-menu code. Owners/managers also get an
+/// "Add page" tile, "Add pages" (multi-select, with upload progress) and a
+/// ⋯ menu on each page to delete it.
 class RestaurantMenuScreen extends HookConsumerWidget {
   final String restaurantId;
   const RestaurantMenuScreen({required this.restaurantId, super.key});
@@ -130,91 +132,133 @@ class RestaurantMenuScreen extends HookConsumerWidget {
     final pages = menu.valueOrNull?.pages ?? const <MenuPage>[];
     final uploading = uploadProgress.value != null;
 
+    final canAdd = isOwner && pages.length < _maxPages;
+
     return Scaffold(
-      appBar: AppBar(
-        surfaceTintColor: Colors.transparent,
-        centerTitle: true,
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Menu',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-            ),
-            if (restaurant != null)
-              Text(
-                restaurant.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: ProfileTheme.textSecondary(context),
+      body: Stack(
+        children: [
+          const Positioned.fill(child: SoftCirclesBackdrop()),
+          SafeArea(
+            child: Column(
+              children: [
+                _Header(
+                  title: 'Menu',
+                  subtitle: restaurant?.name,
+                  onQr: menuUrl != null && menuUrl.isNotEmpty ? showQr : null,
                 ),
-              ),
-          ],
-        ),
-        actions: [
-          if (menuUrl != null && menuUrl.isNotEmpty)
-            IconButton(
-              tooltip: 'Menu QR code',
-              onPressed: showQr,
-              icon: const Icon(
-                Icons.qr_code_2_rounded,
-                color: ProfileTheme.deepPurple,
-              ),
-            ),
-          const Gap(4),
-        ],
-      ),
-      body: menu.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: ProfileTheme.purple),
-        ),
-        error: (_, _) => _Message(
-          icon: Icons.cloud_off_rounded,
-          title: 'Could not load the menu',
-          action: TextButton(
-            onPressed: () => ref.read(provider.notifier).reload(),
-            child: const Text('Try again'),
-          ),
-        ),
-        data: (_) => RefreshIndicator(
-          color: ProfileTheme.purple,
-          onRefresh: () => ref.read(provider.notifier).reload(),
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(16, 8, 16, isOwner ? 110 : 24),
-            children: [
-              if (isOwner) ...[_QrBanner(onTap: showQr), const Gap(16)],
-              if (pages.isEmpty)
-                _Message(
-                  icon: Icons.menu_book_rounded,
-                  title: isOwner ? 'Add your menu' : 'No menu yet',
-                  subtitle: isOwner
-                      ? 'Take or choose photos of your menu pages. Diners can '
-                            'read them here or by scanning your QR code.'
-                      : 'This restaurant hasn\'t added its menu yet.',
-                )
-              else
-                for (var i = 0; i < pages.length; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: _PageCard(
-                      page: pages[i],
-                      number: i + 1,
-                      onOpen: () => _openViewer(context, pages, i),
-                      onDelete: isOwner ? () => deletePage(pages[i]) : null,
+                Expanded(
+                  child: menu.when(
+                    loading: () => const Center(
+                      child: CircularProgressIndicator(
+                        color: ProfileTheme.purple,
+                      ),
+                    ),
+                    error: (_, _) => _Message(
+                      icon: Icons.cloud_off_rounded,
+                      title: 'Could not load the menu',
+                      action: TextButton(
+                        onPressed: () => ref.read(provider.notifier).reload(),
+                        child: const Text('Try again'),
+                      ),
+                    ),
+                    data: (_) => RefreshIndicator(
+                      color: ProfileTheme.purple,
+                      onRefresh: () => ref.read(provider.notifier).reload(),
+                      child: pages.isEmpty && !isOwner
+                          ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: const [
+                                _Message(
+                                  icon: Icons.menu_book_rounded,
+                                  title: 'No menu yet',
+                                  subtitle:
+                                      'This restaurant hasn\'t added its menu '
+                                      'yet.',
+                                ),
+                              ],
+                            )
+                          : CustomScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              slivers: [
+                                SliverPadding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    8,
+                                    20,
+                                    12,
+                                  ),
+                                  sliver: SliverToBoxAdapter(
+                                    child: _SectionTitle(
+                                      count: pages.length,
+                                      // Visitors don't need the limit.
+                                      max: isOwner ? _maxPages : null,
+                                    ),
+                                  ),
+                                ),
+                                SliverPadding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    0,
+                                    20,
+                                    24,
+                                  ),
+                                  sliver: SliverGrid.count(
+                                    crossAxisCount: 2,
+                                    mainAxisSpacing: 12,
+                                    crossAxisSpacing: 12,
+                                    childAspectRatio: 0.76,
+                                    children: [
+                                      for (var i = 0; i < pages.length; i++)
+                                        _PageTile(
+                                          page: pages[i],
+                                          onOpen: () =>
+                                              _openViewer(context, pages, i),
+                                          onDelete: isOwner
+                                              ? () => deletePage(pages[i])
+                                              : null,
+                                        ),
+                                      if (canAdd)
+                                        _AddPageTile(
+                                          onTap: uploading ? null : addPages,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                if (isOwner && pages.isEmpty)
+                                  SliverToBoxAdapter(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 28,
+                                      ),
+                                      child: Text(
+                                        'Take or choose photos of your menu '
+                                        'pages. Diners can read them here or '
+                                        'by scanning your QR code.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 13.5,
+                                          height: 1.4,
+                                          color: ProfileTheme.textSecondary(
+                                            context,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                     ),
                   ),
-            ],
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
-      bottomNavigationBar: !isOwner
+      bottomNavigationBar: pages.isEmpty && !isOwner
           ? null
           : SafeArea(
-              minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              minimum: const EdgeInsets.fromLTRB(20, 8, 20, 12),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -232,15 +276,33 @@ class RestaurantMenuScreen extends HookConsumerWidget {
                     ),
                     const Gap(10),
                   ],
-                  ProfileGradientButton(
-                    text: uploading
-                        ? 'Uploading… ${((uploadProgress.value ?? 0) * 100).round()}%'
-                        : 'Add pages  (${pages.length}/$_maxPages)',
-                    icon: Icons.add_photo_alternate_rounded,
-                    flat: true,
-                    height: 46,
-                    fontSize: 14.5,
-                    onTap: uploading || menu.isLoading ? null : addPages,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _PreviewButton(
+                          onTap: pages.isEmpty
+                              ? null
+                              : () => _openViewer(context, pages, 0),
+                        ),
+                      ),
+                      if (isOwner) ...[
+                        const Gap(12),
+                        Expanded(
+                          child: ProfileGradientButton(
+                            text: uploading
+                                ? '${((uploadProgress.value ?? 0) * 100).round()}%'
+                                : 'Add pages',
+                            icon: Icons.add_photo_alternate_outlined,
+                            flat: true,
+                            height: 50,
+                            fontSize: 15,
+                            onTap: uploading || menu.isLoading || !canAdd
+                                ? null
+                                : addPages,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
@@ -261,148 +323,81 @@ class RestaurantMenuScreen extends HookConsumerWidget {
   }
 }
 
-/// "Your menu QR code" — the owner's shortcut to print a table QR.
-class _QrBanner extends StatelessWidget {
-  final VoidCallback onTap;
-  const _QrBanner({required this.onTap});
+/// Back on the left, "Menu" over the restaurant's name in the middle, and
+/// the QR code in a round white button on the right.
+class _Header extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final VoidCallback? onQr;
+  const _Header({required this.title, this.subtitle, this.onQr});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
-      clipBehavior: Clip.antiAlias,
-      child: Ink(
-        decoration: const BoxDecoration(gradient: ProfileTheme.gradient),
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.qr_code_2_rounded,
-                    size: 30,
-                    color: ProfileTheme.deepPurple,
-                  ),
-                ),
-                const Gap(12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Your menu QR code',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Gap(2),
-                      Text(
-                        'Print it for your tables — diners scan to see the '
-                        'menu, no app needed.',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          height: 1.3,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Gap(8),
-                const Icon(Icons.chevron_right_rounded, color: Colors.white),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PageCard extends StatelessWidget {
-  final MenuPage page;
-  final int number;
-  final VoidCallback onOpen;
-  final VoidCallback? onDelete;
-  const _PageCard({
-    required this.page,
-    required this.number,
-    required this.onOpen,
-    this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ProfileTheme.hairlineColor(context)),
-      ),
-      clipBehavior: Clip.antiAlias,
+    // Full width: in the page's centered Column it would otherwise shrink to
+    // the title, pulling back and QR in next to it.
+    return SizedBox(
+      width: double.infinity,
+      height: 60,
       child: Stack(
+        alignment: Alignment.center,
         children: [
-          GestureDetector(
-            onTap: onOpen,
-            child: Hero(
-              tag: 'menu-page-${page.id}',
-              child: CachedNetworkImage(
-                imageUrl: page.url,
-                width: double.infinity,
-                fit: BoxFit.fitWidth,
-                placeholder: (_, _) => AspectRatio(
-                  aspectRatio: 3 / 4,
-                  child: ColoredBox(
-                    color: ProfileTheme.purple.withValues(alpha: 0.06),
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: ProfileTheme.purple,
-                      ),
-                    ),
-                  ),
-                ),
-                errorWidget: (_, _, _) => AspectRatio(
-                  aspectRatio: 3 / 4,
-                  child: ColoredBox(
-                    color: ProfileTheme.purple.withValues(alpha: 0.06),
-                    child: const Icon(
-                      Icons.broken_image_rounded,
-                      color: ProfileTheme.muted,
-                    ),
-                  ),
-                ),
+          Positioned(
+            left: 6,
+            child: IconButton(
+              onPressed: () => Navigator.of(context).maybePop(),
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 20,
+                color: ProfileTheme.textPrimary(context),
               ),
             ),
           ),
-          Positioned(left: 10, top: 10, child: _Chip(text: 'Page $number')),
-          if (onDelete != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 72),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: ProfileTheme.textPrimary(context),
+                  ),
+                ),
+                if (subtitle case final subtitle?)
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: ProfileTheme.textSecondary(context),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (onQr != null)
             Positioned(
-              right: 8,
-              top: 8,
-              child: Material(
-                color: Colors.black.withValues(alpha: 0.5),
-                shape: const CircleBorder(),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: onDelete,
-                  child: const Padding(
-                    padding: EdgeInsets.all(8),
+              right: 16,
+              child: Tooltip(
+                message: 'Menu QR code',
+                child: GestureDetector(
+                  onTap: onQr,
+                  child: Container(
+                    width: 42,
+                    height: 42,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      shape: BoxShape.circle,
+                      boxShadow: ProfileTheme.cardShadow(),
+                    ),
                     child: Icon(
-                      Icons.delete_outline_rounded,
-                      size: 20,
-                      color: Colors.white,
+                      Icons.qr_code_2_rounded,
+                      size: 22,
+                      color: ProfileTheme.textPrimary(context),
                     ),
                   ),
                 ),
@@ -414,6 +409,238 @@ class _PageCard extends StatelessWidget {
   }
 }
 
+/// "Menu pages · 3 of 20" (owners), "Menu pages · 3" (visitors).
+class _SectionTitle extends StatelessWidget {
+  final int count;
+  final int? max;
+  const _SectionTitle({required this.count, this.max});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(
+        text: 'Menu pages',
+        style: TextStyle(
+          fontSize: 15.5,
+          fontWeight: FontWeight.w800,
+          color: ProfileTheme.textPrimary(context),
+        ),
+        children: [
+          TextSpan(
+            text: max == null ? ' · $count' : ' · $count of $max',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: ProfileTheme.textSecondary(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A page's photo, cropped to the tile; tap for the full-screen viewer.
+/// The team gets a ⋯ menu on it (View, Delete).
+class _PageTile extends StatelessWidget {
+  final MenuPage page;
+  final VoidCallback onOpen;
+  final VoidCallback? onDelete;
+  const _PageTile({required this.page, required this.onOpen, this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          GestureDetector(
+            onTap: onOpen,
+            child: Hero(
+              tag: 'menu-page-${page.id}',
+              child: CachedNetworkImage(
+                imageUrl: page.url,
+                fit: BoxFit.cover,
+                placeholder: (_, _) => ColoredBox(
+                  color: ProfileTheme.purple.withValues(alpha: 0.06),
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: ProfileTheme.purple,
+                    ),
+                  ),
+                ),
+                errorWidget: (_, _, _) => ColoredBox(
+                  color: ProfileTheme.purple.withValues(alpha: 0.06),
+                  child: const Icon(
+                    Icons.broken_image_rounded,
+                    color: ProfileTheme.muted,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (onDelete != null)
+            Positioned(
+              right: 8,
+              top: 8,
+              child: PopupMenuButton<void>(
+                tooltip: 'More',
+                padding: EdgeInsets.zero,
+                position: PopupMenuPosition.under,
+                itemBuilder: (_) => [
+                  PopupMenuItem(onTap: onOpen, child: const Text('View')),
+                  PopupMenuItem(
+                    onTap: onDelete,
+                    child: const Text(
+                      'Delete',
+                      style: TextStyle(color: Color(0xffE5484D)),
+                    ),
+                  ),
+                ],
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.more_horiz_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The empty slot after the pages: a dashed pink outline with "Add page".
+class _AddPageTile extends StatelessWidget {
+  final VoidCallback? onTap;
+  const _AddPageTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: CustomPaint(
+        painter: _DashedBorder(color: ProfileTheme.brandPink, radius: 18),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: const BoxDecoration(
+                  gradient: ProfileTheme.brandGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.add_photo_alternate_outlined,
+                  size: 24,
+                  color: ProfileTheme.ink,
+                ),
+              ),
+              const Gap(12),
+              Text(
+                'Add page',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: ProfileTheme.textPrimary(context),
+                ),
+              ),
+              const Gap(2),
+              Text(
+                'Photos',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: ProfileTheme.textSecondary(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A rounded-rect outline drawn in dashes.
+class _DashedBorder extends CustomPainter {
+  final Color color;
+  final double radius;
+  const _DashedBorder({required this.color, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const dash = 6.0, gap = 5.0;
+    final rect = RRect.fromRectAndRadius(
+      (Offset.zero & size).deflate(1),
+      Radius.circular(radius),
+    );
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6;
+    for (final metric in (Path()..addRRect(rect)).computeMetrics()) {
+      for (var d = 0.0; d < metric.length; d += dash + gap) {
+        canvas.drawPath(metric.extractPath(d, d + dash), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorder old) =>
+      old.color != color || old.radius != radius;
+}
+
+/// White "Preview" button: opens the pages full-screen from the first one.
+class _PreviewButton extends StatelessWidget {
+  final VoidCallback? onTap;
+  const _PreviewButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = onTap == null
+        ? ProfileTheme.textSecondary(context)
+        : ProfileTheme.textPrimary(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 50,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: ProfileTheme.cardShadow(),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.visibility_outlined, size: 19, color: fg),
+            const Gap(8),
+            Text(
+              'Preview',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: fg,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Small dark label over a photo ("2 / 5" in the viewer).
 class _Chip extends StatelessWidget {
   final String text;
   const _Chip({required this.text});

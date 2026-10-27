@@ -164,6 +164,7 @@ class RestaurantRepository {
     double? latitude,
     double? longitude,
     File? coverPicture,
+    bool isHalal = false,
     void Function(int sent, int total)? onProgress,
   }) async {
     final data = await _remote.create(
@@ -175,6 +176,7 @@ class RestaurantRepository {
       latitude: latitude,
       longitude: longitude,
       coverPicture: coverPicture,
+      isHalal: isHalal,
       onProgress: onProgress,
     );
     return (

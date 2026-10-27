@@ -201,6 +201,7 @@ class RestaurantRemoteDataSource {
     double? latitude,
     double? longitude,
     File? coverPicture,
+    bool isHalal = false,
     void Function(int sent, int total)? onProgress,
   }) async {
     final json = await _client.uploadMultipart(
@@ -217,6 +218,7 @@ class RestaurantRemoteDataSource {
         if (address != null && address.isNotEmpty) 'address': address,
         if (latitude != null) 'latitude': latitude.toString(),
         if (longitude != null) 'longitude': longitude.toString(),
+        'is_halal': isHalal ? '1' : '0',
       },
       onProgress: onProgress,
     );

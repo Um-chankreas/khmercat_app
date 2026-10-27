@@ -84,7 +84,8 @@ class ProfileTab extends HookConsumerWidget {
                 ProfileCircleButton(
                   iconAsset: AssetsName.menu,
                   iconSize: 16,
-                  padding: 8,
+                  // Matches this header's 32 px cover camera.
+                  size: 32,
                   onTap: () =>
                       AppRouter.router.pushNamed(AppRoute.settings.name),
                 ),
@@ -121,6 +122,9 @@ class ProfileTab extends HookConsumerWidget {
                       child: ProfileRaisedCircleButton(
                         asset: AssetsName.qrCode,
                         tooltip: 'My QR code',
+                        // This header's buttons are 32 px.
+                        size: 32,
+                        iconSize: 16,
                         onTap: () => openProfileQr(
                           context,
                           name: user.name,

@@ -149,8 +149,7 @@ class RestaurantOwnerProfileTab extends HookConsumerWidget {
                   // Same menu button as the personal profile tab.
                   ProfileCircleButton(
                     iconAsset: AssetsName.menu,
-                    iconSize: 16,
-                    padding: 8,
+                    iconSize: 18,
                     onTap: () =>
                         AppRouter.router.pushNamed(AppRoute.settings.name),
                   ),
@@ -171,9 +170,10 @@ class RestaurantOwnerProfileTab extends HookConsumerWidget {
                         top: 25,
                         child: Center(child: _EditPill(onTap: openEdit)),
                       ),
-                      // Its QR code, like a person's profile has, left of the menu.
+                      // Its QR code, like a person's profile has, left of the menu
+                      // (the menu's -6 offset + its width + a 10px gap).
                       Positioned(
-                        right: 36,
+                        right: -6 + ProfileTheme.headerButtonSize + 10,
                         top: 0,
                         child: ProfileRaisedCircleButton(
                           asset: AssetsName.qrCode,
@@ -192,7 +192,7 @@ class RestaurantOwnerProfileTab extends HookConsumerWidget {
                         top: 0,
                         child: ProfileRaisedCircleButton(
                           asset: AssetsName.foodMenu,
-                          iconSize: 18,
+                          iconSize: 20,
                           iconColor:
                               Theme.of(context).brightness == Brightness.dark
                               ? Colors.white

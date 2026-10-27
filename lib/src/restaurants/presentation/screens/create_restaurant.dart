@@ -39,6 +39,7 @@ class CreateRestaurant extends HookConsumerWidget {
     useListenable(descriptionCtr);
     final logoImage = useState<File?>(null);
     final selectedCategory = useState<String?>(null);
+    final halal = useState(false);
     // Errors only appear after the first attempt to submit.
     final submitted = useState(false);
     final locating = useState(false);
@@ -152,6 +153,7 @@ class CreateRestaurant extends HookConsumerWidget {
             address: addressCtr.text.trim(),
             latitude: pinLocation.value.latitude,
             longitude: pinLocation.value.longitude,
+            isHalal: halal.value,
           );
     }
 
@@ -237,11 +239,16 @@ class CreateRestaurant extends HookConsumerWidget {
                       selected: selectedCategory.value,
                       hasError: submitted.value && categoryMissing,
                       onSelect: (label) => selectedCategory.value = label,
+                      halal: halal.value,
+                      onHalalChanged: (v) => halal.value = v,
                     ),
                     if (submitted.value && categoryMissing)
                       const _ErrorText('Pick the cuisine that fits best')
                     else
-                      const _HelpText('Choose the one that fits best.'),
+                      const _HelpText(
+                        'Choose the cuisine that fits best, and Halal if it '
+                        'applies.',
+                      ),
                   ],
                 ),
                 const Gap(14),
@@ -408,7 +415,7 @@ class _ProgressCard extends StatelessWidget {
                   child: Container(
                     height: 7,
                     decoration: const BoxDecoration(
-                      gradient: ProfileTheme.gradient,
+                      gradient: ProfileTheme.brandGradient,
                     ),
                   ),
                 ),
@@ -448,13 +455,13 @@ class _FormSection extends StatelessWidget {
                 height: 30,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  gradient: ProfileTheme.pinkPurple,
+                  gradient: ProfileTheme.brandGradient,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   '$step',
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: ProfileTheme.ink,
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
@@ -994,11 +1001,11 @@ class _MapPreview extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  gradient: ProfileTheme.gradient,
+                  gradient: ProfileTheme.brandGradient,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: ProfileTheme.purple.withValues(alpha: 0.3),
+                      color: ProfileTheme.brandBlue.withValues(alpha: 0.45),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -1009,12 +1016,12 @@ class _MapPreview extends StatelessWidget {
                         padding: EdgeInsets.all(12),
                         child: CircularProgressIndicator(
                           strokeWidth: 2.4,
-                          color: Colors.white,
+                          color: ProfileTheme.ink,
                         ),
                       )
                     : const Icon(
                         Icons.my_location_rounded,
-                        color: Colors.white,
+                        color: ProfileTheme.ink,
                         size: 22,
                       ),
               ),
@@ -1052,11 +1059,11 @@ class _CreateButton extends StatelessWidget {
         child: Container(
           height: 54,
           decoration: BoxDecoration(
-            gradient: ProfileTheme.gradient,
+            gradient: ProfileTheme.brandGradient,
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
-                color: ProfileTheme.purple.withValues(alpha: 0.25),
+                color: ProfileTheme.brandBlue.withValues(alpha: 0.45),
                 blurRadius: 14,
                 offset: const Offset(0, 5),
               ),
@@ -1075,14 +1082,14 @@ class _CreateButton extends StatelessWidget {
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.4,
-                        color: Colors.white,
+                        color: ProfileTheme.ink,
                       ),
                     )
                   else
                     const Icon(
                       Icons.rocket_launch_rounded,
                       size: 20,
-                      color: Colors.white,
+                      color: ProfileTheme.ink,
                     ),
                   const Gap(10),
                   Text(
@@ -1090,7 +1097,7 @@ class _CreateButton extends StatelessWidget {
                         ? 'Creating… ${(progress * 100).round()}%'
                         : 'Create restaurant',
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: ProfileTheme.ink,
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1105,8 +1112,8 @@ class _CreateButton extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: progress > 0 ? progress : null,
                     minHeight: 3.5,
-                    color: Colors.white,
-                    backgroundColor: Colors.white24,
+                    color: ProfileTheme.ink,
+                    backgroundColor: Colors.white38,
                   ),
                 ),
             ],

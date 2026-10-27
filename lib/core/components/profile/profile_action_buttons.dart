@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:khmer_cat_app/core/components/profile/profile_theme.dart';
 
-/// Pink → purple → blue call-to-action with a leading icon, press-scale and
-/// a hover lift. A null [onTap] renders it muted.
+/// The brand's soft pink → blue call-to-action (dark ink text, like the
+/// Follow and Edit pills) with a leading icon, press-scale and a hover
+/// lift. A null [onTap] renders it muted.
 class ProfileGradientButton extends StatefulWidget {
   final String text;
   final IconData icon;
@@ -50,7 +51,7 @@ class _ProfileGradientButtonState extends State<ProfileGradientButton> {
             width: double.infinity,
             height: widget.height,
             decoration: BoxDecoration(
-              gradient: enabled ? ProfileTheme.gradient : null,
+              gradient: enabled ? ProfileTheme.brandGradient : null,
               color: enabled
                   ? null
                   : (Theme.of(context).brightness == Brightness.dark
@@ -60,8 +61,8 @@ class _ProfileGradientButtonState extends State<ProfileGradientButton> {
               boxShadow: enabled && !widget.flat
                   ? [
                       BoxShadow(
-                        color: ProfileTheme.purple.withValues(
-                          alpha: _hovered ? 0.30 : 0.20,
+                        color: ProfileTheme.brandBlue.withValues(
+                          alpha: _hovered ? 0.55 : 0.40,
                         ),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
@@ -76,7 +77,7 @@ class _ProfileGradientButtonState extends State<ProfileGradientButton> {
                 Icon(
                   widget.icon,
                   size: widget.fontSize + 3.5,
-                  color: Colors.white,
+                  color: enabled ? ProfileTheme.ink : Colors.white,
                 ),
                 const Gap(8),
                 Flexible(
@@ -87,7 +88,7 @@ class _ProfileGradientButtonState extends State<ProfileGradientButton> {
                     style: TextStyle(
                       fontSize: widget.fontSize,
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      color: enabled ? ProfileTheme.ink : Colors.white,
                     ),
                   ),
                 ),

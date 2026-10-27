@@ -275,7 +275,9 @@ class ProfileCircleButton extends StatelessWidget {
   /// [AssetsName]). Exactly one of `icon` / `iconAsset` must be set.
   final String? iconAsset;
   final VoidCallback onTap;
-  final double padding;
+
+  /// The circle's diameter (the icon is centered in it).
+  final double size;
   final double iconSize;
 
   /// Frosted dark-glass style (translucent black + white icon) instead of
@@ -286,7 +288,7 @@ class ProfileCircleButton extends StatelessWidget {
     this.icon,
     this.iconAsset,
     required this.onTap,
-    this.padding = 9,
+    this.size = ProfileTheme.headerButtonSize,
     this.iconSize = 21,
     this.dark = false,
     super.key,
@@ -309,16 +311,18 @@ class ProfileCircleButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         splashColor: ProfileTheme.purple.withValues(alpha: 0.15),
-        child: Padding(
-          padding: EdgeInsets.all(padding),
-          child: iconAsset != null
-              ? Image.asset(
-                  iconAsset!,
-                  width: iconSize,
-                  height: iconSize,
-                  color: tint,
-                )
-              : Icon(icon, size: iconSize, color: tint),
+        child: SizedBox.square(
+          dimension: size,
+          child: Center(
+            child: iconAsset != null
+                ? Image.asset(
+                    iconAsset!,
+                    width: iconSize,
+                    height: iconSize,
+                    color: tint,
+                  )
+                : Icon(icon, size: iconSize, color: tint),
+          ),
         ),
       ),
     );

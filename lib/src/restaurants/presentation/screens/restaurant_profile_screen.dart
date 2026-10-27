@@ -314,9 +314,10 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                               ),
                       ),
                     ),
-                    // Its QR code, like a person's profile has, left of the menu.
+                    // Its QR code, like a person's profile has, left of the menu
+                    // (the menu's -6 offset + its width + a 10px gap).
                     Positioned(
-                      right: 36,
+                      right: -6 + ProfileTheme.headerButtonSize + 10,
                       top: 0,
                       child: ProfileRaisedCircleButton(
                         asset: AssetsName.qrCode,
@@ -337,7 +338,7 @@ class RestaurantProfileScreen extends HookConsumerWidget {
                       top: 0,
                       child: ProfileRaisedCircleButton(
                         asset: AssetsName.foodMenu,
-                        iconSize: 18,
+                        iconSize: 20,
                         iconColor:
                             Theme.of(context).brightness == Brightness.dark
                             ? Colors.white

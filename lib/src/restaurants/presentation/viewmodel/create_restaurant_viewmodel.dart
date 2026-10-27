@@ -24,6 +24,7 @@ class CreateRestaurantViewModel extends AsyncNotifier<CreatedRestaurant?> {
     double? latitude,
     double? longitude,
     File? coverPicture,
+    bool isHalal = false,
   }) async {
     state = const AsyncLoading();
     ref.read(createRestaurantProgressProvider.notifier).state = 0;
@@ -39,6 +40,7 @@ class CreateRestaurantViewModel extends AsyncNotifier<CreatedRestaurant?> {
             latitude: latitude,
             longitude: longitude,
             coverPicture: coverPicture,
+            isHalal: isHalal,
             onProgress: (sent, total) {
               if (total > 0) {
                 ref.read(createRestaurantProgressProvider.notifier).state =

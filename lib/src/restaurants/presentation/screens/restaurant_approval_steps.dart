@@ -9,14 +9,15 @@ import 'package:khmer_cat_app/core/go_router/app_route.dart';
 import 'package:khmer_cat_app/core/go_router/app_router.dart';
 import 'package:khmer_cat_app/l10n/app_localizations.dart';
 import 'package:khmer_cat_app/src/restaurants/domain/entities/restaurant.dart';
-import 'package:khmer_cat_app/src/restaurants/presentation/widgets/profile_switching_screen.dart';
 import 'package:khmer_cat_app/src/search/presentation/widgets/search_widgets.dart';
 
 // How long each step shows as "in progress" before it ticks.
 const _stepTime = Duration(milliseconds: 900);
 
 /// After a restaurant is created: Submitted → Reviewing → Approved, ticking
-/// one by one, then the app reloads as the new restaurant and lands on Home.
+/// one by one, then the new restaurant's page opens (over Home). The creator
+/// stays on their own profile; they switch to the restaurant when they want
+/// to act as it.
 ///
 /// The server approves new restaurants straight away; this only walks the
 /// owner through it. If the server still left it pending (an older backend),
@@ -60,10 +61,12 @@ class _ApprovalSteps extends HookConsumerWidget {
         await Future.delayed(const Duration(milliseconds: 700));
         if (!alive || !context.mounted) return;
         Navigator.of(context).pop();
-        // The server made the new restaurant the active profile: reload
-        // everything as it.
-        refreshAfterProfileSwitch(ref);
+        // Home underneath (the create form is done with), its page on top.
         AppRouter.router.goNamed(AppRoute.index.name);
+        AppRouter.router.pushNamed(
+          AppRoute.restaurantProfile.name,
+          pathParameters: {'id': restaurant.id},
+        );
         HapticFeedback.lightImpact();
       }
 
